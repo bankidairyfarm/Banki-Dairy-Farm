@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
 
 const ROLES = {
   supervisor: { label: "Supervisor", emoji: "🧑‍🌾", color: "#2d6a4f" },
