@@ -84,7 +84,7 @@ const EVENING_CUSTOMERS = [
   { name: "Mr. Sanjay",                phone: "", type: "C" },
 ];
 
-const QTY_OPTIONS = ["0.5","0.75","1","1.25","1.5","2","2.5","3","Nil"];
+const QTY_OPTIONS = ["0.5","0.75","1","1.5","2","3","Nil"];
 const BOTTLE_SIZES = ["0.5","0.75","1"]; // sizes to count bottles for
 
 // ─── UTILITIES ─────────────────────────────────────────────────────────────
@@ -244,10 +244,10 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
 
       {/* Physical totals entry */}
       <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#555">📏 Measured Totals (kg incl. bucket)</SectionLabel>
+        <SectionLabel color="#555">Measured Totals </SectionLabel>
         <div style={{display:"flex",gap:10,marginBottom:4}}>
           <div style={{flex:1}}>
-            <div style={{fontSize:11,color:"#92400e",fontWeight:600,marginBottom:4}}>B Total</div>
+            <div style={{fontSize:11,color:"#92400e",fontWeight:600,marginBottom:4}}>Buffalo</div>
             <input type="number" min="0" step="0.01" placeholder="0.00"
               value={measuredB||""} onChange={e=>setMeasuredB(e.target.value)}
               style={{width:"100%",padding:"8px 10px",border:"1.5px solid #fde68a",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
@@ -256,7 +256,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
             </div>}
           </div>
           <div style={{flex:1}}>
-            <div style={{fontSize:11,color:"#1d4ed8",fontWeight:600,marginBottom:4}}>C Total</div>
+            <div style={{fontSize:11,color:"#1d4ed8",fontWeight:600,marginBottom:4}}>Cow</div>
             <input type="number" min="0" step="0.01" placeholder="0.00"
               value={measuredC||""} onChange={e=>setMeasuredC(e.target.value)}
               style={{width:"100%",padding:"8px 10px",border:"1.5px solid #bfdbfe",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
@@ -269,7 +269,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
 
       {/* Outside milk */}
       <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#555">🔄 Outside Milk (L) · + purchased · − sold extra</SectionLabel>
+        <SectionLabel color="#555">Milk Purchased/Sold Extra (L)</SectionLabel>
         <div style={{display:"flex",gap:10}}>
           <div style={{flex:1}}>
             <div style={{fontSize:11,color:"#92400e",fontWeight:600,marginBottom:4}}>Buffalo</div>
