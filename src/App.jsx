@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
+const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
 
 const ROLES = {
   supervisor: { label: "Supervisor", emoji: "🧑‍🌾", color: "#2d6a4f" },
-  delivery:   { label: "Delivery Man",   emoji: "🚚",   color: "#1d3557" },
+  delivery:   { label: "Delivery",   emoji: "🚚",   color: "#1d3557" },
   owner:      { label: "Owner",      emoji: "👑",   color: "#7b2d00" },
 };
 
@@ -25,7 +25,7 @@ const MORNING_CUSTOMERS = [
   { name: "Mr. Moni",               phone: "",           type: "B" },
   { name: "Mrs. Farzana",           phone: "",           type: "B" },
   { name: "Mr. Achhe Khan",         phone: "",           type: "B" },
-  { name: "Mr. Guddu",              phone: "",           type: "B" },
+  { name: "Mr. Guddu (Station)",    phone: "",           type: "B" },
   { name: "Mr. Umair Kidwai",       phone: "",           type: "B" },
   { name: "Mr. Umar Faiz Kidwai",   phone: "9389874362", type: "B" },
   { name: "Mr. Rizwan",             phone: "",           type: "B" },
@@ -34,17 +34,17 @@ const MORNING_CUSTOMERS = [
   { name: "Mr. Chanda",             phone: "",           type: "B" },
   { name: "Mr. Syed Athar",         phone: "",           type: "B" },
   { name: "Mr. Adnan Abbasi",       phone: "7897692769", type: "B" },
-  { name: "Mr. Arif",               phone: "",           type: "B" },
+  { name: "Mr. Haneef",             phone: "",           type: "B" },
   { name: "Mr. Aleem Kidwai",       phone: "",           type: "B" },
   { name: "Mr. Shaad Kidwai",       phone: "",           type: "B" },
   { name: "Mr. Razzaki",            phone: "",           type: "B" },
   { name: "Mr. Abrar",              phone: "",           type: "B" },
   { name: "Mr. Shivam Gupta",       phone: "",           type: "B" },
   { name: "Mr. Santosh",            phone: "",           type: "B" },
-  { name: "Mr. Satish Kumar",       phone: "",           type: "B" },
+  { name: "Mr. Satish Kumar",       phone: "",           type: "B", selfCollect: true },
   { name: "Mr. Salauddin",          phone: "",           type: "C" },
   { name: "Mr. Soni (Adv.)",        phone: "",           type: "C" },
-  { name: "Mr. Santosh",            phone: "",           type: "C" },
+  { name: "Mr. Santosh (C)",        phone: "",           type: "C" },
 ];
 
 const EVENING_CUSTOMERS = [
@@ -76,11 +76,11 @@ const EVENING_CUSTOMERS = [
   { name: "Mr. Talha Mehmood",         phone: "", type: "B" },
   { name: "Mr. Ram Pratap Mishra (C)", phone: "", type: "C" },
   { name: "Mr. Suyagya Sharma",        phone: "", type: "C" },
-  { name: "Banki Neighbour 3",         phone: "", type: "C" },
-  { name: "Mr. Sanjay",                phone: "", type: "C" },
+  { name: "Banki Neighbour 3",         phone: "", type: "C", selfCollect: true },
+  { name: "Mr. Sanjay",                phone: "", type: "C", selfCollect: true },
 ];
 
-const QTY_OPTIONS = ["0.5","0.75","1","1.5","2","3","Nil"];
+const QTY_OPTIONS = ["0.5","0.75","1","1.25","1.5","2","2.5","3","Nil"];
 const BOTTLE_SIZES = ["0.5","0.75","1"]; // sizes to count bottles for
 
 // ─── UTILITIES ─────────────────────────────────────────────────────────────
@@ -410,7 +410,8 @@ function BottleSummary({customers,vals}) {
   // 1L bottles     = sum of floor(qty) for all whole-number qty (1,2,3)
   //                + sum of floor(qty) for half-qty customers (1.5→1, 2.5→2)
   function calcBottles(type) {
-    const filtered = customers.filter(c=>c.type===type);
+    // Exclude self-collect customers — they bring their own utensils
+    const filtered = customers.filter(c=>c.type===type && !c.selfCollect);
     let bottles075=0, bottles05=0, bottles1=0;
     filtered.forEach(c=>{
       const q = vals[c.name];
@@ -461,7 +462,10 @@ function CustomerRow({customer,value,onChange,prevValue}) {
   return (
     <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 0",borderBottom:"1px solid #f8fafc"}}>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{customer.name}</div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{customer.name}</div>
+          {customer.selfCollect&&<span style={{fontSize:9,fontWeight:700,color:"#6b7280",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:4,padding:"1px 5px",flexShrink:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>Self</span>}
+        </div>
         <div style={{display:"flex",gap:6,alignItems:"center",marginTop:1}}>
           {customer.phone&&<span style={{fontSize:11,color:"#aaa"}}>{customer.phone}</span>}
           {prevValue&&prevValue!=="Nil"
