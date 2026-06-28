@@ -345,14 +345,14 @@ function Input({label,...props}) {
 }
 function Btn({children,variant="primary",style={},...props}) {
   const base={padding:"11px 20px",borderRadius:9,fontSize:14,fontWeight:600,border:"none",cursor:"pointer",fontFamily:"inherit"};
-  const v={primary:{background:"#2d6a4f",color:"#fff"},ghost:{background:"transparent",color:"#2d6a4f",border:"1.5px solid #2d6a4f"},gray:{background:"#f1f5f9",color:"#475569"},danger:{background:"#dc2626",color:"#fff"}};
+  const v={primary:{background:"#2D7FB5",color:"#fff"},ghost:{background:"transparent",color:"#2D7FB5",border:"1.5px solid #2D7FB5"},gray:{background:"#f1f5f9",color:"#475569"},danger:{background:"#dc2626",color:"#fff"}};
   return <button style={{...base,...v[variant],...style}} {...props}>{children}</button>;
 }
 function Alert({type="info",children}) {
-  const c={info:{bg:"#eff6ff",border:"#bfdbfe",text:"#1e40af"},success:{bg:"#f0fdf4",border:"#bbf7d0",text:"#15803d"},warn:{bg:"#fffbeb",border:"#fde68a",text:"#92400e"},error:{bg:"#fef2f2",border:"#fecaca",text:"#991b1b"}}[type];
+  const c={info:{bg:"#EBF5FD",border:"#9ACFF0",text:"#1A5C8A"},success:{bg:"#f0fdf4",border:"#bbf7d0",text:"#15803d"},warn:{bg:"#fffbeb",border:"#fde68a",text:"#92400e"},error:{bg:"#fef2f2",border:"#fecaca",text:"#991b1b"}}[type];
   return <div style={{background:c.bg,border:`1px solid ${c.border}`,color:c.text,borderRadius:9,padding:"10px 14px",fontSize:13,marginBottom:14}}>{children}</div>;
 }
-function StatBox({label,value,sub,color="#2d6a4f"}) {
+function StatBox({label,value,sub,color="#2D7FB5"}) {
   return (
     <div style={{background:color+"0a",border:`1px solid ${color}22`,borderRadius:12,padding:"12px 14px",flex:1,minWidth:0}}>
       <div style={{fontSize:10,color:"#777",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:3}}>{label}</div>
@@ -385,7 +385,7 @@ function LangToggle({lang,setLang}) {
       {Object.entries(LANGS).map(([key,label])=>(
         <button key={key} onClick={()=>setLang(key)} style={{
           padding:"4px 10px",borderRadius:16,border:"none",cursor:"pointer",
-          background:lang===key?"#2d6a4f":"transparent",
+          background:lang===key?"#2D7FB5":"transparent",
           color:lang===key?"#fff":"#666",
           fontSize:12,fontWeight:700,fontFamily:"inherit",
           transition:"all 0.15s"
@@ -395,31 +395,45 @@ function LangToggle({lang,setLang}) {
   );
 }
 
+// ─── BRAND LOGO ─────────────────────────────────────────────────────────────
+const LOGO_96 = "data:image/png;base64,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";
+const LOGO_36 = "data:image/png;base64,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";
+
+function BrandLogo({size=96}) {
+  return <img src={LOGO_96} alt="Banki Dairy Farm" style={{width:size,height:size,objectFit:"contain"}}/>;
+}
+function BrandLogoSmall() {
+  return <img src={LOGO_36} alt="Banki Dairy Farm" style={{width:36,height:36,objectFit:"contain"}}/>;
+}
+
 // ─── LOGIN ─────────────────────────────────────────────────────────────────
 function LoginScreen({onLogin,lang,setLang}) {
   const t=TR[lang];
   const ROLES_DATA = [
-    {key:"supervisor",emoji:"🧑‍🌾",color:"#2d6a4f",label:t.roleSupervisor,desc:t.roleSupDesc},
-    {key:"delivery",  emoji:"🚚",  color:"#1d3557",label:t.roleDelivery,  desc:t.roleDelDesc},
-    {key:"owner",     emoji:"👑",  color:"#7b2d00",label:t.roleOwner,     desc:t.roleOwnDesc},
+    {key:"supervisor",emoji:"🧑‍🌾",color:"#2D7FB5",label:t.roleSupervisor,desc:t.roleSupDesc},
+    {key:"delivery",  emoji:"🚚",  color:"#1A5C8A",label:t.roleDelivery,  desc:t.roleDelDesc},
+    {key:"owner",     emoji:"👑",  color:"#2D7FB5",label:t.roleOwner,     desc:t.roleOwnDesc},
   ];
   return (
-    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#e9f5ee 0%,#f8fafc 60%)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#EBF5FD 0%,#f8fafc 60%)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{width:"100%",maxWidth:380}}>
         <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
           <LangToggle lang={lang} setLang={setLang}/>
         </div>
         <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{fontSize:52,marginBottom:8}}>🐄</div>
-          <div style={{fontFamily:"Georgia,serif",fontSize:26,fontWeight:700,color:"#1a1a1a"}}>{t.appName}</div>
-          <div style={{color:"#666",marginTop:5,fontSize:13}}>{t.selectRole}</div>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
+            <BrandLogo size={96}/>
+          </div>
+          <div style={{fontFamily:"Georgia,serif",fontSize:26,fontWeight:700,color:"#2D7FB5",letterSpacing:"-0.3px"}}>{t.appName}</div>
+          <div style={{color:"#9ACFF0",marginTop:3,fontSize:12,letterSpacing:"1px",textTransform:"uppercase",fontWeight:600}}>✦ {lang==="hi"?"शुद्धता का वादा":lang==="ur"?"پاکیزگی کا وعدہ":"Rooted in Purity"} ✦</div>
+          <div style={{color:"#666",marginTop:8,fontSize:13}}>{t.selectRole}</div>
         </div>
         <Card>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {ROLES_DATA.map(r=>(
               <button key={r.key} onClick={()=>onLogin(r.key)} style={{display:"flex",alignItems:"center",gap:13,padding:"14px 16px",borderRadius:11,border:"1.5px solid #e2e8f0",background:"#fafafa",cursor:"pointer",textAlign:"left",width:"100%",fontFamily:"inherit"}}
-                onMouseEnter={e=>{e.currentTarget.style.background="#f0fdf4";e.currentTarget.style.borderColor=r.color;}}
-                onMouseLeave={e=>{e.currentTarget.style.background="#fafafa";e.currentTarget.style.borderColor="#e2e8f0";}}>
+              onMouseEnter={e=>{e.currentTarget.style.background="#EBF5FD";e.currentTarget.style.borderColor=r.color;}}
+              onMouseLeave={e=>{e.currentTarget.style.background="#fafafa";e.currentTarget.style.borderColor="#e2e8f0";}}>
                 <span style={{fontSize:26}}>{r.emoji}</span>
                 <div>
                   <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a"}}>{r.label}</div>
@@ -429,7 +443,7 @@ function LoginScreen({onLogin,lang,setLang}) {
             ))}
           </div>
         </Card>
-        <div style={{textAlign:"center",marginTop:18,fontSize:11,color:"#aaa"}}>{t.appName} · {t.appSub}</div>
+        <div style={{textAlign:"center",marginTop:18,fontSize:11,color:"#9ACFF0"}}>{t.appName} · {t.appSub}</div>
       </div>
     </div>
   );
@@ -460,15 +474,15 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
         ))}
       </div>
 
-      <div style={{background:"#eff6ff",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#1d4ed8">{t.cow}</SectionLabel>
+      <div style={{background:"#EBF5FD",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+        <SectionLabel color="#2D7FB5">{t.cow}</SectionLabel>
         {COW_CATTLE.map(c=>(
           <div key={c} style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
-            <span style={{fontWeight:700,fontSize:14,color:"#1d4ed8",width:28,flexShrink:0}}>{c}</span>
+            <span style={{fontWeight:700,fontSize:14,color:"#2D7FB5",width:28,flexShrink:0}}>{c}</span>
             <input type="number" min="0" step="0.01" placeholder="0.00"
               value={rawKg[c]||""} onChange={e=>setRawKg(p=>({...p,[c]:e.target.value}))}
-              style={{flex:1,padding:"8px 10px",border:"1.5px solid #bfdbfe",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",fontFamily:"inherit"}}/>
-            <span style={{fontSize:12,color:"#1d4ed8",width:44,textAlign:"right",flexShrink:0,fontWeight:600}}>
+              style={{flex:1,padding:"8px 10px",border:"1.5px solid #9ACFF0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",fontFamily:"inherit"}}/>
+            <span style={{fontSize:12,color:"#2D7FB5",width:44,textAlign:"right",flexShrink:0,fontWeight:600}}>
               {rawKg[c]?fmtN(toNet(rawKg[c]),2)+"L":""}
             </span>
           </div>
@@ -488,10 +502,10 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
             </div>}
           </div>
           <div style={{flex:1}}>
-            <div style={{fontSize:11,color:"#1d4ed8",fontWeight:600,marginBottom:4}}>{t.cTotal}</div>
+            <div style={{fontSize:11,color:"#2D7FB5",fontWeight:600,marginBottom:4}}>{t.cTotal}</div>
             <input type="number" min="0" step="0.01" placeholder="0.00"
               value={measuredC||""} onChange={e=>setMeasuredC(e.target.value)}
-              style={{width:"100%",padding:"8px 10px",border:"1.5px solid #bfdbfe",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+              style={{width:"100%",padding:"8px 10px",border:"1.5px solid #9ACFF0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
             {measCNet!==null&&<div style={{fontSize:11,marginTop:3,textAlign:"center",fontWeight:600,color:Math.abs(measCNet-cLtrs)>0.2?"#dc2626":"#15803d"}}>
               {fmtN(measCNet,2)} L {Math.abs(measCNet-cLtrs)>0.2?t.mismatch:t.matches}
             </div>}
@@ -502,7 +516,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
       <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
         <SectionLabel color="#555">{t.outsideMilk}</SectionLabel>
         <div style={{marginBottom:10}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#374151",marginBottom:6}}>{t.purchased}</div>
+          <div style={{fontSize:12,fontWeight:700,color:"#1a1a1a",marginBottom:6}}>{t.purchased}</div>
           <div style={{display:"flex",gap:10}}>
             <div style={{flex:1}}>
               <div style={{fontSize:11,color:"#555",marginBottom:3}}>{t.qty}</div>
@@ -519,7 +533,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
           </div>
         </div>
         <div>
-          <div style={{fontSize:12,fontWeight:700,color:"#374151",marginBottom:6}}>{t.extraMilk}</div>
+          <div style={{fontSize:12,fontWeight:700,color:"#1a1a1a",marginBottom:6}}>{t.extraMilk}</div>
           <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
             <div style={{flex:1}}>
               <div style={{fontSize:11,color:"#555",marginBottom:3}}>{t.qty}</div>
@@ -530,7 +544,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
             <div style={{flex:1}}>
               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
                 <input type="checkbox" checked={extraSold||false} onChange={e=>setExtraSold(e.target.checked)}
-                  style={{width:14,height:14,cursor:"pointer",accentColor:"#2d6a4f"}}/>
+                  style={{width:14,height:14,cursor:"pointer",accentColor:"#2D7FB5"}}/>
                 <label style={{fontSize:11,color:"#555",cursor:"pointer"}}>{t.sold}</label>
               </div>
               <input type="number" min="0" step="1" placeholder={t.sellingRate}
@@ -547,9 +561,9 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
           <div style={{fontSize:10,color:"#92400e",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px"}}>{t.buffalo}</div>
           <div style={{fontSize:20,fontWeight:700,color:"#92400e",marginTop:2}}>{fmtN(bLtrs,2)} L</div>
         </div>
-        <div style={{flex:1,background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
-          <div style={{fontSize:10,color:"#1d4ed8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px"}}>{t.cow}</div>
-          <div style={{fontSize:20,fontWeight:700,color:"#1d4ed8",marginTop:2}}>{fmtN(cLtrs,2)} L</div>
+        <div style={{flex:1,background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
+          <div style={{fontSize:10,color:"#2D7FB5",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px"}}>{t.cow}</div>
+          <div style={{fontSize:20,fontWeight:700,color:"#2D7FB5",marginTop:2}}>{fmtN(cLtrs,2)} L</div>
         </div>
         <div style={{flex:1,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
           <div style={{fontSize:10,color:"#15803d",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px"}}>{t.total}</div>
@@ -607,9 +621,9 @@ function SupervisorView({lang}) {
       <Card style={{marginBottom:14}}>
         <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}/>
         <div style={{display:"flex",gap:8}}>
-          <StatBox label={t.morning} value={`${fmtN(mTotal,2)} L`} color="#f59e0b"/>
-          <StatBox label={t.evening} value={`${fmtN(eTotal,2)} L`} color="#6366f1"/>
-          <StatBox label={t.grandTotal} value={`${fmtN(grandTotal,2)} L`} color="#2d6a4f"/>
+          <StatBox label={t.morning} value={`${fmtN(mTotal,2)} L`} color="#2D7FB5"/>
+          <StatBox label={t.evening} value={`${fmtN(eTotal,2)} L`} color="#1A5C8A"/>
+          <StatBox label={t.grandTotal} value={`${fmtN(grandTotal,2)} L`} color="#9ACFF0"/>
         </div>
       </Card>
 
@@ -662,11 +676,11 @@ function BottleSummary({customers,vals,t}) {
     );
   }
   return (
-    <div style={{marginTop:16,borderTop:"2px dashed #e2e8f0",paddingTop:14}}>
+    <div style={{marginTop:16,borderTop:"2px dashed #9ACFF0",paddingTop:14}}>
       <SectionLabel color="#374151">{t.bottlesToFill}</SectionLabel>
       <div style={{display:"flex",gap:10}}>
         <Col label={t.bufMilk} counts={b} color="#92400e" bg="#fffbeb" border="#fde68a"/>
-        <Col label={t.cowMilk} counts={c} color="#1d4ed8" bg="#eff6ff" border="#bfdbfe"/>
+        <Col label={t.cowMilk} counts={c} color="#2D7FB5" bg="#EBF5FD" border="#9ACFF0"/>
       </div>
     </div>
   );
@@ -674,9 +688,9 @@ function BottleSummary({customers,vals,t}) {
 
 function CustomerRow({customer,value,onChange,prevValue,lang,t}) {
   const isB=customer.type==="B";
-  const color=isB?"#92400e":"#1d4ed8";
-  const bg=isB?"#fffbeb":"#eff6ff";
-  const tagBg=isB?"#fde68a":"#bfdbfe";
+  const color=isB?"#92400e":"#2D7FB5";
+  const bg=isB?"#fffbeb":"#EBF5FD";
+  const tagBg=isB?"#fde68a":"#9ACFF0";
   const displayName=customerName(customer.name,lang);
   return (
     <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 0",borderBottom:"1px solid #f8fafc"}}>
@@ -755,8 +769,8 @@ function DeliveryView({lang}) {
       <Card style={{marginBottom:14}}>
         <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}/>
         <div style={{display:"flex",gap:8}}>
-          <StatBox label={t.morning} value={`${fmtN(mTotal,2)} L`} color="#f59e0b"/>
-          <StatBox label={t.evening} value={`${fmtN(eTotal,2)} L`} color="#6366f1"/>
+          <StatBox label={t.morning} value={`${fmtN(mTotal,2)} L`} color="#2D7FB5"/>
+          <StatBox label={t.evening} value={`${fmtN(eTotal,2)} L`} color="#1A5C8A"/>
         </div>
       </Card>
 
@@ -810,14 +824,14 @@ function OwnerDashboard({lang}) {
       {tab==="overview"&&(
         <div>
           <Card style={{marginBottom:14}}>
-            <div style={{fontWeight:700,fontSize:14,color:"#374151",marginBottom:12}}>{t.todaySnap}</div>
+            <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a",marginBottom:12}}>{t.todaySnap}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-              <StatBox label={t.produced} value={`${fmtN(summary.todayProduce||0,1)} L`} color="#2d6a4f"/>
-              <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1d3557"/>
+              <StatBox label={t.produced} value={`${fmtN(summary.todayProduce||0,1)} L`} color="#2D7FB5"/>
+              <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1A5C8A"/>
               <StatBox label={t.gap} value={`${fmtN(Math.abs(todayGap),1)} L`}
                 sub={todayGap>0?t.surplus:todayGap<0?t.deficit:t.balanced}
-                color={todayGap>=0?"#2d6a4f":"#dc2626"}/>
-              <StatBox label={t.revToday} value={fmtRs(summary.todayRevenue||0)} color="#7b2d00"/>
+                color={todayGap>=0?"#2D7FB5":"#dc2626"}/>
+              <StatBox label={t.revToday} value={fmtRs(summary.todayRevenue||0)} color="#2D7FB5"/>
             </div>
             {(summary.todayProduce||0)>0&&(
               <div style={{padding:"9px 13px",borderRadius:9,background:todayGap>=0?"#f0fdf4":"#fef2f2",color:todayGap>=0?"#15803d":"#dc2626",fontSize:13,fontWeight:600}}>
@@ -828,15 +842,15 @@ function OwnerDashboard({lang}) {
           </Card>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-            <StatBox label={t.produced30}   value={`${fmtN(summary.last30DaysProduce||0,0)} L`}   color="#2d6a4f"/>
-            <StatBox label={t.dispatched30} value={`${fmtN(summary.last30DaysDispatched||0,0)} L`} color="#1d3557"/>
+            <StatBox label={t.produced30}   value={`${fmtN(summary.last30DaysProduce||0,0)} L`}   color="#2D7FB5"/>
+            <StatBox label={t.dispatched30} value={`${fmtN(summary.last30DaysDispatched||0,0)} L`} color="#1A5C8A"/>
             <StatBox label={t.gap30} value={`${fmtN(Math.abs(gap30),0)} L`}
-              sub={gap30>0?t.surplus:gap30<0?t.deficit:t.balanced} color={gap30>=0?"#2d6a4f":"#dc2626"}/>
-            <StatBox label={t.rev30} value={fmtRs(summary.last30DaysRevenue||0)} color="#7b2d00"/>
+              sub={gap30>0?t.surplus:gap30<0?t.deficit:t.balanced} color={gap30>=0?"#2D7FB5":"#dc2626"}/>
+            <StatBox label={t.rev30} value={fmtRs(summary.last30DaysRevenue||0)} color="#2D7FB5"/>
           </div>
 
           <Card>
-            <div style={{fontWeight:700,fontSize:13,marginBottom:10,color:"#374151"}}>{t.settings}</div>
+            <div style={{fontWeight:700,fontSize:13,marginBottom:10,color:"#1a1a1a"}}>{t.settings}</div>
             {[[t.bufRate,`₹${summary.rateB||70}/L`],[t.cowRate,`₹${summary.rateC||60}/L`],[t.activeCattle,`${summary.activeCattle||10} (${BUFFALO_CATTLE.length}B + ${COW_CATTLE.length}C)`]].map(([k,v])=>(
               <div key={k} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#555",paddingBottom:7,marginBottom:7,borderBottom:"1px solid #f8fafc"}}>
                 <span>{k}</span><span style={{fontWeight:600}}>{v}</span>
@@ -848,7 +862,7 @@ function OwnerDashboard({lang}) {
 
       {tab==="daily"&&(
         <Card>
-          <div style={{fontWeight:700,fontSize:13,color:"#374151",marginBottom:14}}>{t.recentRecords}</div>
+          <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:14}}>{t.recentRecords}</div>
           {recentDays.length===0?<div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>{t.noData}</div>:(
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
@@ -861,7 +875,7 @@ function OwnerDashboard({lang}) {
                   {recentDays.map((row,i)=>{
                     const g=(row.produced||0)-(row.dispatched||0);
                     return <tr key={i} style={{borderBottom:"1px solid #f8fafc"}}>
-                      <td style={{padding:"7px",fontWeight:600,color:"#374151"}}>{fmtDate(row.date)}</td>
+                      <td style={{padding:"7px",fontWeight:600,color:"#1a1a1a"}}>{fmtDate(row.date)}</td>
                       <td style={{padding:"7px"}}>{fmtN(row.produced,1)}</td>
                       <td style={{padding:"7px"}}>{fmtN(row.dispatched,1)}</td>
                       <td style={{padding:"7px",fontWeight:600,color:g>=0?"#15803d":"#dc2626"}}>{g>=0?"+":""}{fmtN(g,1)}</td>
@@ -882,7 +896,7 @@ function OwnerDashboard({lang}) {
 
       {tab==="monthly"&&(
         <Card>
-          <div style={{fontWeight:700,fontSize:13,color:"#374151",marginBottom:14}}>{t.monthlySummary}</div>
+          <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:14}}>{t.monthlySummary}</div>
           {monthlyTrend.length===0?<div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>{t.noMonthlyData}</div>:(
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
@@ -926,9 +940,9 @@ export default function App() {
 
   const t=TR[lang];
   const ROLES_META = {
-    supervisor:{label:t.roleSupervisor,emoji:"🧑‍🌾",color:"#2d6a4f"},
-    delivery:  {label:t.roleDelivery,  emoji:"🚚",  color:"#1d3557"},
-    owner:     {label:t.roleOwner,     emoji:"👑",  color:"#7b2d00"},
+    supervisor:{label:t.roleSupervisor,emoji:"🧑‍🌾",color:"#2D7FB5"},
+    delivery:  {label:t.roleDelivery,  emoji:"🚚",  color:"#1A5C8A"},
+    owner:     {label:t.roleOwner,     emoji:"👑",  color:"#2D7FB5"},
   };
 
   if(!role) return <LoginScreen onLogin={setRole} lang={lang} setLang={changeLang}/>;
@@ -938,10 +952,10 @@ export default function App() {
     <div style={{minHeight:"100vh",background:"#f8fafc",fontFamily:"'Inter','Segoe UI',Arial,sans-serif"}}>
       <div style={{background:"#fff",borderBottom:"1px solid #e8ecf0",padding:"11px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100}}>
         <div style={{display:"flex",alignItems:"center",gap:9}}>
-          <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#2d6a4f,#52b788)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🐄</div>
+          <BrandLogoSmall/>
           <div>
-            <div style={{fontFamily:"Georgia,serif",fontWeight:700,fontSize:16,color:"#1a1a1a"}}>Banki Dairy</div>
-            <div style={{fontSize:9,color:"#aaa",letterSpacing:"1.2px",textTransform:"uppercase"}}>Farm Operations</div>
+            <div style={{fontFamily:"Georgia,serif",fontWeight:700,fontSize:16,color:"#2D7FB5"}}>Banki Dairy</div>
+            <div style={{fontSize:9,color:"#9ACFF0",letterSpacing:"1.2px",textTransform:"uppercase",fontWeight:600}}>Farm Operations</div>
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
