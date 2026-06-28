@@ -1,22 +1,22 @@
 import { useState, useEffect } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
+const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
 
 // ─── ACCESS PINS ───────────────────────────────────────────────────────────
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
 const PINS = {
-  supervisor: "7055",
-  delivery:   "1234",
-  owner:      "8934",
+  supervisor: "1111",
+  delivery:   "2222",
+  owner:      "3333",
 };
 
 const BUFFALO_CATTLE = ["B1","B4","B5","B6","B7","B8","B9"];
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","Nil"];
+const QTY_OPTIONS    = ["0.5","0.75","1","1.25","1.5","2","2.5","3","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -77,9 +77,12 @@ const TR = {
     retry: "Retry",
     nilOption: "Nil",
     enterPin: "Enter your PIN", wrongPin: "Wrong PIN. Try again.", pinHint: "Choose your role",
+    editHint: "You can still edit and resubmit", resubmitDel: "Update Dispatch Log",
+    bufToday: "Buffalo Today", cowToday: "Cow Today",
+    buf30: "Buffalo (30d)", cow30: "Cow (30d)",
   },
   hi: {
-    appName: "बंकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
+    appName: "बांकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
     selectRole: "जारी रखने के लिए अपनी भूमिका चुनें",
     roleSupervisor: "सुपरवाइज़र", roleDelivery: "डिलीवरी", roleOwner: "मालिक",
     roleSupDesc: "दैनिक दूध उत्पादन दर्ज करें",
@@ -128,6 +131,9 @@ const TR = {
     retry: "फिर कोशिश करें",
     nilOption: "नहीं",
     enterPin: "अपना PIN डालें", wrongPin: "गलत PIN। फिर कोशिश करें।", pinHint: "अपनी भूमिका चुनें",
+    editHint: "आप अभी भी संपादन कर सकते हैं", resubmitDel: "डिलीवरी अपडेट करें",
+    bufToday: "भैंस आज", cowToday: "गाय आज",
+    buf30: "भैंस (30 दिन)", cow30: "गाय (30 दिन)",
   },
   ur: {
     appName: "بانکی ڈیری فارم", appSub: "آپریشن ٹریکر",
@@ -179,6 +185,9 @@ const TR = {
     retry: "دوبارہ کوشش کریں",
     nilOption: "نہیں",
     enterPin: "اپنا PIN درج کریں", wrongPin: "غلط PIN۔ دوبارہ کوشش کریں۔", pinHint: "اپنا کردار چنیں",
+    editHint: "آپ ابھی بھی ترمیم کر سکتے ہیں", resubmitDel: "ڈیلیوری اپ ڈیٹ کریں",
+    bufToday: "بھینس آج", cowToday: "گائے آج",
+    buf30: "بھینس (30 دن)", cow30: "گائے (30 دن)",
   },
 };
 
@@ -650,20 +659,6 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
         </div>
       </div>
 
-      <div style={{display:"flex",gap:8}}>
-        <div style={{flex:1,background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
-          <div style={{fontSize:10,color:"#92400e",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px"}}>{t.buffalo}</div>
-          <div style={{fontSize:20,fontWeight:700,color:"#92400e",marginTop:2}}>{fmtN(bLtrs,2)} L</div>
-        </div>
-        <div style={{flex:1,background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
-          <div style={{fontSize:10,color:"#2D7FB5",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px"}}>{t.cow}</div>
-          <div style={{fontSize:20,fontWeight:700,color:"#2D7FB5",marginTop:2}}>{fmtN(cLtrs,2)} L</div>
-        </div>
-        <div style={{flex:1,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
-          <div style={{fontSize:10,color:"#15803d",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px"}}>{t.total}</div>
-          <div style={{fontSize:20,fontWeight:700,color:"#15803d",marginTop:2}}>{fmtN(slotTotal,2)} L</div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -714,11 +709,6 @@ function SupervisorView({lang}) {
 
       <Card style={{marginBottom:14}}>
         <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}/>
-        <div style={{display:"flex",gap:8}}>
-          <StatBox label={t.morning} value={`${fmtN(mTotal,2)} L`} color="#2D7FB5"/>
-          <StatBox label={t.evening} value={`${fmtN(eTotal,2)} L`} color="#1A5C8A"/>
-          <StatBox label={t.grandTotal} value={`${fmtN(grandTotal,2)} L`} color="#9ACFF0"/>
-        </div>
       </Card>
 
       <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={activeSlot} onChange={setActiveSlot}/>
@@ -819,11 +809,16 @@ function DeliveryView({lang}) {
   const [mVals,setMVals]=useState({});
   const [eVals,setEVals]=useState({});
   const [prevData,setPrevData]=useState(null);
+  // submitted = true after first save; stays true so values remain visible
+  const [submitted,setSubmitted]=useState(false);
   const [status,setStatus]=useState(null);
   const [errMsg,setErrMsg]=useState("");
 
   useEffect(()=>{
     if(!date) return;
+    // Reset submitted state when date changes
+    setSubmitted(false); setStatus(null);
+    setMVals({}); setEVals({});
     const prev=new Date(date+"T00:00:00"); prev.setDate(prev.getDate()-1);
     const prevDateStr=prev.toISOString().split("T")[0];
     apiGet("getDispatchByDate",{date:prevDateStr}).then(d=>setPrevData(d)).catch(()=>setPrevData(null));
@@ -836,6 +831,7 @@ function DeliveryView({lang}) {
 
   function totalLtrs(vs){return Object.values(vs).reduce((s,v)=>s+(v&&v!=="Nil"?parseFloat(v)||0:0),0);}
   const mTotal=totalLtrs(mVals); const eTotal=totalLtrs(eVals);
+  const slotTotal=totalLtrs(vals);
 
   async function handleSubmit() {
     if(!date){setErrMsg(t.date);setStatus("error");return;}
@@ -847,7 +843,8 @@ function DeliveryView({lang}) {
         morning:{entries:JSON.stringify(buildEntries(MORNING_CUSTOMERS,mVals)),total:mTotal},
         evening:{entries:JSON.stringify(buildEntries(EVENING_CUSTOMERS,eVals)),total:eTotal},
         grandTotal:mTotal+eTotal});
-      setStatus("success"); setMVals({}); setEVals({});
+      // Keep values visible — just mark as submitted
+      setStatus("success"); setSubmitted(true);
     } catch(e){setErrMsg(e.message);setStatus("error");}
   }
 
@@ -857,15 +854,17 @@ function DeliveryView({lang}) {
         <div style={{fontSize:20,fontWeight:700,color:"#1a1a1a"}}>{t.delTitle}</div>
         <div style={{color:"#888",fontSize:13,marginTop:2}}>{t.delSub}</div>
       </div>
-      {status==="success"&&<Alert type="success">{t.savedDel} {fmtDate(date)}!</Alert>}
+
+      {status==="success"&&(
+        <Alert type="success">
+          ✅ {t.savedDel} {fmtDate(date)}!
+          <span style={{marginLeft:8,fontSize:12,opacity:0.8}}>— {t.editHint}</span>
+        </Alert>
+      )}
       {status==="error"&&<Alert type="error">⚠️ {errMsg}</Alert>}
 
       <Card style={{marginBottom:14}}>
         <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}/>
-        <div style={{display:"flex",gap:8}}>
-          <StatBox label={t.morning} value={`${fmtN(mTotal,2)} L`} color="#2D7FB5"/>
-          <StatBox label={t.evening} value={`${fmtN(eTotal,2)} L`} color="#1A5C8A"/>
-        </div>
       </Card>
 
       <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={slot} onChange={setSlot}/>
@@ -877,12 +876,31 @@ function DeliveryView({lang}) {
         {customers.map(c=>(
           <CustomerRow key={c.name} customer={c} value={vals[c.name]||""} onChange={v=>setVals(p=>({...p,[c.name]:v}))} prevValue={prevVals?prevVals[c.name]:null} lang={lang} t={t}/>
         ))}
+
+        {/* Totals below the list */}
+        {slotTotal>0&&(
+          <div style={{marginTop:14,paddingTop:12,borderTop:"1.5px solid #EBF5FD",display:"flex",gap:8}}>
+            <div style={{flex:1,background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
+              <div style={{fontSize:10,color:"#1A5C8A",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:2}}>
+                {slot==="morning"?`☀️ ${t.morning}`:`🌙 ${t.evening}`}
+              </div>
+              <div style={{fontSize:20,fontWeight:700,color:"#2D7FB5"}}>{fmtN(slotTotal,2)} L</div>
+            </div>
+            {submitted&&mTotal>0&&eTotal>0&&(
+              <div style={{flex:1,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
+                <div style={{fontSize:10,color:"#15803d",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:2}}>{t.grandTotal}</div>
+                <div style={{fontSize:20,fontWeight:700,color:"#15803d"}}>{fmtN(mTotal+eTotal,2)} L</div>
+              </div>
+            )}
+          </div>
+        )}
+
         <BottleSummary customers={customers} vals={vals} t={t}/>
       </Card>
 
       <div style={{height:16}}/>
       <Btn onClick={handleSubmit} style={{width:"100%"}} disabled={status==="loading"}>
-        {status==="loading"?t.saving:t.submitDel}
+        {status==="loading"?t.saving:submitted?t.resubmitDel:t.submitDel}
       </Btn>
     </div>
   );
@@ -919,9 +937,18 @@ function OwnerDashboard({lang}) {
         <div>
           <Card style={{marginBottom:14}}>
             <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a",marginBottom:12}}>{t.todaySnap}</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               <StatBox label={t.produced} value={`${fmtN(summary.todayProduce||0,1)} L`} color="#2D7FB5"/>
               <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1A5C8A"/>
+            </div>
+            {/* B/C breakdown */}
+            {(summary.todayProduceB||summary.todayProduceC)>0&&(
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                <StatBox label={t.bufToday} value={`${fmtN(summary.todayProduceB||0,1)} L`} color="#92400e"/>
+                <StatBox label={t.cowToday} value={`${fmtN(summary.todayProduceC||0,1)} L`} color="#2D7FB5"/>
+              </div>
+            )}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
               <StatBox label={t.gap} value={`${fmtN(Math.abs(todayGap),1)} L`}
                 sub={todayGap>0?t.surplus:todayGap<0?t.deficit:t.balanced}
                 color={todayGap>=0?"#2D7FB5":"#dc2626"}/>
@@ -935,9 +962,18 @@ function OwnerDashboard({lang}) {
             {(summary.todayProduce||0)===0&&<div style={{color:"#aaa",fontSize:12}}>{t.noDataToday}</div>}
           </Card>
 
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
             <StatBox label={t.produced30}   value={`${fmtN(summary.last30DaysProduce||0,0)} L`}   color="#2D7FB5"/>
             <StatBox label={t.dispatched30} value={`${fmtN(summary.last30DaysDispatched||0,0)} L`} color="#1A5C8A"/>
+          </div>
+          {/* B/C 30-day breakdown */}
+          {(summary.last30DaysProduceB||summary.last30DaysProduceC)>0&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+              <StatBox label={t.buf30} value={`${fmtN(summary.last30DaysProduceB||0,0)} L`} color="#92400e"/>
+              <StatBox label={t.cow30} value={`${fmtN(summary.last30DaysProduceC||0,0)} L`} color="#2D7FB5"/>
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
             <StatBox label={t.gap30} value={`${fmtN(Math.abs(gap30),0)} L`}
               sub={gap30>0?t.surplus:gap30<0?t.deficit:t.balanced} color={gap30>=0?"#2D7FB5":"#dc2626"}/>
             <StatBox label={t.rev30} value={fmtRs(summary.last30DaysRevenue||0)} color="#2D7FB5"/>
