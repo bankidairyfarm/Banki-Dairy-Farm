@@ -1,22 +1,22 @@
 import { useState, useEffect } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
 
 // ─── ACCESS PINS ───────────────────────────────────────────────────────────
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
 const PINS = {
-  supervisor: "1111",
-  delivery:   "2222",
-  owner:      "3333",
+  supervisor: "7055",
+  delivery:   "1234",
+  owner:      "8934",
 };
 
 const BUFFALO_CATTLE = ["B1","B4","B5","B6","B7","B8","B9"];
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","0.75","1","1.25","1.5","2","2.5","3","Nil"];
+const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -82,7 +82,7 @@ const TR = {
     buf30: "Buffalo (30d)", cow30: "Cow (30d)",
   },
   hi: {
-    appName: "बांकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
+    appName: "बंकी  डेयरी फार्म", appSub: "संचालन ट्रैकर",
     selectRole: "जारी रखने के लिए अपनी भूमिका चुनें",
     roleSupervisor: "सुपरवाइज़र", roleDelivery: "डिलीवरी", roleOwner: "मालिक",
     roleSupDesc: "दैनिक दूध उत्पादन दर्ज करें",
@@ -92,14 +92,14 @@ const TR = {
     supTitle: "आज का उत्पादन दर्ज करें", supSub: "बाल्टी सहित वजन डालें (किलो)",
     date: "तारीख", morning: "सुबह", evening: "शाम", grandTotal: "कुल जोड़",
     buffalo: "🐃 भैंस", cow: "🐄 गाय",
-    measuredTotals: "📏 नापा गया कुल (नेट किलो, बाल्टी निकालकर)",
-    bTotal: "भैंस कुल (किलो)", cTotal: "गाय कुल (किलो)",
+    measuredTotals: "नापा गया कुल",
+    bTotal: "भैंस (किलो)", cTotal: "गाय (किलो)",
     matches: "✓ सही", mismatch: "⚠️ अंतर है",
-    outsideMilk: "🔄 बाहरी दूध",
+    outsideMilk: "बाहरी दूध",
     purchased: "खरीदा गया", extraMilk: "अतिरिक्त दूध",
     qty: "मात्रा (लीटर)", rate: "दर (₹/लीटर)", sold: "बेचा", sellingRate: "बिक्री दर (₹/लीटर)",
     calcTotals: "गणना किया गया कुल",
-    total: "कुल", submitProd: "उत्पादन दर्ज करें", saving: "सहेजा जा रहा है…",
+    total: "कुल", submitProd: "दर्ज करें", saving: "सहेजा जा रहा है…",
     savedProd: "✅ उत्पादन दर्ज हुआ", loggedTotal: "कुल जोड़",
     delTitle: "भेजा गया दूध दर्ज करें", delSub: "हर ग्राहक की डिलीवरी दर्ज करें",
     morningCustomers: "सुबह के ग्राहक", eveningCustomers: "शाम के ग्राहक",
