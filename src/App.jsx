@@ -326,7 +326,11 @@ const EVENING_CUSTOMERS = [
 ];
 
 // ─── UTILITIES ─────────────────────────────────────────────────────────────
-function today() { return new Date().toISOString().split("T")[0]; }
+function today() {
+  const now = new Date();
+  const ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+  return ist.toISOString().split("T")[0];
+}
 function fmtDate(d) {
   if (!d) return "—";
   return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
