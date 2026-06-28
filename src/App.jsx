@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
+const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
 
 const ROLES = {
   supervisor: { label: "Supervisor", emoji: "🧑‍🌾", color: "#2d6a4f" },
@@ -84,7 +84,7 @@ const EVENING_CUSTOMERS = [
   { name: "Mr. Sanjay",                phone: "", type: "C" },
 ];
 
-const QTY_OPTIONS = ["0.5","0.75","1","1.5","2","3","Nil"];
+const QTY_OPTIONS = ["0.5","0.75","1","1.25","1.5","2","2.5","3","Nil"];
 const BOTTLE_SIZES = ["0.5","0.75","1"]; // sizes to count bottles for
 
 // ─── UTILITIES ─────────────────────────────────────────────────────────────
@@ -200,13 +200,17 @@ function LoginScreen({onLogin}) {
 }
 
 // ─── SUPERVISOR — SLOT PANEL ────────────────────────────────────────────────
-function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC,outsideB,setOutsideB,outsideC,setOutsideC}) {
+// Measured totals are already net weight (bucket removed manually) — only convert kg→L
+function kgToLtrs(kg) { return Math.max(0,(parseFloat(kg)||0)*CONVERSION); }
+
+function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC,purchased,setPurchased,purchaseRate,setPurchaseRate,extraQty,setExtraQty,extraSold,setExtraSold,extraRate,setExtraRate}) {
   const bLtrs = BUFFALO_CATTLE.reduce((s,c)=>s+toNet(rawKg[c]||0),0);
   const cLtrs = COW_CATTLE.reduce((s,c)=>s+toNet(rawKg[c]||0),0);
   const slotTotal = bLtrs+cLtrs;
 
-  const measBNet = measuredB ? toNet(measuredB) : null;
-  const measCNet = measuredC ? toNet(measuredC) : null;
+  // Measured: already net kg (bucket removed) — only convert
+  const measBNet = measuredB ? kgToLtrs(measuredB) : null;
+  const measCNet = measuredC ? kgToLtrs(measuredC) : null;
 
   return (
     <div>
@@ -242,46 +246,75 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
         ))}
       </div>
 
-      {/* Physical totals entry */}
+      {/* Physical totals — net kg (bucket already removed), just convert kg→L */}
       <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#555">Measured Totals </SectionLabel>
-        <div style={{display:"flex",gap:10,marginBottom:4}}>
+        <SectionLabel color="#555">📏 Measured Totals (net kg, bucket removed)</SectionLabel>
+        <div style={{display:"flex",gap:10}}>
           <div style={{flex:1}}>
-            <div style={{fontSize:11,color:"#92400e",fontWeight:600,marginBottom:4}}>Buffalo</div>
+            <div style={{fontSize:11,color:"#92400e",fontWeight:600,marginBottom:4}}>B Total (kg)</div>
             <input type="number" min="0" step="0.01" placeholder="0.00"
               value={measuredB||""} onChange={e=>setMeasuredB(e.target.value)}
               style={{width:"100%",padding:"8px 10px",border:"1.5px solid #fde68a",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
             {measBNet!==null&&<div style={{fontSize:11,marginTop:3,textAlign:"center",fontWeight:600,color:Math.abs(measBNet-bLtrs)>0.2?"#dc2626":"#15803d"}}>
-              {fmtN(measBNet,2)} L {Math.abs(measBNet-bLtrs)>0.2?"⚠️":"✓"}
+              {fmtN(measBNet,2)} L {Math.abs(measBNet-bLtrs)>0.2?"⚠️ Mismatch":"✓ Matches"}
             </div>}
           </div>
           <div style={{flex:1}}>
-            <div style={{fontSize:11,color:"#1d4ed8",fontWeight:600,marginBottom:4}}>Cow</div>
+            <div style={{fontSize:11,color:"#1d4ed8",fontWeight:600,marginBottom:4}}>C Total (kg)</div>
             <input type="number" min="0" step="0.01" placeholder="0.00"
               value={measuredC||""} onChange={e=>setMeasuredC(e.target.value)}
               style={{width:"100%",padding:"8px 10px",border:"1.5px solid #bfdbfe",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
             {measCNet!==null&&<div style={{fontSize:11,marginTop:3,textAlign:"center",fontWeight:600,color:Math.abs(measCNet-cLtrs)>0.2?"#dc2626":"#15803d"}}>
-              {fmtN(measCNet,2)} L {Math.abs(measCNet-cLtrs)>0.2?"⚠️":"✓"}
+              {fmtN(measCNet,2)} L {Math.abs(measCNet-cLtrs)>0.2?"⚠️ Mismatch":"✓ Matches"}
             </div>}
           </div>
         </div>
       </div>
 
-      {/* Outside milk */}
+      {/* Outside milk — Purchased + Extra */}
       <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#555">Milk Purchased/Sold Extra (L)</SectionLabel>
-        <div style={{display:"flex",gap:10}}>
-          <div style={{flex:1}}>
-            <div style={{fontSize:11,color:"#92400e",fontWeight:600,marginBottom:4}}>Buffalo</div>
-            <input type="number" step="0.1" placeholder="0"
-              value={outsideB||""} onChange={e=>setOutsideB(e.target.value)}
-              style={{width:"100%",padding:"8px 10px",border:"1.5px solid #fde68a",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+        <SectionLabel color="#555">🔄 Outside Milk</SectionLabel>
+
+        {/* Row 1: Milk Purchased */}
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#374151",marginBottom:6}}>Purchased</div>
+          <div style={{display:"flex",gap:10}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,color:"#555",marginBottom:3}}>Qty (L)</div>
+              <input type="number" min="0" step="0.1" placeholder="0"
+                value={purchased||""} onChange={e=>setPurchased(e.target.value)}
+                style={{width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,color:"#555",marginBottom:3}}>Rate (₹/L)</div>
+              <input type="number" min="0" step="1" placeholder="0"
+                value={purchaseRate||""} onChange={e=>setPurchaseRate(e.target.value)}
+                style={{width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+            </div>
           </div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:11,color:"#1d4ed8",fontWeight:600,marginBottom:4}}>Cow</div>
-            <input type="number" step="0.1" placeholder="0"
-              value={outsideC||""} onChange={e=>setOutsideC(e.target.value)}
-              style={{width:"100%",padding:"8px 10px",border:"1.5px solid #bfdbfe",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+        </div>
+
+        {/* Row 2: Extra Milk */}
+        <div>
+          <div style={{fontSize:12,fontWeight:700,color:"#374151",marginBottom:6}}>Extra Milk</div>
+          <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,color:"#555",marginBottom:3}}>Qty (L)</div>
+              <input type="number" min="0" step="0.1" placeholder="0"
+                value={extraQty||""} onChange={e=>setExtraQty(e.target.value)}
+                style={{width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                <input type="checkbox" id={`sold-${Math.random()}`} checked={extraSold||false} onChange={e=>setExtraSold(e.target.checked)}
+                  style={{width:14,height:14,cursor:"pointer",accentColor:"#2d6a4f"}}/>
+                <label style={{fontSize:11,color:"#555",cursor:"pointer"}}>Sold</label>
+              </div>
+              <input type="number" min="0" step="1" placeholder="Selling rate"
+                value={extraRate||""} onChange={e=>setExtraRate(e.target.value)}
+                disabled={!extraSold}
+                style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${extraSold?"#e2e8f0":"#f1f5f9"}`,borderRadius:8,fontSize:14,textAlign:"center",background:extraSold?"#fff":"#f8fafc",color:extraSold?"#1a1a1a":"#ccc",outline:"none",boxSizing:"border-box",fontFamily:"inherit",cursor:extraSold?"text":"not-allowed"}}/>
+            </div>
           </div>
         </div>
       </div>
@@ -311,8 +344,10 @@ function SupervisorView() {
   const [mRaw,setMRaw]=useState({}); const [eRaw,setERaw]=useState({});
   const [mMeasB,setMMeasB]=useState(""); const [mMeasC,setMMeasC]=useState("");
   const [eMeasB,setEMeasB]=useState(""); const [eMeasC,setEMeasC]=useState("");
-  const [mOutB,setMOutB]=useState(""); const [mOutC,setMOutC]=useState("");
-  const [eOutB,setEOutB]=useState(""); const [eOutC,setEOutC]=useState("");
+  const [mPurchased,setMPurchased]=useState(""); const [mPurchaseRate,setMPurchaseRate]=useState("");
+  const [mExtraQty,setMExtraQty]=useState(""); const [mExtraSold,setMExtraSold]=useState(false); const [mExtraRate,setMExtraRate]=useState("");
+  const [ePurchased,setEPurchased]=useState(""); const [ePurchaseRate,setEPurchaseRate]=useState("");
+  const [eExtraQty,setEExtraQty]=useState(""); const [eExtraSold,setEExtraSold]=useState(false); const [eExtraRate,setEExtraRate]=useState("");
   const [status,setStatus]=useState(null); const [errMsg,setErrMsg]=useState("");
 
   const allCattle=[...BUFFALO_CATTLE,...COW_CATTLE];
@@ -327,11 +362,13 @@ function SupervisorView() {
     try {
       const buildRows=(rawMap)=>allCattle.map(c=>({cattle:c,type:BUFFALO_CATTLE.includes(c)?"B":"C",rawKg:parseFloat(rawMap[c])||0,netLtrs:toNet(rawMap[c]||0)})).filter(r=>r.rawKg>0);
       await apiPost("logProduction",{date,
-        morning:{rows:JSON.stringify(buildRows(mRaw)),total:mTotal,measuredB:mMeasB,measuredC:mMeasC,outsideB:mOutB,outsideC:mOutC},
-        evening:{rows:JSON.stringify(buildRows(eRaw)),total:eTotal,measuredB:eMeasB,measuredC:eMeasC,outsideB:eOutB,outsideC:eOutC},
+        morning:{rows:JSON.stringify(buildRows(mRaw)),total:mTotal,measuredB:mMeasB,measuredC:mMeasC,purchased:mPurchased,purchaseRate:mPurchaseRate,extraQty:mExtraQty,extraSold:mExtraSold,extraRate:mExtraRate},
+        evening:{rows:JSON.stringify(buildRows(eRaw)),total:eTotal,measuredB:eMeasB,measuredC:eMeasC,purchased:ePurchased,purchaseRate:ePurchaseRate,extraQty:eExtraQty,extraSold:eExtraSold,extraRate:eExtraRate},
         grandTotal});
       setStatus("success");
-      setMRaw({});setERaw({});setMMeasB("");setMMeasC("");setEMeasB("");setEMeasC("");setMOutB("");setMOutC("");setEOutB("");setEOutC("");
+      setMRaw({});setERaw({});setMMeasB("");setMMeasC("");setEMeasB("");setEMeasC("");
+      setMPurchased("");setMPurchaseRate("");setMExtraQty("");setMExtraSold(false);setMExtraRate("");
+      setEPurchased("");setEPurchaseRate("");setEExtraQty("");setEExtraSold(false);setEExtraRate("");
     } catch(e){setErrMsg(e.message);setStatus("error");}
   }
 
@@ -357,8 +394,8 @@ function SupervisorView() {
 
       <Card style={{marginBottom:14}}>
         {activeSlot==="morning"
-          ? <SlotPanel rawKg={mRaw} setRawKg={setMRaw} measuredB={mMeasB} setMeasuredB={setMMeasB} measuredC={mMeasC} setMeasuredC={setMMeasC} outsideB={mOutB} setOutsideB={setMOutB} outsideC={mOutC} setOutsideC={setMOutC}/>
-          : <SlotPanel rawKg={eRaw} setRawKg={setERaw} measuredB={eMeasB} setMeasuredB={setEMeasB} measuredC={eMeasC} setMeasuredC={setEMeasC} outsideB={eOutB} setOutsideB={setEOutB} outsideC={eOutC} setOutsideC={setEOutC}/>
+          ? <SlotPanel rawKg={mRaw} setRawKg={setMRaw} measuredB={mMeasB} setMeasuredB={setMMeasB} measuredC={mMeasC} setMeasuredC={setMMeasC} purchased={mPurchased} setPurchased={setMPurchased} purchaseRate={mPurchaseRate} setPurchaseRate={setMPurchaseRate} extraQty={mExtraQty} setExtraQty={setMExtraQty} extraSold={mExtraSold} setExtraSold={setMExtraSold} extraRate={mExtraRate} setExtraRate={setMExtraRate}/>
+          : <SlotPanel rawKg={eRaw} setRawKg={setERaw} measuredB={eMeasB} setMeasuredB={setEMeasB} measuredC={eMeasC} setMeasuredC={setEMeasC} purchased={ePurchased} setPurchased={setEPurchased} purchaseRate={ePurchaseRate} setPurchaseRate={setEPurchaseRate} extraQty={eExtraQty} setExtraQty={setEExtraQty} extraSold={eExtraSold} setExtraSold={setEExtraSold} extraRate={eExtraRate} setExtraRate={setEExtraRate}/>
         }
       </Card>
 
@@ -370,43 +407,41 @@ function SupervisorView() {
 }
 
 // ─── DELIVERY — BOTTLE SUMMARY ──────────────────────────────────────────────
-function BottleSummary({customers,vals,prevVals}) {
-  // Count bottles needed: only sizes 0.5, 0.75, 1
-  function countBottles(vs,type) {
-    const counts={"0.5":0,"0.75":0,"1":0};
-    customers.filter(c=>c.type===type).forEach(c=>{
-      const q=vs[c.name];
-      if(q&&q!=="Nil"&&counts[q]!==undefined) counts[q]++;
+function BottleSummary({customers,vals}) {
+  // Bottle calculation logic per type (B or C):
+  // 0.75L bottles  = count of customers with exactly 0.75
+  // 0.5L bottles   = count of 0.5 customers + count of customers with 1.5 or 2.5 (the 0.5 remainder)
+  // 1L bottles     = sum of floor(qty) for all whole-number qty (1,2,3)
+  //                + sum of floor(qty) for half-qty customers (1.5→1, 2.5→2)
+  function calcBottles(type) {
+    const filtered = customers.filter(c=>c.type===type);
+    let bottles075=0, bottles05=0, bottles1=0;
+    filtered.forEach(c=>{
+      const q = vals[c.name];
+      if(!q||q==="Nil") return;
+      const qty = parseFloat(q);
+      if(qty===0.75)                         { bottles075++; }
+      else if(qty===0.5)                     { bottles05++; }
+      else if(qty===1.5||qty===2.5)          { bottles05++; bottles1+=Math.floor(qty); }
+      else if(qty===1||qty===2||qty===3)     { bottles1+=qty; }
     });
-    return counts;
-  }
-  function totalLtrs(vs,type) {
-    return customers.filter(c=>c.type===type).reduce((s,c)=>{
-      const q=vs[c.name]; return s+(q&&q!=="Nil"?parseFloat(q)||0:0);
-    },0);
+    return {bottles075,bottles05,bottles1};
   }
 
-  const bCounts=countBottles(vals,"B"); const cCounts=countBottles(vals,"C");
-  const bPrev=prevVals?countBottles(prevVals,"B"):null;
-  const cPrev=prevVals?countBottles(prevVals,"C"):null;
+  const b=calcBottles("B"); const c=calcBottles("C");
+  const hasAny = customers.some(c=>vals[c.name]&&vals[c.name]!=="Nil");
+  if(!hasAny) return null;
 
-  function BottleRow({label,counts,prevCounts,color,bg,border}) {
+  function BottleCol({label,counts,color,bg,border}) {
     return (
       <div style={{flex:1,background:bg,border:`1px solid ${border}`,borderRadius:10,padding:"10px 12px"}}>
-        <div style={{fontSize:11,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:8}}>{label}</div>
-        {BOTTLE_SIZES.map(s=>(
-          <div key={s} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-            <span style={{fontSize:12,color:"#555",fontWeight:600}}>{s}L bottle</span>
-            <div style={{textAlign:"right"}}>
-              <span style={{fontSize:16,fontWeight:700,color}}>{counts[s]}</span>
-              {prevCounts&&<span style={{fontSize:10,color:"#aaa",marginLeft:5}}>({prevCounts[s]} yday)</span>}
-            </div>
+        <div style={{fontSize:11,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:8}}>{label} Milk</div>
+        {[["0.75 L",counts.bottles075],["0.5 L",counts.bottles05],["1 L",counts.bottles1]].map(([sz,n])=>(
+          <div key={sz} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <span style={{fontSize:12,color:"#555"}}>{sz} bottle</span>
+            <span style={{fontSize:18,fontWeight:700,color,minWidth:28,textAlign:"right"}}>{n}</span>
           </div>
         ))}
-        <div style={{borderTop:`1px solid ${border}`,marginTop:6,paddingTop:6,display:"flex",justifyContent:"space-between"}}>
-          <span style={{fontSize:11,color:"#888"}}>Total</span>
-          <span style={{fontSize:13,fontWeight:700,color}}>{fmtN(totalLtrs(vals,label[0]),2)} L</span>
-        </div>
       </div>
     );
   }
@@ -414,10 +449,9 @@ function BottleSummary({customers,vals,prevVals}) {
   return (
     <div style={{marginTop:16,borderTop:"2px dashed #e2e8f0",paddingTop:14}}>
       <SectionLabel color="#374151">🍶 Bottles to Fill</SectionLabel>
-      {prevVals&&<div style={{fontSize:11,color:"#aaa",marginBottom:8}}>Numbers in brackets are yesterday's quantities</div>}
       <div style={{display:"flex",gap:10}}>
-        <BottleRow label="B" counts={bCounts} prevCounts={bPrev} color="#92400e" bg="#fffbeb" border="#fde68a"/>
-        <BottleRow label="C" counts={cCounts} prevCounts={cPrev} color="#1d4ed8" bg="#eff6ff" border="#bfdbfe"/>
+        <BottleCol label="Buffalo" counts={b} color="#92400e" bg="#fffbeb" border="#fde68a"/>
+        <BottleCol label="Cow"     counts={c} color="#1d4ed8" bg="#eff6ff" border="#bfdbfe"/>
       </div>
     </div>
   );
@@ -434,8 +468,11 @@ function CustomerRow({customer,value,onChange,prevValue}) {
         <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{customer.name}</div>
         <div style={{display:"flex",gap:6,alignItems:"center",marginTop:1}}>
           {customer.phone&&<span style={{fontSize:11,color:"#aaa"}}>{customer.phone}</span>}
-          {prevValue&&prevValue!=="Nil"&&<span style={{fontSize:10,color:"#94a3b8",fontStyle:"italic"}}>yday: {prevValue}L</span>}
-          {prevValue==="Nil"&&<span style={{fontSize:10,color:"#94a3b8",fontStyle:"italic"}}>yday: absent</span>}
+          {prevValue&&prevValue!=="Nil"
+            ? <span style={{fontSize:11,color:"#94a3b8",fontStyle:"italic"}}>Yesterday: {prevValue} L</span>
+            : prevValue==="Nil"
+            ? <span style={{fontSize:11,color:"#cbd5e1",fontStyle:"italic"}}>Yesterday: absent</span>
+            : null}
         </div>
       </div>
       <span style={{background:tagBg,color,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,flexShrink:0}}>{isB?"🐃 B":"🐄 C"}</span>
@@ -513,7 +550,7 @@ function DeliveryView() {
         {customers.map(c=>(
           <CustomerRow key={c.name} customer={c} value={vals[c.name]||""} onChange={v=>setVals(p=>({...p,[c.name]:v}))} prevValue={prevVals?prevVals[c.name]:null}/>
         ))}
-        <BottleSummary customers={customers} vals={vals} prevVals={prevVals}/>
+        <BottleSummary customers={customers} vals={vals}/>
       </Card>
 
       <div style={{height:16}}/>
