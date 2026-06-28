@@ -3,6 +3,15 @@ import { useState, useEffect } from "react";
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
 
+// ─── ACCESS PINS ───────────────────────────────────────────────────────────
+// Change these to your preferred PINs. Numeric, 4 digits recommended.
+// To change a PIN: edit the number in quotes below, save, commit to GitHub.
+const PINS = {
+  supervisor: "1111",
+  delivery:   "2222",
+  owner:      "3333",
+};
+
 const BUFFALO_CATTLE = ["B1","B4","B5","B6","B7","B8","B9"];
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
@@ -67,9 +76,10 @@ const TR = {
     errScriptUrl: "Check your Google Apps Script URL in App.jsx line 4.",
     retry: "Retry",
     nilOption: "Nil",
+    enterPin: "Enter your PIN", wrongPin: "Wrong PIN. Try again.", pinHint: "Choose your role",
   },
   hi: {
-    appName: "बांकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
+    appName: "बंकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
     selectRole: "जारी रखने के लिए अपनी भूमिका चुनें",
     roleSupervisor: "सुपरवाइज़र", roleDelivery: "डिलीवरी", roleOwner: "मालिक",
     roleSupDesc: "दैनिक दूध उत्पादन दर्ज करें",
@@ -117,6 +127,7 @@ const TR = {
     errScriptUrl: "App.jsx लाइन 4 में स्क्रिप्ट URL जाँचें।",
     retry: "फिर कोशिश करें",
     nilOption: "नहीं",
+    enterPin: "अपना PIN डालें", wrongPin: "गलत PIN। फिर कोशिश करें।", pinHint: "अपनी भूमिका चुनें",
   },
   ur: {
     appName: "بانکی ڈیری فارم", appSub: "آپریشن ٹریکر",
@@ -167,6 +178,7 @@ const TR = {
     errScriptUrl: "App.jsx لائن 4 میں اسکرپٹ URL چیک کریں۔",
     retry: "دوبارہ کوشش کریں",
     nilOption: "نہیں",
+    enterPin: "اپنا PIN درج کریں", wrongPin: "غلط PIN۔ دوبارہ کوشش کریں۔", pinHint: "اپنا کردار چنیں",
   },
 };
 
@@ -406,48 +418,130 @@ function BrandLogoSmall() {
   return <img src={LOGO_36} alt="Banki Dairy Farm" style={{width:36,height:36,objectFit:"contain"}}/>;
 }
 
-// ─── LOGIN ─────────────────────────────────────────────────────────────────
+// ─── PIN PAD LOGIN ─────────────────────────────────────────────────────────
 function LoginScreen({onLogin,lang,setLang}) {
-  const t=TR[lang];
-  const ROLES_DATA = [
-    {key:"supervisor",emoji:"🧑‍🌾",color:"#2D7FB5",label:t.roleSupervisor,desc:t.roleSupDesc},
-    {key:"delivery",  emoji:"🚚",  color:"#1A5C8A",label:t.roleDelivery,  desc:t.roleDelDesc},
-    {key:"owner",     emoji:"👑",  color:"#2D7FB5",label:t.roleOwner,     desc:t.roleOwnDesc},
-  ];
+  const t = TR[lang];
+  const [pin, setPin] = useState("");
+  const [shake, setShake] = useState(false);
+  const [error, setError] = useState(false);
+
+  function press(digit) {
+    if (pin.length >= 4) return;
+    const next = pin + digit;
+    setPin(next);
+    setError(false);
+    if (next.length === 4) {
+      // Check against all roles
+      const matched = Object.keys(PINS).find(role => PINS[role] === next);
+      if (matched) {
+        setTimeout(() => { setPin(""); onLogin(matched); }, 150);
+      } else {
+        setShake(true);
+        setError(true);
+        setTimeout(() => { setPin(""); setShake(false); }, 700);
+      }
+    }
+  }
+
+  function backspace() { setPin(p => p.slice(0,-1)); setError(false); }
+  function clear()     { setPin(""); setError(false); }
+
+  const dots = [0,1,2,3].map(i => {
+    const filled = i < pin.length;
+    const col = error ? "#dc2626" : filled ? "#2D7FB5" : "#e2e8f0";
+    return (
+      <div key={i} style={{
+        width:14, height:14, borderRadius:"50%",
+        background: filled ? col : "transparent",
+        border: `2px solid ${col}`,
+        transition:"all 0.15s"
+      }}/>
+    );
+  });
+
+  const PAD = [["1","2","3"],["4","5","6"],["7","8","9"],["✕","0","⌫"]];
+
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#EBF5FD 0%,#f8fafc 60%)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"100%",maxWidth:380}}>
-        <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+      <div style={{width:"100%",maxWidth:320}}>
+
+        {/* Lang toggle */}
+        <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
           <LangToggle lang={lang} setLang={setLang}/>
         </div>
+
+        {/* Logo + name */}
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
             <BrandLogo size={96}/>
           </div>
-          <div style={{fontFamily:"Georgia,serif",fontSize:26,fontWeight:700,color:"#2D7FB5",letterSpacing:"-0.3px"}}>{t.appName}</div>
-          <div style={{color:"#9ACFF0",marginTop:3,fontSize:12,letterSpacing:"1px",textTransform:"uppercase",fontWeight:600}}>✦ {lang==="hi"?"शुद्धता का वादा":lang==="ur"?"پاکیزگی کا وعدہ":"Rooted in Purity"} ✦</div>
-          <div style={{color:"#666",marginTop:8,fontSize:13}}>{t.selectRole}</div>
-        </div>
-        <Card>
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {ROLES_DATA.map(r=>(
-              <button key={r.key} onClick={()=>onLogin(r.key)} style={{display:"flex",alignItems:"center",gap:13,padding:"14px 16px",borderRadius:11,border:"1.5px solid #e2e8f0",background:"#fafafa",cursor:"pointer",textAlign:"left",width:"100%",fontFamily:"inherit"}}
-              onMouseEnter={e=>{e.currentTarget.style.background="#EBF5FD";e.currentTarget.style.borderColor=r.color;}}
-              onMouseLeave={e=>{e.currentTarget.style.background="#fafafa";e.currentTarget.style.borderColor="#e2e8f0";}}>
-                <span style={{fontSize:26}}>{r.emoji}</span>
-                <div>
-                  <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a"}}>{r.label}</div>
-                  <div style={{fontSize:12,color:"#888",marginTop:1}}>{r.desc}</div>
-                </div>
-              </button>
-            ))}
+          <div style={{fontFamily:"Georgia,serif",fontSize:24,fontWeight:700,color:"#2D7FB5",letterSpacing:"-0.3px"}}>{t.appName}</div>
+          <div style={{color:"#9ACFF0",marginTop:3,fontSize:11,letterSpacing:"1px",textTransform:"uppercase",fontWeight:600}}>
+            ✦ {lang==="hi"?"शुद्धता का वादा":lang==="ur"?"پاکیزگی کا وعدہ":"Rooted in Purity"} ✦
           </div>
-        </Card>
-        <div style={{textAlign:"center",marginTop:18,fontSize:11,color:"#9ACFF0"}}>{t.appName} · {t.appSub}</div>
+        </div>
+
+        {/* PIN card */}
+        <div style={{background:"#fff",borderRadius:18,boxShadow:"0 2px 24px rgba(45,127,181,0.10)",padding:"28px 24px"}}>
+          <div style={{textAlign:"center",fontSize:14,fontWeight:600,color:"#555",marginBottom:20}}>
+            {t.enterPin}
+          </div>
+
+          {/* Dots */}
+          <div style={{display:"flex",justifyContent:"center",gap:16,marginBottom:28,
+            animation: shake ? "shake 0.5s" : "none"}}>
+            {dots}
+          </div>
+
+          {/* Error message */}
+          {error && <div style={{textAlign:"center",fontSize:12,color:"#dc2626",marginBottom:12,fontWeight:600}}>
+            {t.wrongPin}
+          </div>}
+
+          {/* Keypad */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            {PAD.flat().map(k => {
+              const isClear = k==="✕";
+              const isBack  = k==="⌫";
+              return (
+                <button key={k}
+                  onClick={()=>{ if(isClear) clear(); else if(isBack) backspace(); else press(k); }}
+                  style={{
+                    padding:"16px 0",borderRadius:12,border:"none",cursor:"pointer",
+                    fontFamily:"inherit",fontSize: isClear||isBack ? 18 : 20,
+                    fontWeight:700,
+                    background: isClear ? "#fef2f2" : isBack ? "#f8fafc" : "#EBF5FD",
+                    color: isClear ? "#dc2626" : isBack ? "#888" : "#2D7FB5",
+                    transition:"all 0.1s",
+                    boxShadow:"0 1px 3px rgba(0,0,0,0.06)"
+                  }}
+                  onMouseDown={e=>e.currentTarget.style.transform="scale(0.94)"}
+                  onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}
+                  onTouchStart={e=>e.currentTarget.style.transform="scale(0.94)"}
+                  onTouchEnd={e=>e.currentTarget.style.transform="scale(1)"}
+                >{k}</button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{textAlign:"center",marginTop:16,fontSize:11,color:"#9ACFF0"}}>
+          {t.appName} · {t.appSub}
+        </div>
       </div>
+
+      {/* Shake animation */}
+      <style>{`@keyframes shake {
+        0%,100%{transform:translateX(0)}
+        20%{transform:translateX(-6px)}
+        40%{transform:translateX(6px)}
+        60%{transform:translateX(-4px)}
+        80%{transform:translateX(4px)}
+      }`}</style>
     </div>
   );
 }
+
 
 // ─── SUPERVISOR ─────────────────────────────────────────────────────────────
 function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC,purchased,setPurchased,purchaseRate,setPurchaseRate,extraQty,setExtraQty,extraSold,setExtraSold,extraRate,setExtraRate,t}) {
@@ -961,7 +1055,7 @@ export default function App() {
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <LangToggle lang={lang} setLang={changeLang}/>
           <span style={{background:r.color+"18",color:r.color,border:`1px solid ${r.color}33`,borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:600}}>{r.emoji} {r.label}</span>
-          <button onClick={()=>setRole(null)} style={{background:"none",border:"none",color:"#aaa",cursor:"pointer",fontSize:12}}>{t.switchBtn}</button>
+          <button onClick={()=>setRole(null)} title="Lock" style={{background:"none",border:"none",color:"#aaa",cursor:"pointer",fontSize:16,lineHeight:1,padding:"2px 4px"}} aria-label="Lock">🔒</button>
         </div>
       </div>
       <div style={{maxWidth:520,margin:"0 auto",padding:"18px 15px 48px"}}>
