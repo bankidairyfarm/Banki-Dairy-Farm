@@ -25,7 +25,7 @@ const MORNING_CUSTOMERS = [
   { name: "Mr. Moni",               phone: "",           type: "B" },
   { name: "Mrs. Farzana",           phone: "",           type: "B" },
   { name: "Mr. Achhe Khan",         phone: "",           type: "B" },
-  { name: "Mr. Guddu (Station)",    phone: "",           type: "B" },
+  { name: "Mr. Guddu",              phone: "",           type: "B" },
   { name: "Mr. Umair Kidwai",       phone: "",           type: "B" },
   { name: "Mr. Umar Faiz Kidwai",   phone: "9389874362", type: "B" },
   { name: "Mr. Rizwan",             phone: "",           type: "B" },
@@ -34,7 +34,7 @@ const MORNING_CUSTOMERS = [
   { name: "Mr. Chanda",             phone: "",           type: "B" },
   { name: "Mr. Syed Athar",         phone: "",           type: "B" },
   { name: "Mr. Adnan Abbasi",       phone: "7897692769", type: "B" },
-  { name: "Mr. Haneef",             phone: "",           type: "B" },
+  { name: "Mr. Arif",               phone: "",           type: "B" },
   { name: "Mr. Aleem Kidwai",       phone: "",           type: "B" },
   { name: "Mr. Shaad Kidwai",       phone: "",           type: "B" },
   { name: "Mr. Razzaki",            phone: "",           type: "B" },
@@ -44,10 +44,7 @@ const MORNING_CUSTOMERS = [
   { name: "Mr. Satish Kumar",       phone: "",           type: "B" },
   { name: "Mr. Salauddin",          phone: "",           type: "C" },
   { name: "Mr. Soni (Adv.)",        phone: "",           type: "C" },
-  { name: "Mr. Santosh (C)",        phone: "",           type: "C" },
-  { name: "Mr. Farhan",             phone: "",           type: "C" },
-  { name: "Mr. Soni (Tenant)",      phone: "",           type: "C" },
-  { name: "Unani Hospital",         phone: "",           type: "C" },
+  { name: "Mr. Santosh",            phone: "",           type: "C" },
 ];
 
 const EVENING_CUSTOMERS = [
@@ -78,13 +75,12 @@ const EVENING_CUSTOMERS = [
   { name: "Mr. Mushtaq",               phone: "", type: "B" },
   { name: "Mr. Talha Mehmood",         phone: "", type: "B" },
   { name: "Mr. Ram Pratap Mishra (C)", phone: "", type: "C" },
-  { name: "Mr. Farhan Waris",          phone: "", type: "C" },
   { name: "Mr. Suyagya Sharma",        phone: "", type: "C" },
   { name: "Banki Neighbour 3",         phone: "", type: "C" },
   { name: "Mr. Sanjay",                phone: "", type: "C" },
 ];
 
-const QTY_OPTIONS = ["0.5","0.75","1","1.25","1.5","2","2.5","3","Nil"];
+const QTY_OPTIONS = ["0.5","0.75","1","1.5","2","3","Nil"];
 const BOTTLE_SIZES = ["0.5","0.75","1"]; // sizes to count bottles for
 
 // ─── UTILITIES ─────────────────────────────────────────────────────────────
