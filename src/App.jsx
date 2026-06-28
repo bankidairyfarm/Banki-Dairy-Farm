@@ -5,7 +5,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp
 
 const ROLES = {
   supervisor: { label: "Supervisor", emoji: "🧑‍🌾", color: "#2d6a4f" },
-  delivery:   { label: "Delivery",   emoji: "🚚",   color: "#1d3557" },
+  delivery:   { label: "Delivery Man",   emoji: "🚚",   color: "#1d3557" },
   owner:      { label: "Owner",      emoji: "👑",   color: "#7b2d00" },
 };
 
