@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
+const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
 
 const ROLES = {
   supervisor: { label: "Supervisor", emoji: "🧑‍🌾", color: "#2d6a4f" },
@@ -494,12 +494,16 @@ function DeliveryView() {
   const [status,setStatus]=useState(null);
   const [errMsg,setErrMsg]=useState("");
 
-  // Load yesterday's dispatch for reference
+  // Load previous day's dispatch whenever the selected date changes
   useEffect(()=>{
-    apiGet("getDispatchByDate",{date:yesterday()})
+    if(!date) return;
+    const prev = new Date(date+"T00:00:00");
+    prev.setDate(prev.getDate()-1);
+    const prevDateStr = prev.toISOString().split("T")[0];
+    apiGet("getDispatchByDate",{date:prevDateStr})
       .then(d=>setPrevData(d))
       .catch(()=>setPrevData(null));
-  },[]);
+  },[date]);
 
   const customers=slot==="morning"?MORNING_CUSTOMERS:EVENING_CUSTOMERS;
   const vals=slot==="morning"?mVals:eVals;
