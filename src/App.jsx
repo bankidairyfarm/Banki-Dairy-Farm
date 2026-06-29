@@ -7,16 +7,16 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
 const PINS = {
-  supervisor: "7055",
-  delivery:   "1234",
-  owner:      "8934",
+  supervisor: "1111",
+  delivery:   "2222",
+  owner:      "3333",
 };
 
 const BUFFALO_CATTLE = ["B1","B4","B5","B6","B7","B8","B9"];
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","Nil"];
+const QTY_OPTIONS    = ["0.5","0.75","1","1.25","1.5","2","2.5","3","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -215,18 +215,18 @@ const CUSTOMER_NAMES = {
   "Mr. Rizwan":             { hi: "श्री रिज़वान",              ur: "مسٹر رضوان" },
   "Mr. Faisal":             { hi: "श्री फ़ैसल",               ur: "مسٹر فیصل" },
   "Mr. Danish":             { hi: "श्री डेनिश",               ur: "مسٹر دانش" },
-  "Mr. Chanda":             { hi: "श्री चंदा",                ur: "مسٹر چندا" },
+  "Mr. Chanda (C.B.)":      { hi: "श्री चंदा (सी.बी.)",        ur: "مسٹر چندا (سی بی)" },
   "Mr. Syed Athar":         { hi: "श्री सैयद अतहर",           ur: "مسٹر سید اطہر" },
   "Mr. Adnan Abbasi":       { hi: "श्री अदनान अब्बासी",       ur: "مسٹر عدنان عباسی" },
-  "Mr. Haneef":             { hi: "श्री हनीफ़",               ur: "مسٹر حنیف" },
+  "Mr. Arif Khan":          { hi: "श्री आरिफ खान",            ur: "مسٹر عارف خان" },
   "Mr. Aleem Kidwai":       { hi: "श्री अलीम किदवई",          ur: "مسٹر علیم کدوائی" },
   "Mr. Shaad Kidwai":       { hi: "श्री शाद किदवई",           ur: "مسٹر شاد کدوائی" },
   "Mr. Razzaki":            { hi: "श्री रज़्ज़ाकी",           ur: "مسٹر رزاقی" },
   "Mr. Abrar":              { hi: "श्री अबरार",               ur: "مسٹر ابرار" },
   "Mr. Shivam Gupta":       { hi: "श्री शिवम गुप्ता",         ur: "مسٹر شیوم گپتا" },
-  "Mr. Santosh":            { hi: "श्री संतोष",               ur: "مسٹر سنتوش" },
+  "Mr. Santosh (B)":        { hi: "श्री संतोष (भैंस)",        ur: "مسٹر سنتوش (بھینس)" },
   "Mr. Satish Kumar":       { hi: "श्री सतीश कुमार",          ur: "مسٹر ستیش کمار" },
-  "Mr. Salauddin":          { hi: "श्री सलाउद्दीन",           ur: "مسٹر صلاح الدین" },
+  "Mr. Salauddin (C)":      { hi: "श्री सलाउद्दीन (गाय)",     ur: "مسٹر صلاح الدین (گائے)" },
   "Mr. Soni (Adv.)":        { hi: "श्री सोनी (वकील)",         ur: "مسٹر سونی (ایڈو.)" },
   "Mr. Santosh (C)":        { hi: "श्री संतोष (गाय)",         ur: "مسٹر سنتوش (گائے)" },
   // Evening
@@ -246,16 +246,18 @@ const CUSTOMER_NAMES = {
   "Mr. Fareed":                { hi: "श्री फ़रीद",              ur: "مسٹر فرید" },
   "Mr. Faisal Mukhtaar":       { hi: "श्री फ़ैसल मुख्तार",      ur: "مسٹر فیصل مختار" },
   "Mr. Akhtar Alam":           { hi: "श्री अख़्तर आलम",         ur: "مسٹر اختر عالم" },
-  "Mr. Faizan":                { hi: "श्री फ़ैज़ान",            ur: "مسٹر فیضان" },
-  "Mr. Farhan":                { hi: "श्री फ़रहान",             ur: "مسٹر فرحان" },
-  "Mrs. Jabi":                 { hi: "श्रीमती जाबी",            ur: "محترمہ جابی" },
+  "Mr. Faizan Alam":           { hi: "श्री फ़ैज़ान आलम",        ur: "مسٹر فیضان عالم" },
+  "Mr. Farhan Khan":           { hi: "श्री फ़रहान खान",         ur: "مسٹر فرحان خان" },
+  "Mrs. Jabi (B)":             { hi: "श्रीमती जाबी (भैंस)",     ur: "محترمہ جابی (بھینس)" },
   "Mr. Naved":                 { hi: "श्री नावेद",              ur: "مسٹر نوید" },
-  "Mr. Ram Pratap Mishra":     { hi: "श्री राम प्रताप मिश्रा",  ur: "مسٹر رام پرتاپ مشرا" },
+  "Mr. Ram Pratap Mishra (B)": { hi: "श्री राम प्रताप मिश्रा (भैंस)", ur: "مسٹر رام پرتاپ مشرا (بھینس)" },
   "Mr. Adil Waris":            { hi: "श्री आदिल वारिस",         ur: "مسٹر عادل وارث" },
+  "Mr. Chanda Waris":          { hi: "श्री चंदा वारिस",          ur: "مسٹر چندا وارث" },
   "Mr. Mushtaq":               { hi: "श्री मुश्ताक़",           ur: "مسٹر مشتاق" },
   "Mr. Talha Mehmood":         { hi: "श्री तलहा महमूद",         ur: "مسٹر طلحہ محمود" },
   "Mr. Ram Pratap Mishra (C)": { hi: "श्री राम प्रताप मिश्रा (गाय)", ur: "مسٹر رام پرتاپ مشرا (گائے)" },
   "Mr. Suyagya Sharma":        { hi: "श्री सुयग्य शर्मा",       ur: "مسٹر سویگیہ شرما" },
+  "Mrs. Jabi (C)":             { hi: "श्रीमती जाबी (गाय)",       ur: "محترمہ جابی (گائے)" },
   "Banki Neighbour 3":         { hi: "बांकी पड़ोसी 3",          ur: "بانکی پڑوسی 3" },
   "Mr. Sanjay":                { hi: "श्री संजय",               ur: "مسٹر سنجے" },
 };
@@ -267,6 +269,7 @@ function customerName(name, lang) {
 
 // ─── CUSTOMER DATA ─────────────────────────────────────────────────────────
 const MORNING_CUSTOMERS = [
+  // Buffalo — M1 to M28 order from Excel
   { name: "Mr. Saurav Gupta",       phone: "8090740907", type: "B" },
   { name: "Mr. Zaid Javed",         phone: "9819800350", type: "B" },
   { name: "Haaji Shamshaad",        phone: "8081093129", type: "B" },
@@ -282,23 +285,25 @@ const MORNING_CUSTOMERS = [
   { name: "Mr. Rizwan",             phone: "",           type: "B" },
   { name: "Mr. Faisal",             phone: "",           type: "B" },
   { name: "Mr. Danish",             phone: "",           type: "B" },
-  { name: "Mr. Chanda",             phone: "",           type: "B" },
+  { name: "Mr. Chanda (C.B.)",      phone: "",           type: "B" },
   { name: "Mr. Syed Athar",         phone: "",           type: "B" },
   { name: "Mr. Adnan Abbasi",       phone: "7897692769", type: "B" },
-  { name: "Mr. Haneef",             phone: "",           type: "B" },
+  { name: "Mr. Arif Khan",          phone: "",           type: "B" },
   { name: "Mr. Aleem Kidwai",       phone: "",           type: "B" },
   { name: "Mr. Shaad Kidwai",       phone: "",           type: "B" },
   { name: "Mr. Razzaki",            phone: "",           type: "B" },
   { name: "Mr. Abrar",              phone: "",           type: "B" },
   { name: "Mr. Shivam Gupta",       phone: "",           type: "B" },
-  { name: "Mr. Santosh",            phone: "",           type: "B" },
+  { name: "Mr. Santosh (B)",        phone: "",           type: "B" },
   { name: "Mr. Satish Kumar",       phone: "",           type: "B", selfCollect: true },
-  { name: "Mr. Salauddin",          phone: "",           type: "C" },
+  // Cow — M8, M9, M24
+  { name: "Mr. Salauddin (C)",      phone: "",           type: "C" },
   { name: "Mr. Soni (Adv.)",        phone: "",           type: "C" },
   { name: "Mr. Santosh (C)",        phone: "",           type: "C" },
 ];
 
 const EVENING_CUSTOMERS = [
+  // Buffalo — E1 to E28 order from Excel
   { name: "Mr. Imran Sheikh",          phone: "", type: "B" },
   { name: "Mr. Amar Jaiswal",          phone: "", type: "B" },
   { name: "Mr. Aftab",                 phone: "", type: "B" },
@@ -316,19 +321,21 @@ const EVENING_CUSTOMERS = [
   { name: "Mr. Fareed",                phone: "", type: "B" },
   { name: "Mr. Faisal Mukhtaar",       phone: "", type: "B" },
   { name: "Mr. Akhtar Alam",           phone: "", type: "B" },
-  { name: "Mr. Faizan",                phone: "", type: "B" },
-  { name: "Mr. Farhan",                phone: "", type: "B" },
-  { name: "Mrs. Jabi",                 phone: "", type: "B" },
+  { name: "Mr. Faizan Alam",           phone: "", type: "B" },
+  { name: "Mr. Farhan Khan",           phone: "", type: "B" },
+  { name: "Mrs. Jabi (B)",             phone: "", type: "B" },
   { name: "Mr. Naved",                 phone: "", type: "B" },
-  { name: "Mr. Ram Pratap Mishra",     phone: "", type: "B" },
+  { name: "Mr. Ram Pratap Mishra (B)", phone: "", type: "B" },
   { name: "Mr. Adil Waris",            phone: "", type: "B" },
-  { name: "Mr. Chanda",                phone: "", type: "B" },
+  { name: "Mr. Chanda Waris",          phone: "", type: "B" },
   { name: "Mr. Mushtaq",               phone: "", type: "B" },
   { name: "Mr. Talha Mehmood",         phone: "", type: "B" },
-  { name: "Mr. Ram Pratap Mishra (C)", phone: "", type: "C" },
-  { name: "Mr. Suyagya Sharma",        phone: "", type: "C" },
+  // Cow — E, E21, E, E22 from Excel
   { name: "Banki Neighbour 3",         phone: "", type: "C", selfCollect: true },
+  { name: "Mr. Ram Pratap Mishra (C)", phone: "", type: "C" },
   { name: "Mr. Sanjay",                phone: "", type: "C", selfCollect: true },
+  { name: "Mr. Suyagya Sharma",        phone: "", type: "C" },
+  { name: "Mrs. Jabi (C)",             phone: "", type: "C" },
 ];
 
 // ─── UTILITIES ─────────────────────────────────────────────────────────────
