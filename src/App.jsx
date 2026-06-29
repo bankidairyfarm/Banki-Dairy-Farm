@@ -82,7 +82,7 @@ const TR = {
     buf30: "Buffalo (30d)", cow30: "Cow (30d)",
   },
   hi: {
-    appName: "बंकी  डेयरी फार्म", appSub: "संचालन ट्रैकर",
+    appName: "बांकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
     selectRole: "जारी रखने के लिए अपनी भूमिका चुनें",
     roleSupervisor: "सुपरवाइज़र", roleDelivery: "डिलीवरी", roleOwner: "मालिक",
     roleSupDesc: "दैनिक दूध उत्पादन दर्ज करें",
@@ -92,14 +92,14 @@ const TR = {
     supTitle: "आज का उत्पादन दर्ज करें", supSub: "बाल्टी सहित वजन डालें (किलो)",
     date: "तारीख", morning: "सुबह", evening: "शाम", grandTotal: "कुल जोड़",
     buffalo: "🐃 भैंस", cow: "🐄 गाय",
-    measuredTotals: "नापा गया कुल",
-    bTotal: "भैंस (किलो)", cTotal: "गाय (किलो)",
+    measuredTotals: "📏 नापा गया कुल (नेट किलो, बाल्टी निकालकर)",
+    bTotal: "भैंस कुल (किलो)", cTotal: "गाय कुल (किलो)",
     matches: "✓ सही", mismatch: "⚠️ अंतर है",
-    outsideMilk: "बाहरी दूध",
+    outsideMilk: "🔄 बाहरी दूध",
     purchased: "खरीदा गया", extraMilk: "अतिरिक्त दूध",
     qty: "मात्रा (लीटर)", rate: "दर (₹/लीटर)", sold: "बेचा", sellingRate: "बिक्री दर (₹/लीटर)",
     calcTotals: "गणना किया गया कुल",
-    total: "कुल", submitProd: "दर्ज करें", saving: "सहेजा जा रहा है…",
+    total: "कुल", submitProd: "उत्पादन दर्ज करें", saving: "सहेजा जा रहा है…",
     savedProd: "✅ उत्पादन दर्ज हुआ", loggedTotal: "कुल जोड़",
     delTitle: "भेजा गया दूध दर्ज करें", delSub: "हर ग्राहक की डिलीवरी दर्ज करें",
     morningCustomers: "सुबह के ग्राहक", eveningCustomers: "शाम के ग्राहक",
@@ -327,6 +327,7 @@ const EVENING_CUSTOMERS = [
 
 // ─── UTILITIES ─────────────────────────────────────────────────────────────
 function today() {
+  // Use IST (UTC+5:30) to get correct date in India regardless of browser timezone
   const now = new Date();
   const ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
   return ist.toISOString().split("T")[0];
@@ -712,7 +713,7 @@ function SupervisorView({lang}) {
       {status==="error"&&<Alert type="error">⚠️ {errMsg}</Alert>}
 
       <Card style={{marginBottom:14}}>
-        <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}/>
+        <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
       </Card>
 
       <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={activeSlot} onChange={setActiveSlot}/>
@@ -780,12 +781,19 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t}) {
   const bg=isB?"#fffbeb":"#EBF5FD";
   const tagBg=isB?"#fde68a":"#9ACFF0";
   const displayName=customerName(customer.name,lang);
+  // Highlight row if nothing selected yet (not nil, not a quantity)
+  const isEmpty = !value || value==="";
+  const isNil   = value==="Nil";
+  const rowBg   = isEmpty ? "#fff9f0" : isNil ? "#fff5f5" : "transparent";
+  const rowBorder = isEmpty ? "1px solid #fde68a" : isNil ? "1px solid #fecaca" : "none";
+
   return (
-    <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 0",borderBottom:"1px solid #f8fafc"}}>
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 6px",borderBottom:"1px solid #f8fafc",background:rowBg,borderRadius:isEmpty||isNil?6:0,marginBottom:isEmpty||isNil?2:0,border:rowBorder}}>
       <div style={{flex:1,minWidth:0}}>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{displayName}</div>
           {customer.selfCollect&&<span style={{fontSize:9,fontWeight:700,color:"#6b7280",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:4,padding:"1px 5px",flexShrink:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>{t.self}</span>}
+          {isEmpty&&<span style={{fontSize:9,fontWeight:700,color:"#92400e",background:"#fef3c7",border:"1px solid #fde68a",borderRadius:4,padding:"1px 5px",flexShrink:0}}>?</span>}
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center",marginTop:1}}>
           {customer.phone&&<span style={{fontSize:11,color:"#aaa"}}>{customer.phone}</span>}
@@ -868,7 +876,7 @@ function DeliveryView({lang}) {
       {status==="error"&&<Alert type="error">⚠️ {errMsg}</Alert>}
 
       <Card style={{marginBottom:14}}>
-        <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}/>
+        <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
       </Card>
 
       <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={slot} onChange={setSlot}/>
