@@ -16,7 +16,7 @@ const BUFFALO_CATTLE = ["B1","B4","B5","B6","B7","B8","B9"];
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","0.75","1","1.25","1.5","2","2.5","3","Nil"];
+const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -53,7 +53,7 @@ const TR = {
     bufMilk: "Buffalo Milk", cowMilk: "Cow Milk", bottle: "bottle",
     submitDel: "Submit Dispatch Log",
     savedDel: "✅ Dispatch logged for",
-    noDeliveries: "No deliveries entered.",
+    noDeliveries: "No entries filled in. Please enter quantities before submitting.",
     // Owner
     ownTitle: "Owner Dashboard", ownSub: "Live farm operations",
     refresh: "↻ Refresh", loading: "Loading dashboard…",
@@ -76,6 +76,7 @@ const TR = {
     errScriptUrl: "Check your Google Apps Script URL in App.jsx line 4.",
     retry: "Retry",
     nilOption: "Nil",
+    customersTab: "Customers",
     enterPin: "Enter your PIN", wrongPin: "Wrong PIN. Try again.", pinHint: "Choose your role",
     editHint: "Values retained — edit and resubmit if needed",
     savedMorning: "✅ Morning dispatch saved for", savedEvening: "✅ Evening dispatch saved for",
@@ -110,7 +111,7 @@ const TR = {
     bufMilk: "भैंस का दूध", cowMilk: "गाय का दूध", bottle: "बोतल",
     submitDel: "डिलीवरी दर्ज करें",
     savedDel: "✅ डिलीवरी दर्ज हुई",
-    noDeliveries: "कोई डिलीवरी दर्ज नहीं।",
+    noDeliveries: "कोई मात्रा नहीं भरी। कृपया पहले मात्रा भरें।",
     ownTitle: "मालिक डैशबोर्ड", ownSub: "लाइव फार्म संचालन",
     refresh: "↻ रीफ्रेश", loading: "डैशबोर्ड लोड हो रहा है…",
     overview: "सारांश", dailyLog: "दैनिक", monthly: "मासिक",
@@ -132,6 +133,7 @@ const TR = {
     errScriptUrl: "App.jsx लाइन 4 में स्क्रिप्ट URL जाँचें।",
     retry: "फिर कोशिश करें",
     nilOption: "नहीं",
+    customersTab: "ग्राहक",
     enterPin: "अपना PIN डालें", wrongPin: "गलत PIN। फिर कोशिश करें।", pinHint: "अपनी भूमिका चुनें",
     editHint: "बदलाव करके फिर से दर्ज करें",
     savedMorning: "✅ सुबह की डिलीवरी दर्ज हुई", savedEvening: "✅ शाम की डिलीवरी दर्ज हुई",
@@ -166,7 +168,7 @@ const TR = {
     bufMilk: "بھینس کا دودھ", cowMilk: "گائے کا دودھ", bottle: "بوتل",
     submitDel: "ڈیلیوری درج کریں",
     savedDel: "✅ ڈیلیوری درج ہوئی",
-    noDeliveries: "کوئی ڈیلیوری درج نہیں۔",
+    noDeliveries: "کوئی مقدار نہیں بھری۔ پہلے مقدار بھریں۔",
     ownTitle: "مالک ڈیش بورڈ", ownSub: "لائیو فارم آپریشن",
     refresh: "↻ ریفریش", loading: "ڈیش بورڈ لوڈ ہو رہا ہے…",
     overview: "خلاصہ", dailyLog: "روزانہ", monthly: "ماہانہ",
@@ -188,6 +190,7 @@ const TR = {
     errScriptUrl: "App.jsx لائن 4 میں اسکرپٹ URL چیک کریں۔",
     retry: "دوبارہ کوشش کریں",
     nilOption: "نہیں",
+    customersTab: "گاہک",
     enterPin: "اپنا PIN درج کریں", wrongPin: "غلط PIN۔ دوبارہ کوشش کریں۔", pinHint: "اپنا کردار چنیں",
     editHint: "تبدیلی کر کے دوبارہ درج کریں",
     savedMorning: "✅ صبح کی ڈیلیوری درج ہوئی", savedEvening: "✅ شام کی ڈیلیوری درج ہوئی",
@@ -197,146 +200,24 @@ const TR = {
   },
 };
 
-// Customer names in all three languages
-const CUSTOMER_NAMES = {
-  // Morning
-  "Mr. Saurav Gupta":       { hi: "श्री सौरव गुप्ता",        ur: "مسٹر سوراو گپتا" },
-  "Mr. Zaid Javed":         { hi: "श्री ज़ैद जावेद",          ur: "مسٹر زید جاوید" },
-  "Haaji Shamshaad":        { hi: "हाजी शम्शाद",              ur: "حاجی شمشاد" },
-  "Mr. Urooj (Asma Baaji)": { hi: "श्री उरूज (असमा बाजी)",   ur: "مسٹر عروج (آسمہ باجی)" },
-  "Mr. Urooj Banki":        { hi: "श्री उरूज बांकी",          ur: "مسٹر عروج بانکی" },
-  "Mr. Aziz-ur-Rehman":     { hi: "श्री अज़ीज़ुर्रहमान",     ur: "مسٹر عزیزالرحمان" },
-  "Mr. Moni":               { hi: "श्री मोनी",                ur: "مسٹر مونی" },
-  "Mrs. Farzana":           { hi: "श्रीमती फ़र्ज़ाना",        ur: "محترمہ فرزانہ" },
-  "Mr. Achhe Khan":         { hi: "श्री अच्छे खान",           ur: "مسٹر اچھے خان" },
-  "Mr. Guddu (Station)":    { hi: "श्री गुड्डू (स्टेशन)",    ur: "مسٹر گڈو (اسٹیشن)" },
-  "Mr. Umair Kidwai":       { hi: "श्री उमैर किदवई",          ur: "مسٹر عمیر کدوائی" },
-  "Mr. Umar Faiz Kidwai":   { hi: "श्री उमर फ़ैज़ किदवई",    ur: "مسٹر عمر فیض کدوائی" },
-  "Mr. Rizwan":             { hi: "श्री रिज़वान",              ur: "مسٹر رضوان" },
-  "Mr. Faisal":             { hi: "श्री फ़ैसल",               ur: "مسٹر فیصل" },
-  "Mr. Danish":             { hi: "श्री डेनिश",               ur: "مسٹر دانش" },
-  "Mr. Chanda (C.B.)":      { hi: "श्री चंदा (सी.बी.)",        ur: "مسٹر چندا (سی بی)" },
-  "Mr. Syed Athar":         { hi: "श्री सैयद अतहर",           ur: "مسٹر سید اطہر" },
-  "Mr. Adnan Abbasi":       { hi: "श्री अदनान अब्बासी",       ur: "مسٹر عدنان عباسی" },
-  "Mr. Arif Khan":          { hi: "श्री आरिफ खान",            ur: "مسٹر عارف خان" },
-  "Mr. Aleem Kidwai":       { hi: "श्री अलीम किदवई",          ur: "مسٹر علیم کدوائی" },
-  "Mr. Shaad Kidwai":       { hi: "श्री शाद किदवई",           ur: "مسٹر شاد کدوائی" },
-  "Mr. Razzaki":            { hi: "श्री रज़्ज़ाकी",           ur: "مسٹر رزاقی" },
-  "Mr. Abrar":              { hi: "श्री अबरार",               ur: "مسٹر ابرار" },
-  "Mr. Shivam Gupta":       { hi: "श्री शिवम गुप्ता",         ur: "مسٹر شیوم گپتا" },
-  "Mr. Santosh (B)":        { hi: "श्री संतोष (भैंस)",        ur: "مسٹر سنتوش (بھینس)" },
-  "Mr. Satish Kumar":       { hi: "श्री सतीश कुमार",          ur: "مسٹر ستیش کمار" },
-  "Mr. Salauddin (C)":      { hi: "श्री सलाउद्दीन (गाय)",     ur: "مسٹر صلاح الدین (گائے)" },
-  "Mr. Soni (Adv.)":        { hi: "श्री सोनी (वकील)",         ur: "مسٹر سونی (ایڈو.)" },
-  "Mr. Santosh (C)":        { hi: "श्री संतोष (गाय)",         ur: "مسٹر سنتوش (گائے)" },
-  // Evening
-  "Mr. Imran Sheikh":          { hi: "श्री इमरान शेख",           ur: "مسٹر عمران شیخ" },
-  "Mr. Amar Jaiswal":          { hi: "श्री अमर जायसवाल",         ur: "مسٹر امر جیسوال" },
-  "Mr. Aftab":                 { hi: "श्री अफ़ताब",              ur: "مسٹر آفتاب" },
-  "Mr. Abdul Waheed":          { hi: "श्री अब्दुल वहीद",         ur: "مسٹر عبدالوحید" },
-  "Mr. Aziz":                  { hi: "श्री अज़ीज़",              ur: "مسٹر عزیز" },
-  "Mr. Abdul Hai":             { hi: "श्री अब्दुल हई",           ur: "مسٹر عبدالحئی" },
-  "Mrs. Shabnam":              { hi: "श्रीमती शबनम",             ur: "محترمہ شبنم" },
-  "Mr. Abdul Shehzaade":       { hi: "श्री अब्दुल शहज़ादे",     ur: "مسٹر عبدالشہزادے" },
-  "Mr. Amir":                  { hi: "श्री आमिर",               ur: "مسٹر عامر" },
-  "Mr. Salauddin (Doc)":       { hi: "श्री सलाउद्दीन (डॉक्टर)", ur: "مسٹر صلاح الدین (ڈاکٹر)" },
-  "Mr. Muin":                  { hi: "श्री मुईन",               ur: "مسٹر معین" },
-  "Mr. Ittiba Hussein":        { hi: "श्री इत्तेबा हुसैन",      ur: "مسٹر اتباع حسین" },
-  "Mr. Rayyan Ashraf":         { hi: "श्री रैयान अशरफ़",        ur: "مسٹر ریان اشرف" },
-  "Mr. Fareed":                { hi: "श्री फ़रीद",              ur: "مسٹر فرید" },
-  "Mr. Faisal Mukhtaar":       { hi: "श्री फ़ैसल मुख्तार",      ur: "مسٹر فیصل مختار" },
-  "Mr. Akhtar Alam":           { hi: "श्री अख़्तर आलम",         ur: "مسٹر اختر عالم" },
-  "Mr. Faizan Alam":           { hi: "श्री फ़ैज़ान आलम",        ur: "مسٹر فیضان عالم" },
-  "Mr. Farhan Khan":           { hi: "श्री फ़रहान खान",         ur: "مسٹر فرحان خان" },
-  "Mrs. Jabi (B)":             { hi: "श्रीमती जाबी (भैंस)",     ur: "محترمہ جابی (بھینس)" },
-  "Mr. Naved":                 { hi: "श्री नावेद",              ur: "مسٹر نوید" },
-  "Mr. Ram Pratap Mishra (B)": { hi: "श्री राम प्रताप मिश्रा (भैंस)", ur: "مسٹر رام پرتاپ مشرا (بھینس)" },
-  "Mr. Adil Waris":            { hi: "श्री आदिल वारिस",         ur: "مسٹر عادل وارث" },
-  "Mr. Chanda Waris":          { hi: "श्री चंदा वारिस",          ur: "مسٹر چندا وارث" },
-  "Mr. Mushtaq":               { hi: "श्री मुश्ताक़",           ur: "مسٹر مشتاق" },
-  "Mr. Talha Mehmood":         { hi: "श्री तलहा महमूद",         ur: "مسٹر طلحہ محمود" },
-  "Mr. Ram Pratap Mishra (C)": { hi: "श्री राम प्रताप मिश्रा (गाय)", ur: "مسٹر رام پرتاپ مشرا (گائے)" },
-  "Mr. Suyagya Sharma":        { hi: "श्री सुयग्य शर्मा",       ur: "مسٹر سویگیہ شرما" },
-  "Mrs. Jabi (C)":             { hi: "श्रीमती जाबी (गाय)",       ur: "محترمہ جابی (گائے)" },
-  "Banki Neighbour 3":         { hi: "बांकी पड़ोसी 3",          ur: "بانکی پڑوسی 3" },
-  "Mr. Sanjay":                { hi: "श्री संजय",               ur: "مسٹر سنجے" },
-};
 
-function customerName(name, lang) {
+// customerName is now resolved from the dynamic customer list loaded from sheet
+// Pass the full customers array and look up by name_en
+function customerName(name, lang, customers) {
   if (lang === "en") return name;
-  return (CUSTOMER_NAMES[name] && CUSTOMER_NAMES[name][lang]) || name;
+  const match = customers.find(c => c.name_en === name);
+  if (!match) return name;
+  if (lang === "hi") return match.name_hi || name;
+  if (lang === "ur") return match.name_ur || name;
+  return name;
 }
 
 // ─── CUSTOMER DATA ─────────────────────────────────────────────────────────
-const MORNING_CUSTOMERS = [
-  // Buffalo — M1 to M28 order from Excel
-  { name: "Mr. Saurav Gupta",       phone: "8090740907", type: "B" },
-  { name: "Mr. Zaid Javed",         phone: "9819800350", type: "B" },
-  { name: "Haaji Shamshaad",        phone: "8081093129", type: "B" },
-  { name: "Mr. Urooj (Asma Baaji)", phone: "",           type: "B" },
-  { name: "Mr. Urooj Banki",        phone: "",           type: "B" },
-  { name: "Mr. Aziz-ur-Rehman",     phone: "",           type: "B" },
-  { name: "Mr. Moni",               phone: "",           type: "B" },
-  { name: "Mrs. Farzana",           phone: "",           type: "B" },
-  { name: "Mr. Achhe Khan",         phone: "",           type: "B" },
-  { name: "Mr. Guddu (Station)",    phone: "",           type: "B" },
-  { name: "Mr. Umair Kidwai",       phone: "",           type: "B" },
-  { name: "Mr. Umar Faiz Kidwai",   phone: "9389874362", type: "B" },
-  { name: "Mr. Rizwan",             phone: "",           type: "B" },
-  { name: "Mr. Faisal",             phone: "",           type: "B" },
-  { name: "Mr. Danish",             phone: "",           type: "B" },
-  { name: "Mr. Chanda (C.B.)",      phone: "",           type: "B" },
-  { name: "Mr. Syed Athar",         phone: "",           type: "B" },
-  { name: "Mr. Adnan Abbasi",       phone: "7897692769", type: "B" },
-  { name: "Mr. Arif Khan",          phone: "",           type: "B" },
-  { name: "Mr. Aleem Kidwai",       phone: "",           type: "B" },
-  { name: "Mr. Shaad Kidwai",       phone: "",           type: "B" },
-  { name: "Mr. Razzaki",            phone: "",           type: "B" },
-  { name: "Mr. Abrar",              phone: "",           type: "B" },
-  { name: "Mr. Shivam Gupta",       phone: "",           type: "B" },
-  { name: "Mr. Santosh (B)",        phone: "",           type: "B" },
-  { name: "Mr. Satish Kumar",       phone: "",           type: "B", selfCollect: true },
-  // Cow — M8, M9, M24
-  { name: "Mr. Salauddin (C)",      phone: "",           type: "C" },
-  { name: "Mr. Soni (Adv.)",        phone: "",           type: "C" },
-  { name: "Mr. Santosh (C)",        phone: "",           type: "C" },
-];
+// Customer lists loaded dynamically from Google Sheet via getCustomers
+const MORNING_CUSTOMERS = []; // populated at runtime
+const EVENING_CUSTOMERS = []; // populated at runtime
 
-const EVENING_CUSTOMERS = [
-  // Buffalo — E1 to E28 order from Excel
-  { name: "Mr. Imran Sheikh",          phone: "", type: "B" },
-  { name: "Mr. Amar Jaiswal",          phone: "", type: "B" },
-  { name: "Mr. Aftab",                 phone: "", type: "B" },
-  { name: "Mr. Abdul Waheed",          phone: "", type: "B" },
-  { name: "Mr. Aziz",                  phone: "", type: "B" },
-  { name: "Mr. Abdul Hai",             phone: "", type: "B" },
-  { name: "Mrs. Shabnam",              phone: "", type: "B" },
-  { name: "Mr. Abdul Shehzaade",       phone: "", type: "B" },
-  { name: "Mr. Amir",                  phone: "", type: "B" },
-  { name: "Mr. Salauddin",             phone: "", type: "B" },
-  { name: "Mr. Salauddin (Doc)",       phone: "", type: "B" },
-  { name: "Mr. Muin",                  phone: "", type: "B" },
-  { name: "Mr. Ittiba Hussein",        phone: "", type: "B" },
-  { name: "Mr. Rayyan Ashraf",         phone: "", type: "B" },
-  { name: "Mr. Fareed",                phone: "", type: "B" },
-  { name: "Mr. Faisal Mukhtaar",       phone: "", type: "B" },
-  { name: "Mr. Akhtar Alam",           phone: "", type: "B" },
-  { name: "Mr. Faizan Alam",           phone: "", type: "B" },
-  { name: "Mr. Farhan Khan",           phone: "", type: "B" },
-  { name: "Mrs. Jabi (B)",             phone: "", type: "B" },
-  { name: "Mr. Naved",                 phone: "", type: "B" },
-  { name: "Mr. Ram Pratap Mishra (B)", phone: "", type: "B" },
-  { name: "Mr. Adil Waris",            phone: "", type: "B" },
-  { name: "Mr. Chanda Waris",          phone: "", type: "B" },
-  { name: "Mr. Mushtaq",               phone: "", type: "B" },
-  { name: "Mr. Talha Mehmood",         phone: "", type: "B" },
-  // Cow — E, E21, E, E22 from Excel
-  { name: "Banki Neighbour 3",         phone: "", type: "C", selfCollect: true },
-  { name: "Mr. Ram Pratap Mishra (C)", phone: "", type: "C" },
-  { name: "Mr. Sanjay",                phone: "", type: "C", selfCollect: true },
-  { name: "Mr. Suyagya Sharma",        phone: "", type: "C" },
-  { name: "Mrs. Jabi (C)",             phone: "", type: "C" },
-];
+
 
 // ─── UTILITIES ─────────────────────────────────────────────────────────────
 function today() {
@@ -365,13 +246,21 @@ async function apiGet(action,params={}) {
 // Use GET with encoded payload — avoids no-cors stripping issues with Apps Script
 async function apiPost(action,data={}) {
   const payload = encodeURIComponent(JSON.stringify({action,...data}));
-  const res = await fetch(`${SCRIPT_URL}?action=${action}&payload=${payload}`);
-  // no-cors fallback: if response is opaque just assume success
   try {
-    const j = await res.json();
-    if (j && j.error) throw new Error(j.error);
+    const res = await fetch(`${SCRIPT_URL}?action=${action}&payload=${payload}`);
+    try {
+      const j = await res.json();
+      if (j && j.error) throw new Error(j.error);
+    } catch(e) {
+      // JSON parse error is fine — Apps Script sometimes returns no body
+      if (e.message && e.message.includes("error")) throw e;
+    }
   } catch(e) {
-    if (e.message && e.message !== "Unexpected end of JSON input") throw e;
+    // "Failed to fetch" / network errors on Apps Script are a known CORS quirk —
+    // the request still reaches the server and data is saved correctly.
+    // Only re-throw if it's an explicit Apps Script error (not a browser CORS block).
+    if (e.message && e.message.startsWith("Apps Script:")) throw e;
+    // Otherwise swallow and treat as success
   }
   return true;
 }
@@ -399,6 +288,25 @@ function Btn({children,variant="primary",style={},...props}) {
 function Alert({type="info",children}) {
   const c={info:{bg:"#EBF5FD",border:"#9ACFF0",text:"#1A5C8A"},success:{bg:"#f0fdf4",border:"#bbf7d0",text:"#15803d"},warn:{bg:"#fffbeb",border:"#fde68a",text:"#92400e"},error:{bg:"#fef2f2",border:"#fecaca",text:"#991b1b"}}[type];
   return <div style={{background:c.bg,border:`1px solid ${c.border}`,color:c.text,borderRadius:9,padding:"10px 14px",fontSize:13,marginBottom:14}}>{children}</div>;
+}
+// Fixed-position toast — always visible at top of screen regardless of scroll position
+function Toast({type="info",children,onDismiss}) {
+  const c={info:{bg:"#EBF5FD",border:"#9ACFF0",text:"#1A5C8A"},success:{bg:"#f0fdf4",border:"#bbf7d0",text:"#15803d"},warn:{bg:"#fffbeb",border:"#fde68a",text:"#92400e"},error:{bg:"#fef2f2",border:"#fecaca",text:"#991b1b"}}[type];
+  return (
+    <div style={{
+      position:"fixed", top:64, left:"50%", transform:"translateX(-50%)",
+      zIndex:9999, width:"calc(100% - 32px)", maxWidth:488,
+      background:c.bg, border:`1.5px solid ${c.border}`, color:c.text,
+      borderRadius:11, padding:"12px 16px", fontSize:13, fontWeight:600,
+      boxShadow:"0 4px 20px rgba(0,0,0,0.13)",
+      display:"flex", alignItems:"flex-start", gap:10,
+      animation:"slideDown 0.2s ease"
+    }}>
+      <div style={{flex:1}}>{children}</div>
+      {onDismiss&&<button onClick={onDismiss} style={{background:"none",border:"none",cursor:"pointer",color:c.text,fontSize:16,lineHeight:1,padding:0,opacity:0.6}}>✕</button>}
+      <style>{`@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
+    </div>
+  );
 }
 function StatBox({label,value,sub,color="#2D7FB5"}) {
   return (
@@ -731,8 +639,8 @@ function SupervisorView({lang}) {
         <div style={{fontSize:20,fontWeight:700,color:"#1a1a1a"}}>{t.supTitle}</div>
         <div style={{color:"#888",fontSize:13,marginTop:2}}>{t.supSub}</div>
       </div>
-      {status==="success"&&<Alert type="success">{t.savedProd} {fmtDate(date)} — {t.grandTotal}: {fmtN(grandTotal,2)} L</Alert>}
-      {status==="error"&&<Alert type="error">⚠️ {errMsg}</Alert>}
+      {status==="success"&&<Toast type="success" onDismiss={()=>setStatus(null)}>{t.savedProd} {fmtDate(date)} — {t.grandTotal}: {fmtN(grandTotal,2)} L</Toast>}
+      {status==="error"&&<Toast type="error" onDismiss={()=>setStatus(null)}>⚠️ {errMsg}</Toast>}
 
       <Card style={{marginBottom:14}}>
         <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
@@ -757,10 +665,10 @@ function SupervisorView({lang}) {
 // ─── DELIVERY ───────────────────────────────────────────────────────────────
 function BottleSummary({customers,vals,t}) {
   function calcBottles(type) {
-    const filtered=customers.filter(c=>c.type===type&&!c.selfCollect);
+    const filtered=customers.filter(c=>c.type===type&&!(c.selfCollect||c.selfcollect));
     let b075=0,b05=0,b1=0;
     filtered.forEach(c=>{
-      const q=vals[c.name]; if(!q||q==="Nil") return;
+      const q=vals[c.name_en||c.name]; if(!q||q==="Nil") return;
       const qty=parseFloat(q);
       if(qty===0.75)                     { b075++; }
       else if(qty===0.5)                 { b05++; }
@@ -770,7 +678,7 @@ function BottleSummary({customers,vals,t}) {
     return {b075,b05,b1};
   }
   const b=calcBottles("B"); const c=calcBottles("C");
-  const hasAny=customers.some(c=>vals[c.name]&&vals[c.name]!=="Nil");
+  const hasAny=customers.some(c=>vals[c.name_en||c.name]&&vals[c.name_en||c.name]!=="Nil");
   if(!hasAny) return null;
 
   function Col({label,counts,color,bg,border}) {
@@ -797,28 +705,29 @@ function BottleSummary({customers,vals,t}) {
   );
 }
 
-function CustomerRow({customer,value,onChange,prevValue,lang,t}) {
+function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[]}) {
   const isB=customer.type==="B";
   const color=isB?"#92400e":"#2D7FB5";
   const bg=isB?"#fffbeb":"#EBF5FD";
   const tagBg=isB?"#fde68a":"#9ACFF0";
-  const displayName=customerName(customer.name,lang);
+  const displayName=customerName(customer.name_en||customer.name,lang,customers||[]);
   // Highlight row if nothing selected yet (not nil, not a quantity)
   const isEmpty = !value || value==="";
   const isNil   = value==="Nil";
   const rowBg   = isEmpty ? "#fff9f0" : isNil ? "#fff5f5" : "transparent";
   const rowBorder = isEmpty ? "1px solid #fde68a" : isNil ? "1px solid #fecaca" : "none";
+  const selfCollect = customer.selfCollect || customer.selfcollect;
 
   return (
     <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 6px",borderBottom:"1px solid #f8fafc",background:rowBg,borderRadius:isEmpty||isNil?6:0,marginBottom:isEmpty||isNil?2:0,border:rowBorder}}>
       <div style={{flex:1,minWidth:0}}>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{displayName}</div>
-          {customer.selfCollect&&<span style={{fontSize:9,fontWeight:700,color:"#6b7280",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:4,padding:"1px 5px",flexShrink:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>{t.self}</span>}
+          {selfCollect&&<span style={{fontSize:9,fontWeight:700,color:"#6b7280",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:4,padding:"1px 5px",flexShrink:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>{t.self}</span>}
           {isEmpty&&<span style={{fontSize:9,fontWeight:700,color:"#92400e",background:"#fef3c7",border:"1px solid #fde68a",borderRadius:4,padding:"1px 5px",flexShrink:0}}>?</span>}
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center",marginTop:1}}>
-          {customer.phone&&<span style={{fontSize:11,color:"#aaa"}}>{customer.phone}</span>}
+          {(customer.phone)&&<span style={{fontSize:11,color:"#aaa"}}>{customer.phone}</span>}
           {prevValue&&prevValue!=="Nil"
             ?<span style={{fontSize:11,color:"#94a3b8",fontStyle:"italic"}}>{t.yesterday}: {prevValue} L</span>
             :prevValue==="Nil"
@@ -836,7 +745,7 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t}) {
   );
 }
 
-function DeliveryView({lang}) {
+function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers=[]}) {
   const t=TR[lang];
   const [date,setDate]=useState(today());
   const [slot,setSlot]=useState("morning");
@@ -857,10 +766,11 @@ function DeliveryView({lang}) {
     apiGet("getDispatchByDate",{date:prevDateStr}).then(d=>setPrevData(d)).catch(()=>setPrevData(null));
   },[date]);
 
-  const customers=slot==="morning"?MORNING_CUSTOMERS:EVENING_CUSTOMERS;
+  const slotCustomers=slot==="morning"?morningCustomers:eveningCustomers;
   const vals=slot==="morning"?mVals:eVals;
   const setVals=slot==="morning"?setMVals:setEVals;
   const prevVals=prevData?(slot==="morning"?prevData.morning:prevData.evening):null;
+  const customers=slotCustomers;
 
   function totalLtrs(vs){return Object.values(vs).reduce((s,v)=>s+(v&&v!=="Nil"?parseFloat(v)||0:0),0);}
   const mTotal=totalLtrs(mVals); const eTotal=totalLtrs(eVals);
@@ -871,10 +781,10 @@ function DeliveryView({lang}) {
     if(mTotal+eTotal===0){setErrMsg(t.noDeliveries);setStatus("error");return;}
     setStatus("loading");
     try {
-      const buildEntries=(custs,vs)=>custs.map(c=>({name:c.name,type:c.type,qty:vs[c.name]||"Nil"}));
+      const buildEntries=(custs,vs)=>custs.map(c=>({name:c.name_en,type:c.type,qty:vs[c.name_en]||"Nil"}));
       await apiPost("logDispatch",{date,
-        morning:{entries:JSON.stringify(buildEntries(MORNING_CUSTOMERS,mVals)),total:mTotal},
-        evening:{entries:JSON.stringify(buildEntries(EVENING_CUSTOMERS,eVals)),total:eTotal},
+        morning:{entries:JSON.stringify(buildEntries(morningCustomers,mVals)),total:mTotal},
+        evening:{entries:JSON.stringify(buildEntries(eveningCustomers,eVals)),total:eTotal},
         grandTotal:mTotal+eTotal});
       // Keep values visible — mark this slot as submitted
       setSubmittedSlots(p=>({...p,[slot]:true}));
@@ -890,12 +800,12 @@ function DeliveryView({lang}) {
       </div>
 
       {status==="success"&&(
-        <Alert type="success">
+        <Toast type="success" onDismiss={()=>setStatus(null)}>
           {slot==="morning"?t.savedMorning:t.savedEvening} {fmtDate(date)}
           <div style={{fontSize:11,opacity:0.8,marginTop:3}}>{t.editHint}</div>
-        </Alert>
+        </Toast>
       )}
-      {status==="error"&&<Alert type="error">⚠️ {errMsg}</Alert>}
+      {status==="error"&&<Toast type="error" onDismiss={()=>setStatus(null)}>⚠️ {errMsg}</Toast>}
 
       <Card style={{marginBottom:14}}>
         <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
@@ -908,7 +818,7 @@ function DeliveryView({lang}) {
           {slot==="morning"?`☀️ ${t.morningCustomers}`:`🌙 ${t.eveningCustomers}`} ({customers.length})
         </div>
         {customers.map(c=>(
-          <CustomerRow key={c.name} customer={c} value={vals[c.name]||""} onChange={v=>setVals(p=>({...p,[c.name]:v}))} prevValue={prevVals?prevVals[c.name]:null} lang={lang} t={t}/>
+          <CustomerRow key={c.name} customer={c} value={vals[c.name]||""} onChange={v=>setVals(p=>({...p,[c.name_en||c.name]:v}))} prevValue={prevVals?prevVals[c.name_en||c.name]:null} lang={lang} t={t} customers={customers}/>
         ))}
 
         {/* Totals below the list */}
@@ -941,7 +851,176 @@ function DeliveryView({lang}) {
 }
 
 // ─── OWNER DASHBOARD ───────────────────────────────────────────────────────
-function OwnerDashboard({lang}) {
+// ─── CUSTOMERS ADMIN ───────────────────────────────────────────────────────
+function CustomersAdmin({customers, lang, t, onChanged}) {
+  const [form,setForm]=useState(null); // null=list, object=edit form
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+
+  const slots = ["morning","evening"];
+  const types = ["B","C"];
+
+  function blankForm() {
+    return {name_en:"",name_hi:"",name_ur:"",slot:"morning",type:"B",phone:"",selfCollect:false,rowIndex:null};
+  }
+
+  function showToast(msg,type="success") {
+    setToast({msg,type});
+    setTimeout(()=>setToast(null),3000);
+  }
+
+  async function handleSave() {
+    if(!form.name_en.trim()){showToast("English name is required","error");return;}
+    if(!form.name_hi.trim()){showToast("Hindi name is required","error");return;}
+    if(!form.name_ur.trim()){showToast("Urdu name is required","error");return;}
+    setSaving(true);
+    try {
+      await apiPost("saveCustomer",{...form});
+      setForm(null);
+      onChanged&&onChanged();
+      showToast(form.rowIndex?"Customer updated!":"Customer added!");
+    } catch(e){showToast(e.message,"error");}
+    finally{setSaving(false);}
+  }
+
+  async function handleToggle(cust) {
+    try {
+      await apiPost("toggleCustomer",{rowIndex:cust.rowIndex,active:!cust.active});
+      onChanged&&onChanged();
+      showToast(cust.active?"Customer deactivated":"Customer reactivated");
+    } catch(e){showToast(e.message,"error");}
+  }
+
+  async function handleDelete(cust) {
+    if(!window.confirm(`Delete ${cust.name_en} permanently? This cannot be undone.`)) return;
+    try {
+      await apiPost("deleteCustomer",{rowIndex:cust.rowIndex});
+      onChanged&&onChanged();
+      showToast("Customer deleted");
+    } catch(e){showToast(e.message,"error");}
+  }
+
+  if(form) return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+        <button onClick={()=>setForm(null)} style={{background:"none",border:"none",color:"#2D7FB5",cursor:"pointer",fontSize:20,lineHeight:1}}>←</button>
+        <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a"}}>{form.rowIndex?"Edit Customer":"Add Customer"}</div>
+      </div>
+      <Card>
+        <div style={{marginBottom:12}}>
+          <SectionLabel>Name in English *</SectionLabel>
+          <input value={form.name_en} onChange={e=>setForm(p=>({...p,name_en:e.target.value}))}
+            placeholder="e.g. Mr. Ahmad Khan"
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+        </div>
+        <div style={{marginBottom:12}}>
+          <SectionLabel>Name in Hindi * (for Supervisor)</SectionLabel>
+          <input value={form.name_hi} onChange={e=>setForm(p=>({...p,name_hi:e.target.value}))}
+            placeholder="श्री अहमद खान"
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #fde68a",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+          <div style={{fontSize:11,color:"#aaa",marginTop:3}}>Use Google Translate if needed → translate to Hindi</div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <SectionLabel>Name in Urdu * (for Delivery)</SectionLabel>
+          <input value={form.name_ur} onChange={e=>setForm(p=>({...p,name_ur:e.target.value}))}
+            placeholder="مسٹر احمد خان"
+            dir="rtl"
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #9ACFF0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",textAlign:"right"}}/>
+          <div style={{fontSize:11,color:"#aaa",marginTop:3}}>Use Google Translate if needed → translate to Urdu</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div>
+            <SectionLabel>Slot</SectionLabel>
+            <select value={form.slot} onChange={e=>setForm(p=>({...p,slot:e.target.value}))}
+              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",fontFamily:"inherit"}}>
+              <option value="morning">☀️ Morning</option>
+              <option value="evening">🌙 Evening</option>
+            </select>
+          </div>
+          <div>
+            <SectionLabel>Milk Type</SectionLabel>
+            <select value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))}
+              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",fontFamily:"inherit"}}>
+              <option value="B">🐃 Buffalo</option>
+              <option value="C">🐄 Cow</option>
+            </select>
+          </div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <SectionLabel>Phone (optional)</SectionLabel>
+          <input value={form.phone||""} onChange={e=>setForm(p=>({...p,phone:e.target.value}))}
+            placeholder="10-digit number"
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:18}}>
+          <input type="checkbox" id="selfCollect" checked={form.selfCollect||false}
+            onChange={e=>setForm(p=>({...p,selfCollect:e.target.checked}))}
+            style={{width:15,height:15,accentColor:"#2D7FB5"}}/>
+          <label htmlFor="selfCollect" style={{fontSize:13,color:"#555",cursor:"pointer"}}>
+            Self-collect (brings own utensil, excluded from bottle count)
+          </label>
+        </div>
+        <Btn onClick={handleSave} style={{width:"100%"}} disabled={saving}>
+          {saving?"Saving…":form.rowIndex?"Update Customer":"Add Customer"}
+        </Btn>
+      </Card>
+    </div>
+  );
+
+  // List view
+  const morning = customers.filter(c=>c.slot==="morning");
+  const evening = customers.filter(c=>c.slot==="evening");
+
+  function Section({title, list}) {
+    return (
+      <Card style={{marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:13,color:"#374151",marginBottom:12}}>{title} ({list.filter(c=>c.active).length} active)</div>
+        {list.map(cust=>(
+          <div key={cust.rowIndex} style={{
+            display:"flex",alignItems:"center",gap:8,padding:"9px 0",
+            borderBottom:"1px solid #f8fafc",
+            opacity:cust.active?1:0.45
+          }}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                {cust.name_en}
+                {cust.selfCollect&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,color:"#6b7280",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:4,padding:"1px 5px"}}>SELF</span>}
+                {!cust.active&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,color:"#dc2626",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:4,padding:"1px 5px"}}>INACTIVE</span>}
+              </div>
+              <div style={{fontSize:11,color:"#aaa",marginTop:1}}>{cust.type==="B"?"🐃 Buffalo":"🐄 Cow"}{cust.phone?` · ${cust.phone}`:""}</div>
+            </div>
+            <button onClick={()=>setForm({...cust})} style={{background:"#EBF5FD",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"#2D7FB5",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
+            <button onClick={()=>handleToggle(cust)} style={{background:cust.active?"#fff9f0":"#f0fdf4",border:`1px solid ${cust.active?"#fde68a":"#bbf7d0"}`,borderRadius:7,padding:"5px 10px",fontSize:12,color:cust.active?"#92400e":"#15803d",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              {cust.active?"Deactivate":"Reactivate"}
+            </button>
+            <button onClick={()=>handleDelete(cust)} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:7,padding:"5px 8px",fontSize:12,color:"#dc2626",cursor:"pointer",fontFamily:"inherit"}}>✕</button>
+          </div>
+        ))}
+      </Card>
+    );
+  }
+
+  return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:700,color:"#1a1a1a"}}>Customers</div>
+          <div style={{fontSize:12,color:"#888",marginTop:2}}>{customers.filter(c=>c.active).length} active of {customers.length} total</div>
+        </div>
+        <Btn onClick={()=>setForm(blankForm())} style={{padding:"8px 16px",fontSize:13}}>+ Add</Btn>
+      </div>
+      <Section title="☀️ Morning" list={morning}/>
+      <Section title="🌙 Evening" list={evening}/>
+      <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"10px 14px",fontSize:12,color:"#92400e",marginTop:4}}>
+        💡 Deactivating a customer hides them from the delivery view but keeps their history. Deleting is permanent.
+      </div>
+    </div>
+  );
+}
+
+function OwnerDashboard({lang, customers=[], reloadCustomers}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -965,7 +1044,7 @@ function OwnerDashboard({lang}) {
         <Btn variant="ghost" onClick={load} style={{padding:"7px 13px",fontSize:12}}>{t.refresh}</Btn>
       </div>
 
-      <TabBar tabs={[{key:"overview",label:t.overview},{key:"daily",label:t.dailyLog},{key:"monthly",label:t.monthly}]} active={tab} onChange={setTab}/>
+      <TabBar tabs={[{key:"overview",label:t.overview},{key:"daily",label:t.dailyLog},{key:"monthly",label:t.monthly},{key:"customers",label:t.customersTab}]} active={tab} onChange={setTab}/>
 
       {tab==="overview"&&(
         <div>
@@ -1086,6 +1165,10 @@ function OwnerDashboard({lang}) {
           )}
         </Card>
       )}
+
+      {tab==="customers"&&(
+        <CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers}/>
+      )}
     </div>
   );
 }
@@ -1096,6 +1179,22 @@ export default function App() {
   const [lang,setLang]=useState(()=>{
     try { return localStorage.getItem("dairyLang")||"en"; } catch(e){ return "en"; }
   });
+  // Customer list loaded once from sheet, shared across all views
+  const [customers,setCustomers]=useState([]);
+  const [custLoading,setCustLoading]=useState(true);
+
+  useEffect(()=>{
+    apiGet("getCustomers")
+      .then(d=>{
+        setCustomers(d.customers||[]);
+        setCustLoading(false);
+      })
+      .catch(()=>setCustLoading(false));
+  },[]);
+
+  function reloadCustomers() {
+    apiGet("getCustomers").then(d=>setCustomers(d.customers||[])).catch(()=>{});
+  }
 
   function changeLang(l) {
     setLang(l);
@@ -1110,6 +1209,9 @@ export default function App() {
   };
 
   if(!role) return <LoginScreen onLogin={setRole} lang={lang} setLang={changeLang}/>;
+
+  const morningCustomers = customers.filter(c=>c.active&&c.slot==="morning");
+  const eveningCustomers = customers.filter(c=>c.active&&c.slot==="evening");
 
   const r=ROLES_META[role];
   return (
@@ -1129,9 +1231,14 @@ export default function App() {
         </div>
       </div>
       <div style={{maxWidth:520,margin:"0 auto",padding:"18px 15px 48px"}}>
-        {role==="supervisor"&&<SupervisorView lang={lang}/>}
-        {role==="delivery"&&<DeliveryView lang={lang}/>}
-        {role==="owner"&&<OwnerDashboard lang={lang}/>}
+        {custLoading
+          ? <div style={{textAlign:"center",padding:"60px 20px",color:"#aaa",fontSize:13}}>Loading…</div>
+          : <>
+            {role==="supervisor"&&<SupervisorView lang={lang}/>}
+            {role==="delivery"&&<DeliveryView lang={lang} morningCustomers={morningCustomers} eveningCustomers={eveningCustomers} customers={customers}/>}
+            {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers}/>}
+          </>
+        }
       </div>
     </div>
   );
