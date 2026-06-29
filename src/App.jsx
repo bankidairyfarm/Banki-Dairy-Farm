@@ -77,7 +77,9 @@ const TR = {
     retry: "Retry",
     nilOption: "Nil",
     enterPin: "Enter your PIN", wrongPin: "Wrong PIN. Try again.", pinHint: "Choose your role",
-    editHint: "You can still edit and resubmit", resubmitDel: "Update Dispatch Log",
+    editHint: "Values retained — edit and resubmit if needed",
+    savedMorning: "✅ Morning dispatch saved for", savedEvening: "✅ Evening dispatch saved for",
+    submitMorning: "Submit Morning Deliveries", submitEvening: "Submit Evening Deliveries",
     bufToday: "Buffalo Today", cowToday: "Cow Today",
     buf30: "Buffalo (30d)", cow30: "Cow (30d)",
   },
@@ -131,7 +133,9 @@ const TR = {
     retry: "फिर कोशिश करें",
     nilOption: "नहीं",
     enterPin: "अपना PIN डालें", wrongPin: "गलत PIN। फिर कोशिश करें।", pinHint: "अपनी भूमिका चुनें",
-    editHint: "आप अभी भी संपादन कर सकते हैं", resubmitDel: "डिलीवरी अपडेट करें",
+    editHint: "बदलाव करके फिर से दर्ज करें",
+    savedMorning: "✅ सुबह की डिलीवरी दर्ज हुई", savedEvening: "✅ शाम की डिलीवरी दर्ज हुई",
+    submitMorning: "सुबह की डिलीवरी दर्ज करें", submitEvening: "शाम की डिलीवरी दर्ज करें",
     bufToday: "भैंस आज", cowToday: "गाय आज",
     buf30: "भैंस (30 दिन)", cow30: "गाय (30 दिन)",
   },
@@ -185,7 +189,9 @@ const TR = {
     retry: "دوبارہ کوشش کریں",
     nilOption: "نہیں",
     enterPin: "اپنا PIN درج کریں", wrongPin: "غلط PIN۔ دوبارہ کوشش کریں۔", pinHint: "اپنا کردار چنیں",
-    editHint: "آپ ابھی بھی ترمیم کر سکتے ہیں", resubmitDel: "ڈیلیوری اپ ڈیٹ کریں",
+    editHint: "تبدیلی کر کے دوبارہ درج کریں",
+    savedMorning: "✅ صبح کی ڈیلیوری درج ہوئی", savedEvening: "✅ شام کی ڈیلیوری درج ہوئی",
+    submitMorning: "صبح کی ڈیلیوری درج کریں", submitEvening: "شام کی ڈیلیوری درج کریں",
     bufToday: "بھینس آج", cowToday: "گائے آج",
     buf30: "بھینس (30 دن)", cow30: "گائے (30 دن)",
   },
@@ -349,8 +355,17 @@ async function apiGet(action,params={}) {
   if(j.error) throw new Error(j.error);
   return j;
 }
+// Use GET with encoded payload — avoids no-cors stripping issues with Apps Script
 async function apiPost(action,data={}) {
-  await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,...data})});
+  const payload = encodeURIComponent(JSON.stringify({action,...data}));
+  const res = await fetch(`${SCRIPT_URL}?action=${action}&payload=${payload}`);
+  // no-cors fallback: if response is opaque just assume success
+  try {
+    const j = await res.json();
+    if (j && j.error) throw new Error(j.error);
+  } catch(e) {
+    if (e.message && e.message !== "Unexpected end of JSON input") throw e;
+  }
   return true;
 }
 
@@ -821,15 +836,14 @@ function DeliveryView({lang}) {
   const [mVals,setMVals]=useState({});
   const [eVals,setEVals]=useState({});
   const [prevData,setPrevData]=useState(null);
-  // submitted = true after first save; stays true so values remain visible
-  const [submitted,setSubmitted]=useState(false);
+  // track which slots have been submitted
+  const [submittedSlots,setSubmittedSlots]=useState({morning:false,evening:false});
   const [status,setStatus]=useState(null);
   const [errMsg,setErrMsg]=useState("");
 
   useEffect(()=>{
     if(!date) return;
-    // Reset submitted state when date changes
-    setSubmitted(false); setStatus(null);
+    setSubmittedSlots({morning:false,evening:false}); setStatus(null);
     setMVals({}); setEVals({});
     const prev=new Date(date+"T00:00:00"); prev.setDate(prev.getDate()-1);
     const prevDateStr=prev.toISOString().split("T")[0];
@@ -855,8 +869,9 @@ function DeliveryView({lang}) {
         morning:{entries:JSON.stringify(buildEntries(MORNING_CUSTOMERS,mVals)),total:mTotal},
         evening:{entries:JSON.stringify(buildEntries(EVENING_CUSTOMERS,eVals)),total:eTotal},
         grandTotal:mTotal+eTotal});
-      // Keep values visible — just mark as submitted
-      setStatus("success"); setSubmitted(true);
+      // Keep values visible — mark this slot as submitted
+      setSubmittedSlots(p=>({...p,[slot]:true}));
+      setStatus("success");
     } catch(e){setErrMsg(e.message);setStatus("error");}
   }
 
@@ -869,8 +884,8 @@ function DeliveryView({lang}) {
 
       {status==="success"&&(
         <Alert type="success">
-          ✅ {t.savedDel} {fmtDate(date)}!
-          <span style={{marginLeft:8,fontSize:12,opacity:0.8}}>— {t.editHint}</span>
+          {slot==="morning"?t.savedMorning:t.savedEvening} {fmtDate(date)}
+          <div style={{fontSize:11,opacity:0.8,marginTop:3}}>{t.editHint}</div>
         </Alert>
       )}
       {status==="error"&&<Alert type="error">⚠️ {errMsg}</Alert>}
@@ -898,7 +913,7 @@ function DeliveryView({lang}) {
               </div>
               <div style={{fontSize:20,fontWeight:700,color:"#2D7FB5"}}>{fmtN(slotTotal,2)} L</div>
             </div>
-            {submitted&&mTotal>0&&eTotal>0&&(
+            {submittedSlots.morning&&submittedSlots.evening&&mTotal>0&&eTotal>0&&(
               <div style={{flex:1,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
                 <div style={{fontSize:10,color:"#15803d",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:2}}>{t.grandTotal}</div>
                 <div style={{fontSize:20,fontWeight:700,color:"#15803d"}}>{fmtN(mTotal+eTotal,2)} L</div>
@@ -912,7 +927,7 @@ function DeliveryView({lang}) {
 
       <div style={{height:16}}/>
       <Btn onClick={handleSubmit} style={{width:"100%"}} disabled={status==="loading"}>
-        {status==="loading"?t.saving:submitted?t.resubmitDel:t.submitDel}
+        {status==="loading"?t.saving:slot==="morning"?t.submitMorning:t.submitEvening}
       </Btn>
     </div>
   );
