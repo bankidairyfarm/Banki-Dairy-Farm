@@ -16,7 +16,7 @@ const BUFFALO_CATTLE = ["B4","B5","B6","B7","B8","B9"]; // B1 currently dry
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","0.75","1","1.25","1.5","2","2.5","3","Nil"];
+const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -35,16 +35,16 @@ const TR = {
     // Supervisor
     supTitle: "Log Today's Production", supSub: "Enter weight including bucket (kg)",
     date: "Date", morning: "Morning", evening: "Evening", grandTotal: "Grand Total",
-    buffalo: "🐃 Buffalo", cow: "🐄 Cow",
-    measuredTotals: "📏 Measured Totals (net kg, bucket removed)",
+    buffalo: "🐃 Buffalo", cow: "🐄 Cow", kgWithBucket: "kg incl. bucket",
+    measuredTotals: "Measured Totals", measuredTotalsShort: "Measured Totals",
     bTotal: "B Total (kg)", cTotal: "C Total (kg)",
     matches: "✓ Matches", mismatch: "⚠️ Mismatch",
-    outsideMilk: "🔄 Outside Milk",
+    outsideMilk: "Outside Milk",
     purchased: "Purchased", extraMilk: "Extra Milk",
     qty: "Qty (L)", rate: "Rate (₹/L)", sold: "Sold", sellingRate: "Selling rate (₹/L)",
     calcTotals: "Calculated Totals",
     total: "Total", submitProd: "Submit Production Log", saving: "Saving…",
-    savedProd: "✅ Production logged for", loggedTotal: "Grand Total",
+    savedProd: "✅ Production logged", loggedTotal: "Grand Total",
     // Delivery
     delTitle: "Log Milk Dispatched", delSub: "Record delivery for each customer",
     morningCustomers: "Morning Customers", eveningCustomers: "Evening Customers",
@@ -85,7 +85,7 @@ const TR = {
     buf30: "Buffalo (30d)", cow30: "Cow (30d)",
   },
   hi: {
-    appName: "बांकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
+    appName: "बंकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
     selectRole: "जारी रखने के लिए अपनी भूमिका चुनें",
     roleSupervisor: "सुपरवाइज़र", roleDelivery: "डिलीवरी", roleOwner: "मालिक",
     roleSupDesc: "दैनिक दूध उत्पादन दर्ज करें",
@@ -94,11 +94,11 @@ const TR = {
     switchBtn: "बदलें ↩",
     supTitle: "आज का उत्पादन दर्ज करें", supSub: "बाल्टी सहित वजन डालें (किलो)",
     date: "तारीख", morning: "सुबह", evening: "शाम", grandTotal: "कुल जोड़",
-    buffalo: "🐃 भैंस", cow: "🐄 गाय",
-    measuredTotals: "📏 नापा गया कुल (नेट किलो, बाल्टी निकालकर)",
+    buffalo: "🐃 भैंस", cow: "🐄 गाय", kgWithBucket: "किलो बाल्टी सहित",
+    measuredTotals: "नापा गया कुल", measuredTotalsShort: "नापा गया कुल",
     bTotal: "भैंस कुल (किलो)", cTotal: "गाय कुल (किलो)",
     matches: "✓ सही", mismatch: "⚠️ अंतर है",
-    outsideMilk: "🔄 बाहरी दूध",
+    outsideMilk: "बाहरी दूध",
     purchased: "खरीदा गया", extraMilk: "अतिरिक्त दूध",
     qty: "मात्रा (लीटर)", rate: "दर (₹/लीटर)", sold: "बेचा", sellingRate: "बिक्री दर (₹/लीटर)",
     calcTotals: "गणना किया गया कुल",
@@ -151,11 +151,11 @@ const TR = {
     switchBtn: "تبدیل کریں ↩",
     supTitle: "آج کی پیداوار درج کریں", supSub: "بالٹی سمیت وزن درج کریں (کلو)",
     date: "تاریخ", morning: "صبح", evening: "شام", grandTotal: "کل جمع",
-    buffalo: "🐃 بھینس", cow: "🐄 گائے",
-    measuredTotals: "📏 ناپا گیا کل (نیٹ کلو، بالٹی نکال کر)",
+    buffalo: "🐃 بھینس", cow: "🐄 گائے", kgWithBucket: "کلو بالٹی سمیت",
+    measuredTotals: "ناپا گیا کل", measuredTotalsShort: "ناپا گیا کل",
     bTotal: "بھینس کل (کلو)", cTotal: "گائے کل (کلو)",
     matches: "✓ درست", mismatch: "⚠️ فرق ہے",
-    outsideMilk: "🔄 باہری دودھ",
+    outsideMilk: "باہری دودھ",
     purchased: "خریدا گیا", extraMilk: "اضافی دودھ",
     qty: "مقدار (لیٹر)", rate: "ریٹ (₹/لیٹر)", sold: "بیچا", sellingRate: "فروخت ریٹ (₹/لیٹر)",
     calcTotals: "حساب کردہ کل",
@@ -498,7 +498,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
   return (
     <div>
       <div style={{background:"#fffbeb",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#92400e">{t.buffalo}</SectionLabel>
+        <SectionLabel color="#92400e">{t.buffalo} · {t.kgWithBucket}</SectionLabel>
         {BUFFALO_CATTLE.map(c=>(
           <div key={c} style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
             <span style={{fontWeight:700,fontSize:14,color:"#92400e",width:28,flexShrink:0}}>{c}</span>
@@ -513,7 +513,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
       </div>
 
       <div style={{background:"#EBF5FD",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#2D7FB5">{t.cow}</SectionLabel>
+        <SectionLabel color="#2D7FB5">{t.cow} · {t.kgWithBucket}</SectionLabel>
         {COW_CATTLE.map(c=>(
           <div key={c} style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
             <span style={{fontWeight:700,fontSize:14,color:"#2D7FB5",width:28,flexShrink:0}}>{c}</span>
@@ -528,7 +528,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
       </div>
 
       <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#555">{t.measuredTotals}</SectionLabel>
+        <SectionLabel color="#555">{t.measuredTotalsShort}</SectionLabel>
         <div style={{display:"flex",gap:10}}>
           <div style={{flex:1}}>
             <div style={{fontSize:11,color:"#92400e",fontWeight:600,marginBottom:4}}>{t.bTotal}</div>
@@ -616,20 +616,25 @@ function SupervisorView({lang}) {
   const eTotal=allCattle.reduce((s,c)=>s+toNet(eRaw[c]||0),0);
   const grandTotal=mTotal+eTotal;
 
+  // track submitted slots so UI knows what's been saved
+  const [submittedSlots,setSubmittedSlots]=useState({morning:false,evening:false});
+
   async function handleSubmit() {
     if(!date){setErrMsg(t.date);setStatus("error");return;}
-    if(grandTotal===0){setErrMsg("0");setStatus("error");return;}
+    const activeRaw = activeSlot==="morning"?mRaw:eRaw;
+    const activeTotal = activeSlot==="morning"?mTotal:eTotal;
+    if(activeTotal===0){setErrMsg("0");setStatus("error");return;}
     setStatus("loading");
     try {
       const buildRows=(rawMap)=>allCattle.map(c=>({cattle:c,type:BUFFALO_CATTLE.includes(c)?"B":"C",rawKg:parseFloat(rawMap[c])||0,netLtrs:toNet(rawMap[c]||0)})).filter(r=>r.rawKg>0);
-      await apiPost("logProduction",{date,
-        morning:{rows:JSON.stringify(buildRows(mRaw)),total:mTotal,measuredB:mMeasB,measuredC:mMeasC,purchased:mPurchased,purchaseRate:mPurchaseRate,extraQty:mExtraQty,extraSold:mExtraSold,extraRate:mExtraRate},
-        evening:{rows:JSON.stringify(buildRows(eRaw)),total:eTotal,measuredB:eMeasB,measuredC:eMeasC,purchased:ePurchased,purchaseRate:ePurchaseRate,extraQty:eExtraQty,extraSold:eExtraSold,extraRate:eExtraRate},
-        grandTotal});
+      // Only send the active slot — prevents overwriting the other slot with zeros
+      const slotData = activeSlot==="morning"
+        ? {morning:{rows:JSON.stringify(buildRows(mRaw)),total:mTotal,measuredB:mMeasB,measuredC:mMeasC,purchased:mPurchased,purchaseRate:mPurchaseRate,extraQty:mExtraQty,extraSold:mExtraSold,extraRate:mExtraRate}}
+        : {evening:{rows:JSON.stringify(buildRows(eRaw)),total:eTotal,measuredB:eMeasB,measuredC:eMeasC,purchased:ePurchased,purchaseRate:ePurchaseRate,extraQty:eExtraQty,extraSold:eExtraSold,extraRate:eExtraRate}};
+      await apiPost("logProduction",{date,...slotData});
+      // Mark slot as submitted but keep values visible
+      setSubmittedSlots(p=>({...p,[activeSlot]:true}));
       setStatus("success");
-      setMRaw({});setERaw({});setMMeasB("");setMMeasC("");setEMeasB("");setEMeasC("");
-      setMPurchased("");setMPurchaseRate("");setMExtraQty("");setMExtraSold(false);setMExtraRate("");
-      setEPurchased("");setEPurchaseRate("");setEExtraQty("");setEExtraSold(false);setEExtraRate("");
     } catch(e){setErrMsg(e.message);setStatus("error");}
   }
 
@@ -637,13 +642,17 @@ function SupervisorView({lang}) {
     <div>
       <div style={{marginBottom:18}}>
         <div style={{fontSize:20,fontWeight:700,color:"#1a1a1a"}}>{t.supTitle}</div>
-        <div style={{color:"#888",fontSize:13,marginTop:2}}>{t.supSub}</div>
+        
       </div>
-      {status==="success"&&<Toast type="success" onDismiss={()=>setStatus(null)}>{t.savedProd} {fmtDate(date)} — {t.grandTotal}: {fmtN(grandTotal,2)} L</Toast>}
+      {status==="success"&&<Toast type="success" onDismiss={()=>setStatus(null)}>{t.savedProd}</Toast>}
       {status==="error"&&<Toast type="error" onDismiss={()=>setStatus(null)}>⚠️ {errMsg}</Toast>}
 
       <Card style={{marginBottom:14}}>
-        <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
+        <div style={{marginBottom:0}}>
+          <SectionLabel>{t.date}</SectionLabel>
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",fontFamily:"inherit",color:"#1a1a1a",display:"block"}}/>
+        </div>
       </Card>
 
       <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={activeSlot} onChange={setActiveSlot}/>
@@ -808,7 +817,11 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
       {status==="error"&&<Toast type="error" onDismiss={()=>setStatus(null)}>⚠️ {errMsg}</Toast>}
 
       <Card style={{marginBottom:14}}>
-        <Input label={t.date} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
+        <div style={{marginBottom:0}}>
+          <SectionLabel>{t.date}</SectionLabel>
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",fontFamily:"inherit",color:"#1a1a1a",display:"block"}}/>
+        </div>
       </Card>
 
       <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={slot} onChange={setSlot}/>
