@@ -7,9 +7,9 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
 const PINS = {
-  supervisor: "1111",
-  delivery:   "2222",
-  owner:      "3333",
+  supervisor: "7055",
+  delivery:   "1234",
+  owner:      "8934",
 };
 
 const BUFFALO_CATTLE = ["B1","B4","B5","B6","B7","B8","B9"];
