@@ -95,7 +95,7 @@ const TR = {
     supTitle: "आज का उत्पादन दर्ज करें", supSub: "बाल्टी सहित वजन डालें (किलो)",
     date: "तारीख", morning: "सुबह", evening: "शाम", grandTotal: "कुल जोड़",
     buffalo: "🐃 भैंस", cow: "🐄 गाय",
-    measuredTotals: "📏 नापा गया कुल (नेट किलो, बाल्टी निकालकर)",
+    measuredTotals: "📏 नापा गया कुल",
     bTotal: "भैंस कुल (किलो)", cTotal: "गाय कुल (किलो)",
     matches: "✓ सही", mismatch: "⚠️ अंतर है",
     outsideMilk: "🔄 बाहरी दूध",
@@ -238,8 +238,13 @@ function kgToLtrs(kg) { return Math.max(0,(parseFloat(kg)||0)*CONVERSION); }
 // ─── API ───────────────────────────────────────────────────────────────────
 async function apiGet(action,params={}) {
   const p=new URLSearchParams({action,...params});
-  const res=await fetch(`${SCRIPT_URL}?${p}`);
-  const j=await res.json();
+  const res=await fetch(${SCRIPT_URL}?${p});
+  let j;
+  try {
+    j=await res.json();
+  } catch(e) {
+    throw new Error("Could not read response from server. Check your Script URL.");
+  }
   if(j.error) throw new Error(j.error);
   return j;
 }
