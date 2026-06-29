@@ -815,9 +815,9 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
 
       <Card>
         <div style={{fontWeight:700,fontSize:13,color:"#555",marginBottom:12}}>
-          {slot==="morning"?`☀️ ${t.morningCustomers}`:`🌙 ${t.eveningCustomers}`} ({customers.length})
+          {slot==="morning"?`☀️ ${t.morningCustomers}`:`🌙 ${t.eveningCustomers}`} ({slotCustomers.length})
         </div>
-        {customers.map(c=>(
+        {slotCustomers.map(c=>(
           <CustomerRow key={c.name_en||c.name} customer={c} value={vals[c.name_en||c.name]||""} onChange={v=>setVals(p=>({...p,[c.name_en||c.name]:v}))} prevValue={prevVals?prevVals[c.name_en||c.name]:null} lang={lang} t={t} customers={customers}/>
         ))}
 
@@ -839,7 +839,7 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
           </div>
         )}
 
-        <BottleSummary customers={customers} vals={vals} t={t}/>
+        <BottleSummary customers={slotCustomers} vals={vals} t={t}/>
       </Card>
 
       <div style={{height:16}}/>
