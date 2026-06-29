@@ -7,9 +7,9 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
 const PINS = {
-  supervisor: "1111",
-  delivery:   "2222",
-  owner:      "3333",
+  supervisor: "7055",
+  delivery:   "1234",
+  owner:      "8934",
 };
 
 const BUFFALO_CATTLE = ["B4","B5","B6","B7","B8","B9"]; // B1 currently dry
@@ -83,6 +83,8 @@ const TR = {
     submitMorning: "Submit Morning Deliveries", submitEvening: "Submit Evening Deliveries",
     bufToday: "Buffalo Today", cowToday: "Cow Today",
     buf30: "Buffalo (30d)", cow30: "Cow (30d)",
+    sourcedToday: "Sourced Today", totalAvail: "Total Available",
+    sourced30: "Sourced (30d)", totalAvail30: "Total Available (30d)",
   },
   hi: {
     appName: "बंकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
@@ -140,6 +142,8 @@ const TR = {
     submitMorning: "सुबह की डिलीवरी दर्ज करें", submitEvening: "शाम की डिलीवरी दर्ज करें",
     bufToday: "भैंस आज", cowToday: "गाय आज",
     buf30: "भैंस (30 दिन)", cow30: "गाय (30 दिन)",
+    sourcedToday: "आज खरीदा", totalAvail: "कुल उपलब्ध",
+    sourced30: "खरीदा (30 दिन)", totalAvail30: "कुल उपलब्ध (30 दिन)",
   },
   ur: {
     appName: "بانکی ڈیری فارم", appSub: "آپریشن ٹریکر",
@@ -197,6 +201,8 @@ const TR = {
     submitMorning: "صبح کی ڈیلیوری درج کریں", submitEvening: "شام کی ڈیلیوری درج کریں",
     bufToday: "بھینس آج", cowToday: "گائے آج",
     buf30: "بھینس (30 دن)", cow30: "گائے (30 دن)",
+    sourcedToday: "آج خریدا", totalAvail: "کل دستیاب",
+    sourced30: "خریدا (30 دن)", totalAvail30: "کل دستیاب (30 دن)",
   },
 };
 
@@ -1070,8 +1076,8 @@ function OwnerDashboard({lang, customers=[], reloadCustomers}) {
   if(error) return <div><Alert type="error">{t.errLoad}: {error}<br/><span style={{fontSize:11}}>{t.errScriptUrl}</span></Alert><Btn onClick={load} variant="ghost" style={{width:"100%"}}>{t.retry}</Btn></div>;
 
   const {summary={},recentDays=[],monthlyTrend=[]}=data||{};
-  const gap30=(summary.last30DaysProduce||0)-(summary.last30DaysDispatched||0);
-  const todayGap=(summary.todayProduce||0)-(summary.todayDispatched||0);
+  const gap30=(summary.last30DaysTotal||summary.last30DaysProduce||0)-(summary.last30DaysDispatched||0);
+  const todayGap=(summary.todayTotal||summary.todayProduce||0)-(summary.todayDispatched||0);
 
   return (
     <div>
@@ -1088,8 +1094,17 @@ function OwnerDashboard({lang, customers=[], reloadCustomers}) {
             <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a",marginBottom:12}}>{t.todaySnap}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               <StatBox label={t.produced} value={`${fmtN(summary.todayProduce||0,1)} L`} color="#2D7FB5"/>
-              <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1A5C8A"/>
+              {(summary.todaySourced||0)>0
+                ? <StatBox label={t.sourcedToday} value={`${fmtN(summary.todaySourced,1)} L`} color="#92400e"/>
+                : <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1A5C8A"/>
+              }
             </div>
+            {(summary.todaySourced||0)>0&&(
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                <StatBox label={t.totalAvail} value={`${fmtN(summary.todayTotal||0,1)} L`} color="#2d6a4f"/>
+                <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1A5C8A"/>
+              </div>
+            )}
             {/* B/C breakdown */}
             {(summary.todayProduceB||summary.todayProduceC)>0&&(
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
@@ -1103,7 +1118,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers}) {
                 color={todayGap>=0?"#2D7FB5":"#dc2626"}/>
               <StatBox label={t.revToday} value={fmtRs(summary.todayRevenue||0)} color="#2D7FB5"/>
             </div>
-            {(summary.todayProduce||0)>0&&(
+            {(summary.todayTotal||summary.todayProduce||0)>0&&(
               <div style={{padding:"9px 13px",borderRadius:9,background:todayGap>=0?"#f0fdf4":"#fef2f2",color:todayGap>=0?"#15803d":"#dc2626",fontSize:13,fontWeight:600}}>
                 {todayGap>=0?`${t.surplusMsg} ${fmtN(todayGap,1)} L`:`${t.deficitMsg} ${fmtN(Math.abs(todayGap),1)} L`}
               </div>
@@ -1115,6 +1130,12 @@ function OwnerDashboard({lang, customers=[], reloadCustomers}) {
             <StatBox label={t.produced30}   value={`${fmtN(summary.last30DaysProduce||0,0)} L`}   color="#2D7FB5"/>
             <StatBox label={t.dispatched30} value={`${fmtN(summary.last30DaysDispatched||0,0)} L`} color="#1A5C8A"/>
           </div>
+          {(summary.last30DaysSourced||0)>0&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+              <StatBox label={t.sourced30}     value={`${fmtN(summary.last30DaysSourced,0)} L`}   color="#92400e"/>
+              <StatBox label={t.totalAvail30}  value={`${fmtN(summary.last30DaysTotal,0)} L`}     color="#2d6a4f"/>
+            </div>
+          )}
           {/* B/C 30-day breakdown */}
           {(summary.last30DaysProduceB||summary.last30DaysProduceC)>0&&(
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
