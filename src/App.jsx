@@ -79,7 +79,7 @@ const TR = {
     customersTab: "Customers",
     enterPin: "Enter your PIN", wrongPin: "Wrong PIN. Try again.", pinHint: "Choose your role",
     editHint: "Values retained — edit and resubmit if needed",
-    savedMorning: "✅ Morning dispatch saved for", savedEvening: "✅ Evening dispatch saved for",
+    savedMorning: "✅ Morning dispatch saved", savedEvening: "✅ Evening dispatch saved",
     submitMorning: "Submit Morning Deliveries", submitEvening: "Submit Evening Deliveries",
     bufToday: "Buffalo Today", cowToday: "Cow Today",
     buf30: "Buffalo (30d)", cow30: "Cow (30d)",
@@ -136,7 +136,7 @@ const TR = {
     customersTab: "ग्राहक",
     enterPin: "अपना PIN डालें", wrongPin: "गलत PIN। फिर कोशिश करें।", pinHint: "अपनी भूमिका चुनें",
     editHint: "बदलाव करके फिर से दर्ज करें",
-    savedMorning: "✅ सुबह की डिलीवरी दर्ज हुई", savedEvening: "✅ शाम की डिलीवरी दर्ज हुई",
+    savedMorning: "✅ सुबह दर्ज हुई", savedEvening: "✅ शाम दर्ज हुई",
     submitMorning: "सुबह की डिलीवरी दर्ज करें", submitEvening: "शाम की डिलीवरी दर्ज करें",
     bufToday: "भैंस आज", cowToday: "गाय आज",
     buf30: "भैंस (30 दिन)", cow30: "गाय (30 दिन)",
@@ -651,7 +651,7 @@ function SupervisorView({lang}) {
         <div style={{marginBottom:0}}>
           <SectionLabel>{t.date}</SectionLabel>
           <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}
-            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",fontFamily:"inherit",color:"#1a1a1a",display:"block"}}/>
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",WebkitAppearance:"none",fontFamily:"inherit",color:"#1a1a1a",display:"block",minWidth:0}}/>
         </div>
       </Card>
 
@@ -787,15 +787,15 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
 
   async function handleSubmit() {
     if(!date){setErrMsg(t.date);setStatus("error");return;}
-    if(mTotal+eTotal===0){setErrMsg(t.noDeliveries);setStatus("error");return;}
+    if(slotTotal===0){setErrMsg(t.noDeliveries);setStatus("error");return;}
     setStatus("loading");
     try {
+      // Only send the active slot — prevents overwriting other slot with Nil values
       const buildEntries=(custs,vs)=>custs.map(c=>({name:c.name_en,type:c.type,qty:vs[c.name_en]||"Nil"}));
-      await apiPost("logDispatch",{date,
-        morning:{entries:JSON.stringify(buildEntries(morningCustomers,mVals)),total:mTotal},
-        evening:{entries:JSON.stringify(buildEntries(eveningCustomers,eVals)),total:eTotal},
-        grandTotal:mTotal+eTotal});
-      // Keep values visible — mark this slot as submitted
+      const slotPayload = slot==="morning"
+        ? {morning:{entries:JSON.stringify(buildEntries(morningCustomers,mVals)),total:mTotal}}
+        : {evening:{entries:JSON.stringify(buildEntries(eveningCustomers,eVals)),total:eTotal}};
+      await apiPost("logDispatch",{date,...slotPayload});
       setSubmittedSlots(p=>({...p,[slot]:true}));
       setStatus("success");
     } catch(e){setErrMsg(e.message);setStatus("error");}
@@ -810,8 +810,7 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
 
       {status==="success"&&(
         <Toast type="success" onDismiss={()=>setStatus(null)}>
-          {slot==="morning"?t.savedMorning:t.savedEvening} {fmtDate(date)}
-          <div style={{fontSize:11,opacity:0.8,marginTop:3}}>{t.editHint}</div>
+          {slot==="morning"?t.savedMorning:t.savedEvening}
         </Toast>
       )}
       {status==="error"&&<Toast type="error" onDismiss={()=>setStatus(null)}>⚠️ {errMsg}</Toast>}
@@ -820,7 +819,7 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
         <div style={{marginBottom:0}}>
           <SectionLabel>{t.date}</SectionLabel>
           <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}
-            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",fontFamily:"inherit",color:"#1a1a1a",display:"block"}}/>
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",WebkitAppearance:"none",fontFamily:"inherit",color:"#1a1a1a",display:"block",minWidth:0}}/>
         </div>
       </Card>
 
