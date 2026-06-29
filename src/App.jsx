@@ -7,9 +7,9 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
 const PINS = {
-  supervisor: "7055",
-  delivery:   "1234",
-  owner:      "8934",
+  supervisor: "1111",
+  delivery:   "2222",
+  owner:      "3333",
 };
 
 const BUFFALO_CATTLE = ["B1","B4","B5","B6","B7","B8","B9"];
@@ -95,7 +95,7 @@ const TR = {
     supTitle: "आज का उत्पादन दर्ज करें", supSub: "बाल्टी सहित वजन डालें (किलो)",
     date: "तारीख", morning: "सुबह", evening: "शाम", grandTotal: "कुल जोड़",
     buffalo: "🐃 भैंस", cow: "🐄 गाय",
-    measuredTotals: "📏 नापा गया कुल",
+    measuredTotals: "📏 नापा गया कुल (नेट किलो, बाल्टी निकालकर)",
     bTotal: "भैंस कुल (किलो)", cTotal: "गाय कुल (किलो)",
     matches: "✓ सही", mismatch: "⚠️ अंतर है",
     outsideMilk: "🔄 बाहरी दूध",
@@ -238,13 +238,8 @@ function kgToLtrs(kg) { return Math.max(0,(parseFloat(kg)||0)*CONVERSION); }
 // ─── API ───────────────────────────────────────────────────────────────────
 async function apiGet(action,params={}) {
   const p=new URLSearchParams({action,...params});
-  const res=await fetch(${SCRIPT_URL}?${p});
-  let j;
-  try {
-    j=await res.json();
-  } catch(e) {
-    throw new Error("Could not read response from server. Check your Script URL.");
-  }
+  const res=await fetch(`${SCRIPT_URL}?${p}`);
+  const j=await res.json();
   if(j.error) throw new Error(j.error);
   return j;
 }
