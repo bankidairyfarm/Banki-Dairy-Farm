@@ -7,9 +7,9 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
 const PINS = {
-  supervisor: "1111",
-  delivery:   "2222",
-  owner:      "3333",
+  supervisor: "7055",
+  delivery:   "1234",
+  owner:      "8934",
 };
 
 const BUFFALO_CATTLE = ["B1","B4","B5","B6","B7","B8","B9"];
@@ -745,6 +745,89 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[]}) {
   );
 }
 
+
+function BottleSummary({customers,vals,t}) {
+  function calcBottles(type) {
+    const filtered=customers.filter(c=>c.type===type&&!(c.selfCollect||c.selfcollect));
+    let b075=0,b05=0,b1=0;
+    filtered.forEach(c=>{
+      const q=vals[c.name_en||c.name]; if(!q||q==="Nil") return;
+      const qty=parseFloat(q);
+      if(qty===0.75)                     { b075++; }
+      else if(qty===0.5)                 { b05++; }
+      else if(qty===1.5||qty===2.5)      { b05++; b1+=Math.floor(qty); }
+      else if(qty===1||qty===2||qty===3) { b1+=qty; }
+    });
+    return {b075,b05,b1};
+  }
+  const b=calcBottles("B"); const c=calcBottles("C");
+  const hasAny=customers.some(c=>vals[c.name_en||c.name]&&vals[c.name_en||c.name]!=="Nil");
+  if(!hasAny) return null;
+
+  function Col({label,counts,color,bg,border}) {
+    return (
+      <div style={{flex:1,background:bg,border:`1px solid ${border}`,borderRadius:10,padding:"10px 12px"}}>
+        <div style={{fontSize:11,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:8}}>{label}</div>
+        {[["0.75 L",counts.b075],["0.5 L",counts.b05],["1 L",counts.b1]].map(([sz,n])=>(
+          <div key={sz} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <span style={{fontSize:12,color:"#555"}}>{sz} {t.bottle}</span>
+            <span style={{fontSize:18,fontWeight:700,color,minWidth:28,textAlign:"right"}}>{n}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div style={{marginTop:16,borderTop:"2px dashed #9ACFF0",paddingTop:14}}>
+      <SectionLabel color="#374151">{t.bottlesToFill}</SectionLabel>
+      <div style={{display:"flex",gap:10}}>
+        <Col label={t.bufMilk} counts={b} color="#92400e" bg="#fffbeb" border="#fde68a"/>
+        <Col label={t.cowMilk} counts={c} color="#2D7FB5" bg="#EBF5FD" border="#9ACFF0"/>
+      </div>
+    </div>
+  );
+}
+
+function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[]}) {
+  const isB=customer.type==="B";
+  const color=isB?"#92400e":"#2D7FB5";
+  const bg=isB?"#fffbeb":"#EBF5FD";
+  const tagBg=isB?"#fde68a":"#9ACFF0";
+  const displayName=customerName(customer.name_en||customer.name,lang,customers||[]);
+  // Highlight row if nothing selected yet (not nil, not a quantity)
+  const isEmpty = !value || value==="";
+  const isNil   = value==="Nil";
+  const rowBg   = isEmpty ? "#fff9f0" : isNil ? "#fff5f5" : "transparent";
+  const rowBorder = isEmpty ? "1px solid #fde68a" : isNil ? "1px solid #fecaca" : "none";
+  const selfCollect = customer.selfCollect || customer.selfcollect;
+
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 6px",borderBottom:"1px solid #f8fafc",background:rowBg,borderRadius:isEmpty||isNil?6:0,marginBottom:isEmpty||isNil?2:0,border:rowBorder}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{displayName}</div>
+          {selfCollect&&<span style={{fontSize:9,fontWeight:700,color:"#6b7280",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:4,padding:"1px 5px",flexShrink:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>{t.self}</span>}
+          {isEmpty&&<span style={{fontSize:9,fontWeight:700,color:"#92400e",background:"#fef3c7",border:"1px solid #fde68a",borderRadius:4,padding:"1px 5px",flexShrink:0}}>?</span>}
+        </div>
+        <div style={{display:"flex",gap:6,alignItems:"center",marginTop:1}}>
+          {(customer.phone)&&<span style={{fontSize:11,color:"#aaa"}}>{customer.phone}</span>}
+          {prevValue&&prevValue!=="Nil"
+            ?<span style={{fontSize:11,color:"#94a3b8",fontStyle:"italic"}}>{t.yesterday}: {prevValue} L</span>
+            :prevValue==="Nil"
+            ?<span style={{fontSize:11,color:"#cbd5e1",fontStyle:"italic"}}>{t.yesterday}: {t.absent}</span>
+            :null}
+        </div>
+      </div>
+      <span style={{background:tagBg,color,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,flexShrink:0}}>{isB?"🐃 B":"🐄 C"}</span>
+      <select value={value||""} onChange={e=>onChange(e.target.value)}
+        style={{padding:"6px 8px",border:`1.5px solid ${value&&value!=="Nil"?color:"#e2e8f0"}`,borderRadius:8,fontSize:13,fontWeight:600,background:value&&value!=="Nil"?bg:"#fafafa",color:value&&value!=="Nil"?color:"#888",outline:"none",width:80,flexShrink:0,fontFamily:"inherit"}}>
+        <option value="">—</option>
+        {QTY_OPTIONS.map(q=><option key={q} value={q}>{q==="Nil"?t.nilOption:q+" L"}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers=[]}) {
   const t=TR[lang];
   const [date,setDate]=useState(today());
@@ -770,7 +853,6 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
   const vals=slot==="morning"?mVals:eVals;
   const setVals=slot==="morning"?setMVals:setEVals;
   const prevVals=prevData?(slot==="morning"?prevData.morning:prevData.evening):null;
-  const customers=slotCustomers;
 
   function totalLtrs(vs){return Object.values(vs).reduce((s,v)=>s+(v&&v!=="Nil"?parseFloat(v)||0:0),0);}
   const mTotal=totalLtrs(mVals); const eTotal=totalLtrs(eVals);
@@ -818,7 +900,7 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
           {slot==="morning"?`☀️ ${t.morningCustomers}`:`🌙 ${t.eveningCustomers}`} ({customers.length})
         </div>
         {customers.map(c=>(
-          <CustomerRow key={c.name} customer={c} value={vals[c.name]||""} onChange={v=>setVals(p=>({...p,[c.name_en||c.name]:v}))} prevValue={prevVals?prevVals[c.name_en||c.name]:null} lang={lang} t={t} customers={customers}/>
+          <CustomerRow key={c.name_en||c.name} customer={c} value={vals[c.name_en||c.name]||""} onChange={v=>setVals(p=>({...p,[c.name_en||c.name]:v}))} prevValue={prevVals?prevVals[c.name_en||c.name]:null} lang={lang} t={t} customers={customers}/>
         ))}
 
         {/* Totals below the list */}
@@ -891,8 +973,15 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
     } catch(e){showToast(e.message,"error");}
   }
 
+  const [confirmDelete,setConfirmDelete]=useState(null); // holds cust to delete
+
   async function handleDelete(cust) {
-    if(!window.confirm(`Delete ${cust.name_en} permanently? This cannot be undone.`)) return;
+    setConfirmDelete(cust); // show inline confirm instead of window.confirm
+  }
+
+  async function confirmDeleteYes() {
+    const cust = confirmDelete;
+    setConfirmDelete(null);
     try {
       await apiPost("deleteCustomer",{rowIndex:cust.rowIndex});
       onChanged&&onChanged();
@@ -1004,6 +1093,23 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
   return (
     <div>
       {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+
+      {/* Inline delete confirmation */}
+      {confirmDelete&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",borderRadius:14,padding:"24px 20px",maxWidth:320,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>
+            <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a",marginBottom:8}}>Delete Customer?</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:20}}>
+              <strong>{confirmDelete.name_en}</strong> will be permanently removed. This cannot be undone.
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <Btn variant="ghost" onClick={()=>setConfirmDelete(null)} style={{flex:1}}>Cancel</Btn>
+              <Btn variant="danger" onClick={confirmDeleteYes} style={{flex:1}}>Delete</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
         <div>
           <div style={{fontSize:18,fontWeight:700,color:"#1a1a1a"}}>Customers</div>
