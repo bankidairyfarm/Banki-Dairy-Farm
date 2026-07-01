@@ -1271,7 +1271,160 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
   );
 }
 
-function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle}) {
+// ─── FEED ───────────────────────────────────────────────────────────────────
+const FEED_COMPONENTS = [
+  {key:"chokar",  label:"Chokar",               group:"Concentrate"},
+  {key:"arhar",   label:"Arhar Chuni",          group:"Concentrate"},
+  {key:"bhoosa",  label:"Bhoosa (Dry Straw)",   group:"Dry Fodder"},
+  {key:"barseem", label:"Barseem / Chari",      group:"Green Fodder"},
+  {key:"jaggery", label:"Jaggery / Salt / Soda",group:"Supplement", note:"twice a week"},
+  {key:"mineral", label:"Mineral Mix",          group:"Supplement"}
+];
+const DEFAULT_FEED_RATES = {
+  current:{chokar:28,arhar:28,bhoosa:12,barseem:1,jaggery:50,mineral:80},
+  ideal:  {chokar:22,arhar:22,bhoosa:7, barseem:0.5,jaggery:40,mineral:80}
+};
+function feedCostOf(feed,rate){ return FEED_COMPONENTS.reduce((s,c)=>s+(parseFloat(feed&&feed[c.key])||0)*(parseFloat(rate&&rate[c.key])||0),0); }
+function feedKgOf(feed){ return FEED_COMPONENTS.reduce((s,c)=>s+(parseFloat(feed&&feed[c.key])||0),0); }
+
+function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
+  const rates = (feedRates&&feedRates.current) ? feedRates : DEFAULT_FEED_RATES;
+  const [editRow,setEditRow]=useState(null);
+  const [draft,setDraft]=useState({});
+  const [rateOpen,setRateOpen]=useState(false);
+  const [rateDraft,setRateDraft]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+  function showToast(msg,type="success"){setToast({msg,type});setTimeout(()=>setToast(null),3000);}
+  function fv(x){ return (x===undefined||x===null)?"":x; }
+  const inp={width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+
+  const active=cattle.filter(c=>c.active);
+  const buffalo=active.filter(c=>c.type==="B");
+  const cow=active.filter(c=>c.type==="C");
+  const totalCost=active.reduce((s,c)=>s+feedCostOf(c.feed,rates.current),0);
+
+  async function saveMix(c){
+    setSaving(true);
+    try{ await apiPost("saveFeed",{rowIndex:c.rowIndex,feed:draft}); setEditRow(null); onChanged&&onChanged(); showToast("Feed mix saved for "+c.code); }
+    catch(e){ showToast(e.message,"error"); }
+    finally{ setSaving(false); }
+  }
+  async function saveRates(){
+    setSaving(true);
+    try{ await apiPost("saveFeedRates",{current:rateDraft.current,ideal:rateDraft.ideal}); setRateOpen(false); setRateDraft(null); onChanged&&onChanged(); showToast("Feed rates updated"); }
+    catch(e){ showToast(e.message,"error"); }
+    finally{ setSaving(false); }
+  }
+
+  function CattleFeed({c}){
+    const editing=editRow===c.rowIndex;
+    const f=editing?draft:c.feed;
+    const cost=feedCostOf(f,rates.current);
+    const isB=c.type==="B";
+    return (
+      <div style={{borderBottom:"1px solid #f1f5f9",padding:"10px 0"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{fontSize:15,fontWeight:700,color:"#1a1a1a",width:38}}>{c.code}</div>
+          <span style={{fontSize:10,fontWeight:700,color:isB?"#92400e":"#2D7FB5",background:isB?"#fffbeb":"#EBF5FD",border:"1px solid "+(isB?"#fde68a":"#9ACFF0"),borderRadius:10,padding:"2px 7px"}}>{isB?"🐃 B":"🐄 C"}</span>
+          <div style={{flex:1}}/>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:15,fontWeight:700,color:"#2d6a4f"}}>{fmtRs(cost)}<span style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>/day</span></div>
+            <div style={{fontSize:10,color:"#aaa"}}>{fmtN(feedKgOf(f),2)} kg/day</div>
+          </div>
+          {!editing&&<button onClick={()=>{setEditRow(c.rowIndex);setDraft({...c.feed});}} style={{background:"#EBF5FD",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"#2D7FB5",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>}
+        </div>
+
+        {editing&&(
+          <div style={{marginTop:10,background:"#f8fafc",borderRadius:10,padding:"12px"}}>
+            {FEED_COMPONENTS.map(fc=>(
+              <div key={fc.key} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a"}}>{fc.label}</div>
+                  <div style={{fontSize:10,color:"#94a3b8"}}>{fc.group} · ₹{rates.current[fc.key]}/kg{fc.note?" · "+fc.note:""}</div>
+                </div>
+                <input type="number" min="0" step="0.05" value={fv(draft[fc.key])} onChange={e=>setDraft(p=>({...p,[fc.key]:e.target.value}))} placeholder="0" style={{...inp,width:78,flexShrink:0}}/>
+                <div style={{fontSize:11,color:"#64748b",width:52,textAlign:"right",flexShrink:0}}>{fmtRs((parseFloat(draft[fc.key])||0)*(rates.current[fc.key]||0))}</div>
+              </div>
+            ))}
+            <div style={{borderTop:"1.5px dashed #cbd5e1",paddingTop:8,marginTop:2,fontSize:12,color:"#555",fontWeight:600}}>
+              Total: {fmtN(feedKgOf(draft),2)} kg · <span style={{color:"#2d6a4f"}}>{fmtRs(feedCostOf(draft,rates.current))}/day</span>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:10}}>
+              <Btn variant="ghost" onClick={()=>setEditRow(null)} style={{flex:1,padding:"8px 0"}}>Cancel</Btn>
+              <Btn onClick={()=>saveMix(c)} disabled={saving} style={{flex:1,padding:"8px 0"}}>{saving?"Saving…":"Save mix"}</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+
+      <Card style={{marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:"#2d6a4f",textTransform:"uppercase",letterSpacing:"0.6px"}}>Total daily feed cost</div>
+            <div style={{fontSize:24,fontWeight:700,color:"#2d6a4f"}}>{fmtRs(totalCost)}<span style={{fontSize:12,color:"#94a3b8",fontWeight:600}}> /day · {active.length} cattle</span></div>
+          </div>
+          <div style={{fontSize:34}}>🌾</div>
+        </div>
+      </Card>
+
+      <Card style={{marginBottom:12}}>
+        <div onClick={()=>{ if(!rateOpen) setRateDraft({current:{...rates.current},ideal:{...rates.ideal}}); setRateOpen(!rateOpen); }} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>⚙️ Feed rates (₹/kg)</div>
+          <div style={{fontSize:15,color:"#94a3b8"}}>{rateOpen?"▲":"▼"}</div>
+        </div>
+        {rateOpen&&rateDraft&&(
+          <div style={{marginTop:12}}>
+            <div style={{display:"flex",gap:8,fontSize:10,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>
+              <div style={{flex:1}}>Component</div>
+              <div style={{width:72,textAlign:"center"}}>Current</div>
+              <div style={{width:72,textAlign:"center"}}>Ideal</div>
+            </div>
+            {FEED_COMPONENTS.map(fc=>(
+              <div key={fc.key} style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12.5,fontWeight:600,color:"#1a1a1a"}}>{fc.label}</div>
+                  <div style={{fontSize:10,color:"#94a3b8"}}>{fc.group}</div>
+                </div>
+                <input type="number" min="0" step="0.5" value={fv(rateDraft.current[fc.key])} onChange={e=>setRateDraft(p=>({...p,current:{...p.current,[fc.key]:e.target.value}}))} style={{...inp,width:72,flexShrink:0}}/>
+                <input type="number" min="0" step="0.5" value={fv(rateDraft.ideal[fc.key])} onChange={e=>setRateDraft(p=>({...p,ideal:{...p.ideal,[fc.key]:e.target.value}}))} style={{...inp,width:72,flexShrink:0,background:"#f8fafc"}}/>
+              </div>
+            ))}
+            <Btn onClick={saveRates} disabled={saving} style={{width:"100%",marginTop:8}}>{saving?"Saving…":"Save rates"}</Btn>
+            <div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>Current rates drive every feed-cost figure here. Ideal rates are your target, shown for comparison.</div>
+          </div>
+        )}
+      </Card>
+
+      {active.length===0&&<div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"12px 14px",fontSize:12.5,color:"#92400e",marginBottom:12}}>No active cattle yet. Add cattle in the Cattle section first.</div>}
+
+      {buffalo.length>0&&(
+        <Card style={{marginBottom:12}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:4}}>🐃 Buffalo ({buffalo.length})</div>
+          {buffalo.map(c=><CattleFeed key={c.rowIndex} c={c}/>)}
+        </Card>
+      )}
+      {cow.length>0&&(
+        <Card style={{marginBottom:12}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#2D7FB5",marginBottom:4}}>🐄 Cow ({cow.length})</div>
+          {cow.map(c=><CattleFeed key={c.rowIndex} c={c}/>)}
+        </Card>
+      )}
+
+      <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:12,color:"#1A5C8A"}}>
+        💡 Feed cost per cattle = sum of (quantity × current rate). Milk revenue and profit/loss come in the next step.
+      </div>
+    </div>
+  );
+}
+
+function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -1296,6 +1449,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       {[
         {key:"operations",title:"Operations",desc:"Overview, daily log & monthly summary",emoji:"📊",color:"#2D7FB5"},
         {key:"cattle",title:"Cattle",desc:"Herd details, milk/day, add or sell cattle",emoji:"🐄",color:"#92400e"},
+        {key:"feed",title:"Feed",desc:"Feed mix & cost per cattle, and rates",emoji:"🌾",color:"#2d6a4f"},
         {key:"customers",title:"Customers",desc:"Delivery customers & their list positions",emoji:"🧾",color:"#1A5C8A"}
       ].map(s=>(
         <div key={s.key} onClick={()=>setSection(s.key)} style={{cursor:"pointer",background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04)",padding:"18px 20px",marginBottom:12,display:"flex",alignItems:"center",gap:14,borderLeft:"4px solid "+s.color}}>
@@ -1310,7 +1464,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
     </div>
   );
 
-  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":"Customers";
+  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":"Customers";
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
@@ -1323,6 +1477,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
 
       {section==="customers"&&<CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers}/>}
       {section==="cattle"&&<CattleAdmin cattle={cattle} lang={lang} t={t} onChanged={reloadCattle}/>}
+      {section==="feed"&&<FeedAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t} onChanged={reloadCattle}/>}
 
       {section==="operations"&&(loading
         ? <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>{t.loading}</div></div>
@@ -1481,6 +1636,7 @@ export default function App() {
   // Customer + cattle lists loaded once from sheet, shared across all views
   const [customers,setCustomers]=useState([]);
   const [cattle,setCattle]=useState([]);
+  const [feedRates,setFeedRates]=useState(null);
   const [custLoading,setCustLoading]=useState(true);
 
   useEffect(()=>{
@@ -1491,7 +1647,7 @@ export default function App() {
       })
       .catch(()=>setCustLoading(false));
     apiGet("getCattle")
-      .then(d=>setCattle(d.cattle||[]))
+      .then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); })
       .catch(()=>{});
   },[]);
 
@@ -1499,7 +1655,7 @@ export default function App() {
     apiGet("getCustomers").then(d=>setCustomers(d.customers||[])).catch(()=>{});
   }
   function reloadCattle() {
-    apiGet("getCattle").then(d=>setCattle(d.cattle||[])).catch(()=>{});
+    apiGet("getCattle").then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); }).catch(()=>{});
   }
 
   function changeLang(l) {
@@ -1545,7 +1701,7 @@ export default function App() {
           : <>
             {role==="supervisor"&&<SupervisorView lang={lang} buffaloCattle={buffaloCattle} cowCattle={cowCattle}/>}
             {role==="delivery"&&<DeliveryView lang={lang} morningCustomers={morningCustomers} eveningCustomers={eveningCustomers} customers={customers}/>}
-            {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers} cattle={cattle} reloadCattle={reloadCattle}/>}
+            {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers} cattle={cattle} reloadCattle={reloadCattle} feedRates={feedRates}/>}
           </>
         }
       </div>
