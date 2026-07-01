@@ -494,9 +494,9 @@ function LoginScreen({onLogin,lang,setLang}) {
 
 
 // ─── SUPERVISOR ─────────────────────────────────────────────────────────────
-function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC,purchased,setPurchased,purchaseRate,setPurchaseRate,extraQty,setExtraQty,extraSold,setExtraSold,extraRate,setExtraRate,t}) {
-  const bLtrs=BUFFALO_CATTLE.reduce((s,c)=>s+toNet(rawKg[c]||0),0);
-  const cLtrs=COW_CATTLE.reduce((s,c)=>s+toNet(rawKg[c]||0),0);
+function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC,purchased,setPurchased,purchaseRate,setPurchaseRate,extraQty,setExtraQty,extraSold,setExtraSold,extraRate,setExtraRate,t,buffaloCattle=BUFFALO_CATTLE,cowCattle=COW_CATTLE}) {
+  const bLtrs=buffaloCattle.reduce((s,c)=>s+toNet(rawKg[c]||0),0);
+  const cLtrs=cowCattle.reduce((s,c)=>s+toNet(rawKg[c]||0),0);
   const slotTotal=bLtrs+cLtrs;
   const measBNet=measuredB?kgToLtrs(measuredB):null;
   const measCNet=measuredC?kgToLtrs(measuredC):null;
@@ -505,7 +505,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
     <div>
       <div style={{background:"#fffbeb",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
         <SectionLabel color="#92400e">{t.buffalo} · {t.kgWithBucket}</SectionLabel>
-        {BUFFALO_CATTLE.map(c=>(
+        {buffaloCattle.map(c=>(
           <div key={c} style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
             <span style={{fontWeight:700,fontSize:14,color:"#92400e",width:28,flexShrink:0}}>{c}</span>
             <input type="number" min="0" step="0.01" placeholder="0.00"
@@ -520,7 +520,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
 
       <div style={{background:"#EBF5FD",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
         <SectionLabel color="#2D7FB5">{t.cow} · {t.kgWithBucket}</SectionLabel>
-        {COW_CATTLE.map(c=>(
+        {cowCattle.map(c=>(
           <div key={c} style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
             <span style={{fontWeight:700,fontSize:14,color:"#2D7FB5",width:28,flexShrink:0}}>{c}</span>
             <input type="number" min="0" step="0.01" placeholder="0.00"
@@ -604,7 +604,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
   );
 }
 
-function SupervisorView({lang}) {
+function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTLE}) {
   const t=TR[lang];
   const [date,setDate]=useState(today());
   const [activeSlot,setActiveSlot]=useState("morning");
@@ -617,7 +617,7 @@ function SupervisorView({lang}) {
   const [eExtraQty,setEExtraQty]=useState(""); const [eExtraSold,setEExtraSold]=useState(false); const [eExtraRate,setEExtraRate]=useState("");
   const [status,setStatus]=useState(null); const [errMsg,setErrMsg]=useState("");
 
-  const allCattle=[...BUFFALO_CATTLE,...COW_CATTLE];
+  const allCattle=[...buffaloCattle,...cowCattle];
   const mTotal=allCattle.reduce((s,c)=>s+toNet(mRaw[c]||0),0);
   const eTotal=allCattle.reduce((s,c)=>s+toNet(eRaw[c]||0),0);
   const grandTotal=mTotal+eTotal;
@@ -632,7 +632,7 @@ function SupervisorView({lang}) {
     if(activeTotal===0){setErrMsg("0");setStatus("error");return;}
     setStatus("loading");
     try {
-      const buildRows=(rawMap)=>allCattle.map(c=>({cattle:c,type:BUFFALO_CATTLE.includes(c)?"B":"C",rawKg:parseFloat(rawMap[c])||0,netLtrs:toNet(rawMap[c]||0)})).filter(r=>r.rawKg>0);
+      const buildRows=(rawMap)=>allCattle.map(c=>({cattle:c,type:buffaloCattle.includes(c)?"B":"C",rawKg:parseFloat(rawMap[c])||0,netLtrs:toNet(rawMap[c]||0)})).filter(r=>r.rawKg>0);
       // Only send the active slot — prevents overwriting the other slot with zeros
       const slotData = activeSlot==="morning"
         ? {morning:{rows:JSON.stringify(buildRows(mRaw)),total:mTotal,measuredB:mMeasB,measuredC:mMeasC,purchased:mPurchased,purchaseRate:mPurchaseRate,extraQty:mExtraQty,extraSold:mExtraSold,extraRate:mExtraRate}}
@@ -665,8 +665,8 @@ function SupervisorView({lang}) {
 
       <Card style={{marginBottom:14}}>
         {activeSlot==="morning"
-          ? <SlotPanel rawKg={mRaw} setRawKg={setMRaw} measuredB={mMeasB} setMeasuredB={setMMeasB} measuredC={mMeasC} setMeasuredC={setMMeasC} purchased={mPurchased} setPurchased={setMPurchased} purchaseRate={mPurchaseRate} setPurchaseRate={setMPurchaseRate} extraQty={mExtraQty} setExtraQty={setMExtraQty} extraSold={mExtraSold} setExtraSold={setMExtraSold} extraRate={mExtraRate} setExtraRate={setMExtraRate} t={t}/>
-          : <SlotPanel rawKg={eRaw} setRawKg={setERaw} measuredB={eMeasB} setMeasuredB={setEMeasB} measuredC={eMeasC} setMeasuredC={setEMeasC} purchased={ePurchased} setPurchased={setEPurchased} purchaseRate={ePurchaseRate} setPurchaseRate={setEPurchaseRate} extraQty={eExtraQty} setExtraQty={setEExtraQty} extraSold={eExtraSold} setExtraSold={setEExtraSold} extraRate={eExtraRate} setExtraRate={setEExtraRate} t={t}/>
+          ? <SlotPanel rawKg={mRaw} setRawKg={setMRaw} measuredB={mMeasB} setMeasuredB={setMMeasB} measuredC={mMeasC} setMeasuredC={setMMeasC} purchased={mPurchased} setPurchased={setMPurchased} purchaseRate={mPurchaseRate} setPurchaseRate={setMPurchaseRate} extraQty={mExtraQty} setExtraQty={setMExtraQty} extraSold={mExtraSold} setExtraSold={setMExtraSold} extraRate={mExtraRate} setExtraRate={setMExtraRate} buffaloCattle={buffaloCattle} cowCattle={cowCattle} t={t}/>
+          : <SlotPanel rawKg={eRaw} setRawKg={setERaw} measuredB={eMeasB} setMeasuredB={setEMeasB} measuredC={eMeasC} setMeasuredC={setEMeasC} purchased={ePurchased} setPurchased={setEPurchased} purchaseRate={ePurchaseRate} setPurchaseRate={setEPurchaseRate} extraQty={eExtraQty} setExtraQty={setEExtraQty} extraSold={eExtraSold} setExtraSold={setEExtraSold} extraRate={eExtraRate} setExtraRate={setEExtraRate} buffaloCattle={buffaloCattle} cowCattle={cowCattle} t={t}/>
         }
       </Card>
 
@@ -1089,31 +1089,247 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
   );
 }
 
-function OwnerDashboard({lang, customers=[], reloadCustomers}) {
+function CattleAdmin({cattle=[], lang, t, onChanged}) {
+  const [form,setForm]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+  const [confirmDelete,setConfirmDelete]=useState(null);
+  const [sellFor,setSellFor]=useState(null);
+  const [sellPrice,setSellPrice]=useState("");
+  const [sellDate,setSellDate]=useState(today());
+
+  function blankForm(){return {code:"",type:"B",status:"Lactating",dateIn:"",dateAI:"",purchasePrice:"",location:"",breed:"",notes:"",rowIndex:null};}
+  function showToast(msg,type="success"){setToast({msg,type});setTimeout(()=>setToast(null),3000);}
+
+  async function handleSave(){
+    if(!form.code.trim()){showToast("Cattle code is required (e.g. B10)","error");return;}
+    setSaving(true);
+    try{
+      const payload={code:form.code.trim(),type:form.type,status:form.status,dateIn:form.dateIn||"",dateAI:form.dateAI||"",purchasePrice:form.purchasePrice||"",location:form.location||"",breed:form.breed||"",notes:form.notes||""};
+      if(form.rowIndex) payload.rowIndex=form.rowIndex;
+      await apiPost("saveCattle",payload);
+      setForm(null); onChanged&&onChanged();
+      showToast(form.rowIndex?"Cattle updated!":"Cattle added!");
+    }catch(e){showToast(e.message,"error");}
+    finally{setSaving(false);}
+  }
+  async function handleToggle(c){
+    try{await apiPost("toggleCattle",{rowIndex:c.rowIndex,active:!c.active});onChanged&&onChanged();showToast(c.active?"Cattle deactivated":"Cattle reactivated");}catch(e){showToast(e.message,"error");}
+  }
+  async function confirmSell(){
+    const c=sellFor; setSellFor(null);
+    try{await apiPost("sellCattle",{rowIndex:c.rowIndex,soldPrice:sellPrice||"",soldDate:sellDate||""});onChanged&&onChanged();showToast("Marked as sold");}catch(e){showToast(e.message,"error");}
+    setSellPrice(""); setSellDate(today());
+  }
+  async function confirmDeleteYes(){
+    const c=confirmDelete; setConfirmDelete(null);
+    try{await apiPost("deleteCattle",{rowIndex:c.rowIndex});onChanged&&onChanged();showToast("Cattle deleted");}catch(e){showToast(e.message,"error");}
+  }
+  function daysIn(dateIn){ if(!dateIn) return null; const d=new Date(dateIn+"T00:00:00"); if(isNaN(d)) return null; return Math.max(0,Math.round((Date.now()-d.getTime())/86400000)); }
+
+  const STATUS=["Lactating","Pregnant","Dry"];
+  const statusColor=(s)=> s==="Lactating"?{bg:"#f0fdf4",bd:"#bbf7d0",fg:"#15803d"}:s==="Pregnant"?{bg:"#EBF5FD",bd:"#9ACFF0",fg:"#1A5C8A"}:{bg:"#f8fafc",bd:"#e2e8f0",fg:"#64748b"};
+  const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+
+  if(form) return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+        <button onClick={()=>setForm(null)} style={{background:"none",border:"none",color:"#2D7FB5",cursor:"pointer",fontSize:20,lineHeight:1}}>←</button>
+        <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a"}}>{form.rowIndex?"Edit Cattle":"Add Cattle"}</div>
+      </div>
+      <Card>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div><SectionLabel>Code *</SectionLabel>
+            <input value={form.code} onChange={e=>setForm(p=>({...p,code:e.target.value}))} placeholder="e.g. B10" style={inp}/></div>
+          <div><SectionLabel>Type</SectionLabel>
+            <select value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))} style={inp}>
+              <option value="B">🐃 Buffalo</option><option value="C">🐄 Cow</option></select></div>
+        </div>
+        <div style={{marginBottom:12}}><SectionLabel>Status</SectionLabel>
+          <select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))} style={inp}>
+            {STATUS.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div><SectionLabel>Date entered farm</SectionLabel>
+            <input type="date" value={form.dateIn||""} onChange={e=>setForm(p=>({...p,dateIn:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+          <div><SectionLabel>Last AI date</SectionLabel>
+            <input type="date" value={form.dateAI||""} onChange={e=>setForm(p=>({...p,dateAI:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div><SectionLabel>Purchase price (₹)</SectionLabel>
+            <input type="number" min="0" value={form.purchasePrice||""} onChange={e=>setForm(p=>({...p,purchasePrice:e.target.value}))} placeholder="0" style={inp}/></div>
+          <div><SectionLabel>Breed</SectionLabel>
+            <input value={form.breed||""} onChange={e=>setForm(p=>({...p,breed:e.target.value}))} placeholder="e.g. Murrah" style={inp}/></div>
+        </div>
+        <div style={{marginBottom:12}}><SectionLabel>Location / shed</SectionLabel>
+          <input value={form.location||""} onChange={e=>setForm(p=>({...p,location:e.target.value}))} placeholder="e.g. Shed 1" style={inp}/></div>
+        <div style={{marginBottom:16}}><SectionLabel>Notes</SectionLabel>
+          <textarea value={form.notes||""} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} placeholder="Any details worth keeping" style={{...inp,resize:"vertical"}}/></div>
+        <Btn onClick={handleSave} style={{width:"100%"}} disabled={saving}>{saving?"Saving…":form.rowIndex?"Update Cattle":"Add Cattle"}</Btn>
+      </Card>
+    </div>
+  );
+
+  const buffalo=cattle.filter(c=>c.type==="B");
+  const cow=cattle.filter(c=>c.type==="C");
+
+  function Row({c}){
+    const sc=statusColor(c.status);
+    const d=daysIn(c.dateIn);
+    return (
+      <div style={{padding:"10px 0",borderBottom:"1px solid #f8fafc",opacity:c.active?1:0.5}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{fontSize:15,fontWeight:700,color:"#1a1a1a",width:38}}>{c.code}</div>
+          <span style={{background:sc.bg,border:"1px solid "+sc.bd,color:sc.fg,fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10}}>{c.status||"—"}</span>
+          {c.sold&&<span style={{fontSize:9,fontWeight:700,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,padding:"1px 5px"}}>SOLD</span>}
+          {!c.active&&!c.sold&&<span style={{fontSize:9,fontWeight:700,color:"#dc2626",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:4,padding:"1px 5px"}}>INACTIVE</span>}
+          <div style={{flex:1}}/>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:15,fontWeight:700,color:"#2D7FB5"}}>{fmtN(c.milkAvg7||0,1)} L</div>
+            <div style={{fontSize:9,color:"#aaa"}}>milk/day (7d avg)</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:5,marginLeft:46,fontSize:11,color:"#94a3b8"}}>
+          {d!=null&&<span>{d} days in farm</span>}
+          {c.dateAI&&<span>AI: {fmtDate(c.dateAI)}</span>}
+          {c.purchasePrice!==""&&c.purchasePrice!=null&&<span>Bought: {fmtRs(c.purchasePrice)}</span>}
+          {c.location&&<span>{c.location}</span>}
+        </div>
+        <div style={{display:"flex",gap:6,marginTop:8,marginLeft:46,flexWrap:"wrap"}}>
+          <button onClick={()=>setForm({...c})} style={{background:"#EBF5FD",border:"none",borderRadius:7,padding:"4px 10px",fontSize:12,color:"#2D7FB5",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
+          <button onClick={()=>handleToggle(c)} style={{background:c.active?"#fff9f0":"#f0fdf4",border:"1px solid "+(c.active?"#fde68a":"#bbf7d0"),borderRadius:7,padding:"4px 10px",fontSize:12,color:c.active?"#92400e":"#15803d",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{c.active?"Deactivate":"Reactivate"}</button>
+          {!c.sold&&<button onClick={()=>{setSellFor(c);setSellPrice("");setSellDate(today());}} style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:7,padding:"4px 10px",fontSize:12,color:"#92400e",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Sell</button>}
+          <button onClick={()=>setConfirmDelete(c)} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:7,padding:"4px 8px",fontSize:12,color:"#dc2626",cursor:"pointer",fontFamily:"inherit"}}>✕</button>
+        </div>
+      </div>
+    );
+  }
+
+  function Group({title,list,color}){
+    return (
+      <Card style={{marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:13,color,marginBottom:6}}>{title} ({list.filter(c=>c.active).length} active)</div>
+        {list.length===0?<div style={{fontSize:12,color:"#aaa",padding:"6px 0"}}>None yet.</div>:list.map(c=><Row key={c.rowIndex} c={c}/>)}
+      </Card>
+    );
+  }
+
+  return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+
+      {confirmDelete&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",borderRadius:14,padding:"24px 20px",maxWidth:320,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>
+            <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a",marginBottom:8}}>Delete Cattle?</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:20}}><strong>{confirmDelete.code}</strong> and its production columns will be permanently removed. This cannot be undone.</div>
+            <div style={{display:"flex",gap:10}}>
+              <Btn variant="ghost" onClick={()=>setConfirmDelete(null)} style={{flex:1}}>Cancel</Btn>
+              <Btn variant="danger" onClick={confirmDeleteYes} style={{flex:1}}>Delete</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sellFor&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",borderRadius:14,padding:"24px 20px",maxWidth:320,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>
+            <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a",marginBottom:12}}>Mark {sellFor.code} as sold</div>
+            <div style={{marginBottom:12}}><SectionLabel>Sale date</SectionLabel>
+              <input type="date" value={sellDate} onChange={e=>setSellDate(e.target.value)} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+            <div style={{marginBottom:18}}><SectionLabel>Sale price (₹, optional)</SectionLabel>
+              <input type="number" min="0" value={sellPrice} onChange={e=>setSellPrice(e.target.value)} placeholder="0" style={inp}/></div>
+            <div style={{fontSize:12,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:16}}>This deactivates the cattle but keeps all its history.</div>
+            <div style={{display:"flex",gap:10}}>
+              <Btn variant="ghost" onClick={()=>setSellFor(null)} style={{flex:1}}>Cancel</Btn>
+              <Btn onClick={confirmSell} style={{flex:1}}>Confirm sale</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:700,color:"#1a1a1a"}}>Cattle</div>
+          <div style={{fontSize:12,color:"#888",marginTop:2}}>{cattle.filter(c=>c.active).length} active of {cattle.length} total</div>
+        </div>
+        <Btn onClick={()=>setForm(blankForm())} style={{padding:"8px 16px",fontSize:13}}>+ Add</Btn>
+      </div>
+
+      {cattle.length===0&&(
+        <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"12px 14px",fontSize:12.5,color:"#92400e",marginBottom:12}}>
+          No cattle loaded yet. In Apps Script, run <strong>setupCattle()</strong> once (or open <code>?action=setupCattle</code> on your script URL) to create the Cattle sheet, then refresh.
+        </div>
+      )}
+
+      <Group title="🐃 Buffalo" list={buffalo} color="#92400e"/>
+      <Group title="🐄 Cow" list={cow} color="#2D7FB5"/>
+      <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:12,color:"#1A5C8A",marginTop:4}}>
+        💡 Adding a cattle creates its milk-entry field for the Supervisor and its Production Log columns automatically. Selling keeps history but removes it from daily entry.
+      </div>
+    </div>
+  );
+}
+
+function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState(null);
   const [tab,setTab]=useState("overview");
 
+  const [section,setSection]=useState(null);
   async function load(){setLoading(true);setError(null);try{setData(await apiGet("getDashboard"));}catch(e){setError(e.message);}finally{setLoading(false);}}
   useEffect(()=>{load();},[]);
-
-  if(loading) return <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>{t.loading}</div></div>;
-  if(error) return <div><Alert type="error">{t.errLoad}: {error}<br/><span style={{fontSize:11}}>{t.errScriptUrl}</span></Alert><Btn onClick={load} variant="ghost" style={{width:"100%"}}>{t.retry}</Btn></div>;
 
   const {summary={},recentDays=[],monthlyTrend=[]}=data||{};
   const gap30=(summary.last30DaysTotal||summary.last30DaysProduce||0)-(summary.last30DaysDispatched||0);
   const todayGap=(summary.todayTotal||summary.todayProduce||0)-(summary.todayDispatched||0);
 
+  // ── Cover page: choose a section ──
+  if(section===null) return (
+    <div>
+      <div style={{marginBottom:18}}>
+        <div style={{fontSize:20,fontWeight:700}}>{t.ownTitle}</div>
+        <div style={{color:"#888",fontSize:12,marginTop:2}}>{t.ownSub}</div>
+      </div>
+      {[
+        {key:"operations",title:"Operations",desc:"Overview, daily log & monthly summary",emoji:"📊",color:"#2D7FB5"},
+        {key:"cattle",title:"Cattle",desc:"Herd details, milk/day, add or sell cattle",emoji:"🐄",color:"#92400e"},
+        {key:"customers",title:"Customers",desc:"Delivery customers & their list positions",emoji:"🧾",color:"#1A5C8A"}
+      ].map(s=>(
+        <div key={s.key} onClick={()=>setSection(s.key)} style={{cursor:"pointer",background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04)",padding:"18px 20px",marginBottom:12,display:"flex",alignItems:"center",gap:14,borderLeft:"4px solid "+s.color}}>
+          <div style={{fontSize:30}}>{s.emoji}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:16,fontWeight:700,color:"#1a1a1a"}}>{s.title}</div>
+            <div style={{fontSize:12,color:"#888",marginTop:2}}>{s.desc}</div>
+          </div>
+          <div style={{fontSize:22,color:"#cbd5e1"}}>›</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":"Customers";
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-        <div><div style={{fontSize:20,fontWeight:700}}>{t.ownTitle}</div><div style={{color:"#888",fontSize:12,marginTop:2}}>{t.ownSub}</div></div>
-        <Btn variant="ghost" onClick={load} style={{padding:"7px 13px",fontSize:12}}>{t.refresh}</Btn>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={()=>setSection(null)} style={{background:"none",border:"none",color:"#2D7FB5",cursor:"pointer",fontSize:22,lineHeight:1}}>←</button>
+          <div style={{fontSize:18,fontWeight:700,color:"#1a1a1a"}}>{secTitle}</div>
+        </div>
+        {section==="operations"&&<Btn variant="ghost" onClick={load} style={{padding:"7px 13px",fontSize:12}}>{t.refresh}</Btn>}
       </div>
 
-      <TabBar tabs={[{key:"overview",label:t.overview},{key:"daily",label:t.dailyLog},{key:"monthly",label:t.monthly},{key:"customers",label:t.customersTab}]} active={tab} onChange={setTab}/>
+      {section==="customers"&&<CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers}/>}
+      {section==="cattle"&&<CattleAdmin cattle={cattle} lang={lang} t={t} onChanged={reloadCattle}/>}
+
+      {section==="operations"&&(loading
+        ? <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>{t.loading}</div></div>
+        : error
+        ? <div><Alert type="error">{t.errLoad}: {error}<br/><span style={{fontSize:11}}>{t.errScriptUrl}</span></Alert><Btn onClick={load} variant="ghost" style={{width:"100%"}}>{t.retry}</Btn></div>
+        : <div>
+      <TabBar tabs={[{key:"overview",label:t.overview},{key:"daily",label:t.dailyLog},{key:"monthly",label:t.monthly}]} active={tab} onChange={setTab}/>
 
       {tab==="overview"&&(
         <div>
@@ -1250,8 +1466,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers}) {
         </Card>
       )}
 
-      {tab==="customers"&&(
-        <CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers}/>
+        </div>
       )}
     </div>
   );
@@ -1263,8 +1478,9 @@ export default function App() {
   const [lang,setLang]=useState(()=>{
     try { return localStorage.getItem("dairyLang")||"en"; } catch(e){ return "en"; }
   });
-  // Customer list loaded once from sheet, shared across all views
+  // Customer + cattle lists loaded once from sheet, shared across all views
   const [customers,setCustomers]=useState([]);
+  const [cattle,setCattle]=useState([]);
   const [custLoading,setCustLoading]=useState(true);
 
   useEffect(()=>{
@@ -1274,10 +1490,16 @@ export default function App() {
         setCustLoading(false);
       })
       .catch(()=>setCustLoading(false));
+    apiGet("getCattle")
+      .then(d=>setCattle(d.cattle||[]))
+      .catch(()=>{});
   },[]);
 
   function reloadCustomers() {
     apiGet("getCustomers").then(d=>setCustomers(d.customers||[])).catch(()=>{});
+  }
+  function reloadCattle() {
+    apiGet("getCattle").then(d=>setCattle(d.cattle||[])).catch(()=>{});
   }
 
   function changeLang(l) {
@@ -1296,6 +1518,9 @@ export default function App() {
 
   const morningCustomers = customers.filter(c=>c.active&&c.slot==="morning");
   const eveningCustomers = customers.filter(c=>c.active&&c.slot==="evening");
+  // Until the Cattle sheet is set up, fall back to the original fixed lists so the app keeps working
+  const buffaloCattle = cattle.length ? cattle.filter(c=>c.active&&c.type==="B").map(c=>c.code) : BUFFALO_CATTLE;
+  const cowCattle     = cattle.length ? cattle.filter(c=>c.active&&c.type==="C").map(c=>c.code) : COW_CATTLE;
 
   const r=ROLES_META[role];
   return (
@@ -1318,9 +1543,9 @@ export default function App() {
         {custLoading
           ? <div style={{textAlign:"center",padding:"60px 20px",color:"#aaa",fontSize:13}}>Loading…</div>
           : <>
-            {role==="supervisor"&&<SupervisorView lang={lang}/>}
+            {role==="supervisor"&&<SupervisorView lang={lang} buffaloCattle={buffaloCattle} cowCattle={cowCattle}/>}
             {role==="delivery"&&<DeliveryView lang={lang} morningCustomers={morningCustomers} eveningCustomers={eveningCustomers} customers={customers}/>}
-            {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers}/>}
+            {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers} cattle={cattle} reloadCattle={reloadCattle}/>}
           </>
         }
       </div>
