@@ -7,9 +7,9 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
 const PINS = {
-  supervisor: "7055",
-  delivery:   "1234",
-  owner:      "8934",
+  supervisor: "1111",
+  delivery:   "2222",
+  owner:      "3333",
 };
 
 const BUFFALO_CATTLE = ["B4","B5","B6","B7","B8","B9"]; // B1 currently dry
@@ -879,7 +879,7 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
   const types = ["B","C"];
 
   function blankForm() {
-    return {name_en:"",name_hi:"",name_ur:"",slot:"morning",type:"B",phone:"",selfCollect:false,rowIndex:null};
+    return {name_en:"",name_hi:"",name_ur:"",slot:"morning",type:"B",phone:"",selfCollect:false,rowIndex:null,insertAfter:""};
   }
 
   function showToast(msg,type="success") {
@@ -893,7 +893,18 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
     if(!form.name_ur.trim()){showToast("Urdu name is required","error");return;}
     setSaving(true);
     try {
-      await apiPost("saveCustomer",{...form});
+      const payload = {
+        name_en:form.name_en, name_hi:form.name_hi, name_ur:form.name_ur,
+        slot:form.slot, type:form.type, phone:form.phone||"", selfCollect:!!form.selfCollect
+      };
+      if (form.rowIndex) {
+        payload.rowIndex = form.rowIndex;                 // edit in place
+      } else if (form.insertAfter === "top") {
+        payload.atTop = true;                             // add at the very top
+      } else if (form.insertAfter) {
+        payload.afterRowIndex = Number(form.insertAfter); // add after a chosen customer
+      }
+      await apiPost("saveCustomer",payload);
       setForm(null);
       onChanged&&onChanged();
       showToast(form.rowIndex?"Customer updated!":"Customer added!");
@@ -972,6 +983,22 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
             </select>
           </div>
         </div>
+        {!form.rowIndex&&(
+          <div style={{marginBottom:12}}>
+            <SectionLabel>Position in list</SectionLabel>
+            <select value={form.insertAfter||""} onChange={e=>setForm(p=>({...p,insertAfter:e.target.value}))}
+              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",fontFamily:"inherit"}}>
+              <option value="">⬇ Add at the end of the list</option>
+              <option value="top">⬆ At the very top</option>
+              {customers.map(c=>(
+                <option key={c.rowIndex} value={String(c.rowIndex)}>
+                  After: {c.slot==="morning"?"\u2600\ufe0f":"\ud83c\udf19"} {c.name_en}
+                </option>
+              ))}
+            </select>
+            <div style={{fontSize:11,color:"#aaa",marginTop:3}}>Places the new customer right after the selected one — in the delivery list and the dispatch sheet.</div>
+          </div>
+        )}
         <div style={{marginBottom:12}}>
           <SectionLabel>Phone (optional)</SectionLabel>
           <input value={form.phone||""} onChange={e=>setForm(p=>({...p,phone:e.target.value}))}
