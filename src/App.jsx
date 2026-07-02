@@ -512,8 +512,6 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
   const subLabel={fontSize:13,color:"#475569",fontWeight:600,marginBottom:5};
   function headRow(open){ return {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"15px 16px",background:open?"#EBF5FD":"#fff",border:"2px solid "+(open?"#9ACFF0":"#e2e8f0"),borderRadius:12,marginBottom:8,cursor:"pointer"}; }
   const isFilled=(v)=> !!(v && parseFloat(v)>0);
-  // Tick button dismisses the on-screen keyboard by blurring the focused cell
-  function dismissKeyboard(){ if(typeof document!=="undefined"){ const el=document.activeElement; if(el&&el.blur) el.blur(); } }
 
   // Rendered via a plain function CALL (not <Component/>), so inputs keep focus
   // while typing — the keyboard no longer drops after each digit.
@@ -525,13 +523,11 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
         {list.map(c=>{
           const filled=isFilled(rawKg[c]);
           return (
-            <div key={c} style={{display:"flex",alignItems:"stretch",gap:10,marginBottom:11}}>
-              <span style={{fontWeight:800,fontSize:22,color:color,width:40,flexShrink:0,display:"flex",alignItems:"center"}}>{c}</span>
+            <div key={c} style={{display:"flex",alignItems:"center",gap:10,marginBottom:11}}>
+              <span style={{fontWeight:800,fontSize:22,color:color,width:40,flexShrink:0}}>{c}</span>
               <input type="number" inputMode="decimal" min="0" step="any" placeholder="0.000"
                 value={rawKg[c]||""} onChange={e=>setRawKg(p=>({...p,[c]:e.target.value}))}
                 style={{...bigInput(filled),flex:1,width:"auto",minWidth:0}}/>
-              <button type="button" onClick={dismissKeyboard} aria-label="Done"
-                style={{width:52,flexShrink:0,border:"3px solid "+(filled?"#16a34a":"#cbd5e1"),borderRadius:12,background:filled?"#16a34a":"#f1f5f9",color:filled?"#ffffff":"#94a3b8",fontSize:26,fontWeight:800,lineHeight:1,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",padding:0}}>✓</button>
             </div>
           );
         })}
