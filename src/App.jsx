@@ -36,7 +36,7 @@ const TR = {
     supTitle: "Log Today's Production", supSub: "Enter weight including bucket (kg)",
     date: "Date", morning: "Morning", evening: "Evening", grandTotal: "Grand Total",
     buffalo: "🐃 Buffalo", cow: "🐄 Cow", kgWithBucket: "kg incl. bucket",
-    measuredTotals: "Measured Totals", measuredTotalsShort: "Measured Totals",
+    measuredTotals: "Measured Totals", measuredTotalsShort: "Totals",
     bTotal: "B Total (kg)", cTotal: "C Total (kg)",
     matches: "✓ Matches", mismatch: "⚠️ Mismatch",
     outsideMilk: "Outside Milk",
@@ -97,7 +97,7 @@ const TR = {
     supTitle: "आज का उत्पादन दर्ज करें", supSub: "बाल्टी सहित वजन डालें (किलो)",
     date: "तारीख", morning: "सुबह", evening: "शाम", grandTotal: "कुल जोड़",
     buffalo: "🐃 भैंस", cow: "🐄 गाय", kgWithBucket: "किलो बाल्टी सहित",
-    measuredTotals: "नापा गया कुल", measuredTotalsShort: "नापा गया कुल",
+    measuredTotals: "नापा गया कुल", measuredTotalsShort: "कुल",
     bTotal: "भैंस कुल (किलो)", cTotal: "गाय कुल (किलो)",
     matches: "✓ सही", mismatch: "⚠️ अंतर है",
     outsideMilk: "बाहरी दूध",
@@ -156,7 +156,7 @@ const TR = {
     supTitle: "آج کی پیداوار درج کریں", supSub: "بالٹی سمیت وزن درج کریں (کلو)",
     date: "تاریخ", morning: "صبح", evening: "شام", grandTotal: "کل جمع",
     buffalo: "🐃 بھینس", cow: "🐄 گائے", kgWithBucket: "کلو بالٹی سمیت",
-    measuredTotals: "ناپا گیا کل", measuredTotalsShort: "ناپا گیا کل",
+    measuredTotals: "ناپا گیا کل", measuredTotalsShort: "کل",
     bTotal: "بھینس کل (کلو)", cTotal: "گائے کل (کلو)",
     matches: "✓ درست", mismatch: "⚠️ فرق ہے",
     outsideMilk: "باہری دودھ",
@@ -495,111 +495,109 @@ function LoginScreen({onLogin,lang,setLang}) {
 
 // ─── SUPERVISOR ─────────────────────────────────────────────────────────────
 function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC,purchased,setPurchased,purchaseRate,setPurchaseRate,extraQty,setExtraQty,extraSold,setExtraSold,extraRate,setExtraRate,t,buffaloCattle=BUFFALO_CATTLE,cowCattle=COW_CATTLE}) {
-  const bLtrs=buffaloCattle.reduce((s,c)=>s+toNet(rawKg[c]||0),0);
-  const cLtrs=cowCattle.reduce((s,c)=>s+toNet(rawKg[c]||0),0);
-  const slotTotal=bLtrs+cLtrs;
-  const measBNet=measuredB?kgToLtrs(measuredB):null;
-  const measCNet=measuredC?kgToLtrs(measuredC):null;
+  // Only one of Purchased / Extra Milk is open at a time (default: Purchased)
+  const [openOutside,setOpenOutside]=useState("purchased");
+
+  // Big, high-contrast input. Empty => amber "needs input"; filled => green "done".
+  function bigInput(filled){
+    return {width:"100%",padding:"15px 12px",border:"3px solid "+(filled?"#16a34a":"#f59e0b"),borderRadius:12,fontSize:22,fontWeight:700,textAlign:"center",background:filled?"#ffffff":"#fefce8",outline:"none",fontFamily:"inherit",boxSizing:"border-box",color:"#1a1a1a",WebkitAppearance:"none"};
+  }
+  const neutralInput={width:"100%",padding:"15px 12px",border:"2px solid #cbd5e1",borderRadius:12,fontSize:22,fontWeight:700,textAlign:"center",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box",color:"#1a1a1a",WebkitAppearance:"none"};
+  const subLabel={fontSize:13,color:"#475569",fontWeight:600,marginBottom:5};
+  function headRow(open){ return {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"15px 16px",background:open?"#EBF5FD":"#fff",border:"2px solid "+(open?"#9ACFF0":"#e2e8f0"),borderRadius:12,marginBottom:8,cursor:"pointer"}; }
+  const isFilled=(v)=> !!(v && parseFloat(v)>0);
+
+  function CattleRows({list,color,bg}){
+    return (
+      <div style={{background:bg,borderRadius:12,padding:"14px",marginBottom:14}}>
+        <div style={{fontSize:17,fontWeight:800,color:color,marginBottom:2}}>{color==="#92400e"?t.buffalo:t.cow}</div>
+        <div style={{fontSize:12.5,color:color,opacity:0.8,marginBottom:12}}>{t.kgWithBucket}</div>
+        {list.map(c=>{
+          const filled=isFilled(rawKg[c]);
+          return (
+            <div key={c} style={{display:"flex",alignItems:"center",gap:12,marginBottom:11}}>
+              <span style={{fontWeight:800,fontSize:22,color:color,width:48,flexShrink:0}}>{c}</span>
+              <input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00"
+                value={rawKg[c]||""} onChange={e=>setRawKg(p=>({...p,[c]:e.target.value}))}
+                style={{...bigInput(filled),flex:1,width:"auto"}}/>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div style={{background:"#fffbeb",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#92400e">{t.buffalo} · {t.kgWithBucket}</SectionLabel>
-        {buffaloCattle.map(c=>(
-          <div key={c} style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
-            <span style={{fontWeight:700,fontSize:14,color:"#92400e",width:28,flexShrink:0}}>{c}</span>
-            <input type="number" min="0" step="0.01" placeholder="0.00"
-              value={rawKg[c]||""} onChange={e=>setRawKg(p=>({...p,[c]:e.target.value}))}
-              style={{flex:1,padding:"8px 10px",border:"1.5px solid #fde68a",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",fontFamily:"inherit"}}/>
-            <span style={{fontSize:12,color:"#92400e",width:44,textAlign:"right",flexShrink:0,fontWeight:600}}>
-              {rawKg[c]?fmtN(toNet(rawKg[c]),2)+"L":""}
-            </span>
-          </div>
-        ))}
-      </div>
+      <CattleRows list={buffaloCattle} color="#92400e" bg="#fffbeb"/>
+      <CattleRows list={cowCattle} color="#2D7FB5" bg="#EBF5FD"/>
 
-      <div style={{background:"#EBF5FD",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#2D7FB5">{t.cow} · {t.kgWithBucket}</SectionLabel>
-        {cowCattle.map(c=>(
-          <div key={c} style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
-            <span style={{fontWeight:700,fontSize:14,color:"#2D7FB5",width:28,flexShrink:0}}>{c}</span>
-            <input type="number" min="0" step="0.01" placeholder="0.00"
-              value={rawKg[c]||""} onChange={e=>setRawKg(p=>({...p,[c]:e.target.value}))}
-              style={{flex:1,padding:"8px 10px",border:"1.5px solid #9ACFF0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",fontFamily:"inherit"}}/>
-            <span style={{fontSize:12,color:"#2D7FB5",width:44,textAlign:"right",flexShrink:0,fontWeight:600}}>
-              {rawKg[c]?fmtN(toNet(rawKg[c]),2)+"L":""}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#555">{t.measuredTotalsShort}</SectionLabel>
-        <div style={{display:"flex",gap:10}}>
+      {/* Totals (supervisor-entered net kg per type) */}
+      <div style={{background:"#f8fafc",borderRadius:12,padding:"14px",marginBottom:14}}>
+        <div style={{fontSize:16,fontWeight:800,color:"#334155",marginBottom:12}}>{t.measuredTotalsShort}</div>
+        <div style={{display:"flex",gap:12}}>
           <div style={{flex:1}}>
-            <div style={{fontSize:11,color:"#92400e",fontWeight:600,marginBottom:4}}>{t.bTotal}</div>
-            <input type="number" min="0" step="0.01" placeholder="0.00"
-              value={measuredB||""} onChange={e=>setMeasuredB(e.target.value)}
-              style={{width:"100%",padding:"8px 10px",border:"1.5px solid #fde68a",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
-            {measBNet!==null&&<div style={{fontSize:11,marginTop:3,textAlign:"center",fontWeight:600,color:Math.abs(measBNet-bLtrs)>0.2?"#dc2626":"#15803d"}}>
-              {fmtN(measBNet,2)} L {Math.abs(measBNet-bLtrs)>0.2?t.mismatch:t.matches}
-            </div>}
+            <div style={{fontSize:15,fontWeight:700,color:"#92400e",marginBottom:6}}>{t.buffalo}</div>
+            <input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00"
+              value={measuredB||""} onChange={e=>setMeasuredB(e.target.value)} style={bigInput(isFilled(measuredB))}/>
           </div>
           <div style={{flex:1}}>
-            <div style={{fontSize:11,color:"#2D7FB5",fontWeight:600,marginBottom:4}}>{t.cTotal}</div>
-            <input type="number" min="0" step="0.01" placeholder="0.00"
-              value={measuredC||""} onChange={e=>setMeasuredC(e.target.value)}
-              style={{width:"100%",padding:"8px 10px",border:"1.5px solid #9ACFF0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
-            {measCNet!==null&&<div style={{fontSize:11,marginTop:3,textAlign:"center",fontWeight:600,color:Math.abs(measCNet-cLtrs)>0.2?"#dc2626":"#15803d"}}>
-              {fmtN(measCNet,2)} L {Math.abs(measCNet-cLtrs)>0.2?t.mismatch:t.matches}
-            </div>}
+            <div style={{fontSize:15,fontWeight:700,color:"#2D7FB5",marginBottom:6}}>{t.cow}</div>
+            <input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00"
+              value={measuredC||""} onChange={e=>setMeasuredC(e.target.value)} style={bigInput(isFilled(measuredC))}/>
           </div>
         </div>
       </div>
 
-      <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-        <SectionLabel color="#555">{t.outsideMilk}</SectionLabel>
-        <div style={{marginBottom:10}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#1a1a1a",marginBottom:6}}>{t.purchased}</div>
-          <div style={{display:"flex",gap:10}}>
-            <div style={{flex:1}}>
-              <div style={{fontSize:11,color:"#555",marginBottom:3}}>{t.qty}</div>
-              <input type="number" min="0" step="0.1" placeholder="0"
-                value={purchased||""} onChange={e=>setPurchased(e.target.value)}
-                style={{width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
-            </div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:11,color:"#555",marginBottom:3}}>{t.rate}</div>
-              <input type="number" min="0" step="1" placeholder="0"
-                value={purchaseRate||""} onChange={e=>setPurchaseRate(e.target.value)}
-                style={{width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
-            </div>
-          </div>
+      {/* Purchased / Extra milk — collapsible, one open at a time, no section heading */}
+      <div style={{marginBottom:12}}>
+        <div onClick={()=>setOpenOutside(openOutside==="purchased"?null:"purchased")} style={headRow(openOutside==="purchased")}>
+          <span style={{fontSize:16,fontWeight:700,color:"#1a1a1a"}}>{t.purchased}</span>
+          <span style={{fontSize:20,color:"#64748b"}}>{openOutside==="purchased"?"▲":"▼"}</span>
         </div>
-        <div>
-          <div style={{fontSize:12,fontWeight:700,color:"#1a1a1a",marginBottom:6}}>{t.extraMilk}</div>
-          <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
-            <div style={{flex:1}}>
-              <div style={{fontSize:11,color:"#555",marginBottom:3}}>{t.qty}</div>
-              <input type="number" min="0" step="0.1" placeholder="0"
-                value={extraQty||""} onChange={e=>setExtraQty(e.target.value)}
-                style={{width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
-            </div>
-            <div style={{flex:1}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                <input type="checkbox" checked={extraSold||false} onChange={e=>setExtraSold(e.target.checked)}
-                  style={{width:14,height:14,cursor:"pointer",accentColor:"#2D7FB5"}}/>
-                <label style={{fontSize:11,color:"#555",cursor:"pointer"}}>{t.sold}</label>
+        {openOutside==="purchased"&&(
+          <div style={{background:"#f8fafc",borderRadius:12,padding:"14px",marginBottom:10}}>
+            <div style={{display:"flex",gap:12}}>
+              <div style={{flex:1}}>
+                <div style={subLabel}>{t.qty}</div>
+                <input type="number" inputMode="decimal" min="0" step="0.1" placeholder="0"
+                  value={purchased||""} onChange={e=>setPurchased(e.target.value)} style={bigInput(isFilled(purchased))}/>
               </div>
-              <input type="number" min="0" step="1" placeholder={t.sellingRate}
-                value={extraRate||""} onChange={e=>setExtraRate(e.target.value)}
-                disabled={!extraSold}
-                style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${extraSold?"#e2e8f0":"#f1f5f9"}`,borderRadius:8,fontSize:13,textAlign:"center",background:extraSold?"#fff":"#f8fafc",color:extraSold?"#1a1a1a":"#ccc",outline:"none",boxSizing:"border-box",fontFamily:"inherit",cursor:extraSold?"text":"not-allowed"}}/>
+              <div style={{flex:1}}>
+                <div style={subLabel}>{t.rate}</div>
+                <input type="number" inputMode="decimal" min="0" step="1" placeholder="0"
+                  value={purchaseRate||""} onChange={e=>setPurchaseRate(e.target.value)} style={neutralInput}/>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        )}
 
+        <div onClick={()=>setOpenOutside(openOutside==="extra"?null:"extra")} style={headRow(openOutside==="extra")}>
+          <span style={{fontSize:16,fontWeight:700,color:"#1a1a1a"}}>{t.extraMilk}</span>
+          <span style={{fontSize:20,color:"#64748b"}}>{openOutside==="extra"?"▲":"▼"}</span>
+        </div>
+        {openOutside==="extra"&&(
+          <div style={{background:"#f8fafc",borderRadius:12,padding:"14px"}}>
+            <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+              <div style={{flex:1}}>
+                <div style={subLabel}>{t.qty}</div>
+                <input type="number" inputMode="decimal" min="0" step="0.1" placeholder="0"
+                  value={extraQty||""} onChange={e=>setExtraQty(e.target.value)} style={bigInput(isFilled(extraQty))}/>
+              </div>
+              <div style={{flex:1}}>
+                <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,cursor:"pointer"}}>
+                  <input type="checkbox" checked={extraSold||false} onChange={e=>setExtraSold(e.target.checked)}
+                    style={{width:20,height:20,cursor:"pointer",accentColor:"#2D7FB5"}}/>
+                  <span style={{fontSize:14,color:"#475569",fontWeight:600}}>{t.sold}</span>
+                </label>
+                <input type="number" inputMode="decimal" min="0" step="1" placeholder={t.sellingRate}
+                  value={extraRate||""} onChange={e=>setExtraRate(e.target.value)} disabled={!extraSold}
+                  style={{...neutralInput,fontSize:16,border:"2px solid "+(extraSold?"#cbd5e1":"#eef2f7"),background:extraSold?"#fff":"#f8fafc",color:extraSold?"#1a1a1a":"#cbd5e1",cursor:extraSold?"text":"not-allowed"}}/>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1170,8 +1168,9 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
     </div>
   );
 
-  const buffalo=cattle.filter(c=>c.type==="B");
-  const cow=cattle.filter(c=>c.type==="C");
+  const _rank=c=>c.sold?2:(c.active?0:1); // active first, inactive next, sold last
+  const buffalo=cattle.filter(c=>c.type==="B").slice().sort((a,b)=>_rank(a)-_rank(b));
+  const cow=cattle.filter(c=>c.type==="C").slice().sort((a,b)=>_rank(a)-_rank(b));
 
   function Row({c}){
     const sc=statusColor(c.status);
