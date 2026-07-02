@@ -506,8 +506,12 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
   const subLabel={fontSize:13,color:"#475569",fontWeight:600,marginBottom:5};
   function headRow(open){ return {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"15px 16px",background:open?"#EBF5FD":"#fff",border:"2px solid "+(open?"#9ACFF0":"#e2e8f0"),borderRadius:12,marginBottom:8,cursor:"pointer"}; }
   const isFilled=(v)=> !!(v && parseFloat(v)>0);
+  // Tick button dismisses the on-screen keyboard by blurring the focused cell
+  function dismissKeyboard(){ if(typeof document!=="undefined"){ const el=document.activeElement; if(el&&el.blur) el.blur(); } }
 
-  function CattleRows({list,color,bg}){
+  // Rendered via a plain function CALL (not <Component/>), so inputs keep focus
+  // while typing — the keyboard no longer drops after each digit.
+  function cattleBlock(list,color,bg){
     return (
       <div style={{background:bg,borderRadius:12,padding:"14px",marginBottom:14}}>
         <div style={{fontSize:17,fontWeight:800,color:color,marginBottom:2}}>{color==="#92400e"?t.buffalo:t.cow}</div>
@@ -515,11 +519,13 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
         {list.map(c=>{
           const filled=isFilled(rawKg[c]);
           return (
-            <div key={c} style={{display:"flex",alignItems:"center",gap:12,marginBottom:11}}>
-              <span style={{fontWeight:800,fontSize:22,color:color,width:48,flexShrink:0}}>{c}</span>
-              <input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00"
+            <div key={c} style={{display:"flex",alignItems:"stretch",gap:10,marginBottom:11}}>
+              <span style={{fontWeight:800,fontSize:22,color:color,width:40,flexShrink:0,display:"flex",alignItems:"center"}}>{c}</span>
+              <input type="number" inputMode="decimal" min="0" step="any" placeholder="0.000"
                 value={rawKg[c]||""} onChange={e=>setRawKg(p=>({...p,[c]:e.target.value}))}
-                style={{...bigInput(filled),flex:1,width:"auto"}}/>
+                style={{...bigInput(filled),flex:1,width:"auto",minWidth:0}}/>
+              <button type="button" onClick={dismissKeyboard} aria-label="Done"
+                style={{width:52,flexShrink:0,border:"3px solid "+(filled?"#16a34a":"#cbd5e1"),borderRadius:12,background:filled?"#16a34a":"#f1f5f9",color:filled?"#ffffff":"#94a3b8",fontSize:26,fontWeight:800,lineHeight:1,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",padding:0}}>✓</button>
             </div>
           );
         })}
@@ -529,21 +535,21 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
 
   return (
     <div>
-      <CattleRows list={buffaloCattle} color="#92400e" bg="#fffbeb"/>
-      <CattleRows list={cowCattle} color="#2D7FB5" bg="#EBF5FD"/>
+      {cattleBlock(buffaloCattle,"#92400e","#fffbeb")}
+      {cattleBlock(cowCattle,"#2D7FB5","#EBF5FD")}
 
       {/* Totals (supervisor-entered net kg per type) */}
       <div style={{background:"#f8fafc",borderRadius:12,padding:"14px",marginBottom:14}}>
         <div style={{fontSize:16,fontWeight:800,color:"#334155",marginBottom:12}}>{t.measuredTotalsShort}</div>
         <div style={{display:"flex",gap:12}}>
-          <div style={{flex:1}}>
+          <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:15,fontWeight:700,color:"#92400e",marginBottom:6}}>{t.buffalo}</div>
-            <input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00"
+            <input type="number" inputMode="decimal" min="0" step="any" placeholder="0.000"
               value={measuredB||""} onChange={e=>setMeasuredB(e.target.value)} style={bigInput(isFilled(measuredB))}/>
           </div>
-          <div style={{flex:1}}>
+          <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:15,fontWeight:700,color:"#2D7FB5",marginBottom:6}}>{t.cow}</div>
-            <input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00"
+            <input type="number" inputMode="decimal" min="0" step="any" placeholder="0.000"
               value={measuredC||""} onChange={e=>setMeasuredC(e.target.value)} style={bigInput(isFilled(measuredC))}/>
           </div>
         </div>
@@ -558,14 +564,14 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
         {openOutside==="purchased"&&(
           <div style={{background:"#f8fafc",borderRadius:12,padding:"14px",marginBottom:10}}>
             <div style={{display:"flex",gap:12}}>
-              <div style={{flex:1}}>
+              <div style={{flex:1,minWidth:0}}>
                 <div style={subLabel}>{t.qty}</div>
-                <input type="number" inputMode="decimal" min="0" step="0.1" placeholder="0"
+                <input type="number" inputMode="decimal" min="0" step="any" placeholder="0"
                   value={purchased||""} onChange={e=>setPurchased(e.target.value)} style={bigInput(isFilled(purchased))}/>
               </div>
-              <div style={{flex:1}}>
+              <div style={{flex:1,minWidth:0}}>
                 <div style={subLabel}>{t.rate}</div>
-                <input type="number" inputMode="decimal" min="0" step="1" placeholder="0"
+                <input type="number" inputMode="decimal" min="0" step="any" placeholder="0"
                   value={purchaseRate||""} onChange={e=>setPurchaseRate(e.target.value)} style={neutralInput}/>
               </div>
             </div>
@@ -579,18 +585,18 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
         {openOutside==="extra"&&(
           <div style={{background:"#f8fafc",borderRadius:12,padding:"14px"}}>
             <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
-              <div style={{flex:1}}>
+              <div style={{flex:1,minWidth:0}}>
                 <div style={subLabel}>{t.qty}</div>
-                <input type="number" inputMode="decimal" min="0" step="0.1" placeholder="0"
+                <input type="number" inputMode="decimal" min="0" step="any" placeholder="0"
                   value={extraQty||""} onChange={e=>setExtraQty(e.target.value)} style={bigInput(isFilled(extraQty))}/>
               </div>
-              <div style={{flex:1}}>
+              <div style={{flex:1,minWidth:0}}>
                 <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,cursor:"pointer"}}>
                   <input type="checkbox" checked={extraSold||false} onChange={e=>setExtraSold(e.target.checked)}
                     style={{width:20,height:20,cursor:"pointer",accentColor:"#2D7FB5"}}/>
                   <span style={{fontSize:14,color:"#475569",fontWeight:600}}>{t.sold}</span>
                 </label>
-                <input type="number" inputMode="decimal" min="0" step="1" placeholder={t.sellingRate}
+                <input type="number" inputMode="decimal" min="0" step="any" placeholder={t.sellingRate}
                   value={extraRate||""} onChange={e=>setExtraRate(e.target.value)} disabled={!extraSold}
                   style={{...neutralInput,fontSize:16,border:"2px solid "+(extraSold?"#cbd5e1":"#eef2f7"),background:extraSold?"#fff":"#f8fafc",color:extraSold?"#1a1a1a":"#cbd5e1",cursor:extraSold?"text":"not-allowed"}}/>
               </div>
