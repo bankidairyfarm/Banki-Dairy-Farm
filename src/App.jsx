@@ -1424,6 +1424,212 @@ function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
   );
 }
 
+// ─── PROFIT & LOSS ──────────────────────────────────────────────────────────
+const OVERHEAD_CATS = [
+  {key:"labour",     label:"Labour / Salaries"},
+  {key:"electricity",label:"Electricity"},
+  {key:"veterinary", label:"Veterinary & Medicines"},
+  {key:"milking",    label:"Milking Supplies"},
+  {key:"marketing",  label:"Marketing / Branding"},
+  {key:"repairs",    label:"Repairs & Maintenance"},
+  {key:"admin",      label:"Admin Costs"},
+  {key:"misc",       label:"Misc."},
+  {key:"transport",  label:"Transport"},
+  {key:"breeding",   label:"Breeding Costs"}
+];
+function daysInMonthOf(dstr){ const p=String(dstr).split("-"); return new Date(+p[0], +p[1], 0).getDate(); }
+
+function PnLAdmin({cattle=[], feedRates, lang, t}) {
+  const rates=(feedRates&&feedRates.current)?feedRates:DEFAULT_FEED_RATES;
+  const [data,setData]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [err,setErr]=useState(null);
+  const [date,setDate]=useState(today());
+  const [view,setView]=useState("day");
+  const [ovOpen,setOvOpen]=useState(false);
+  const [ovDraft,setOvDraft]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+  function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3000);}
+  function fv(x){ return (x===undefined||x===null)?"":x; }
+  const inp={width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+
+  async function load(){ setLoading(true); setErr(null); try{ setData(await apiGet("getPnL")); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
+  useEffect(()=>{ load(); },[]);
+  async function saveOv(){
+    setSaving(true);
+    try{ await apiPost("saveOverheads",{overheads:ovDraft}); setOvOpen(false); setOvDraft(null); await load(); showToast("Overheads saved"); }
+    catch(e){ showToast(e.message,"error"); }
+    finally{ setSaving(false); }
+  }
+
+  if(loading) return <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>Loading P&L…</div></div>;
+  if(err) return <div><Alert type="error">Could not load P&L: {err}</Alert><Btn onClick={load} variant="ghost" style={{width:"100%"}}>Retry</Btn></div>;
+
+  const cfg=data.config||{feedDaily:0,overheads:{},overheadMonthlyTotal:0,rateB:70,rateC:60};
+
+  // ── Selected-day P&L ──
+  const day=(data.days||[]).find(d=>d.date===date)||{dispatchRev:0,extraRev:0,purchased:0};
+  const revenue=day.dispatchRev+day.extraRev;
+  const ovDay=cfg.overheadMonthlyTotal/daysInMonthOf(date);
+  const feed=cfg.feedDaily;
+  const totalCost=feed+ovDay+day.purchased;
+  const net=revenue-totalCost;
+
+  // ── Monthly aggregation ──
+  const months={};
+  (data.days||[]).forEach(d=>{
+    const mo=d.date.substring(0,7);
+    if(!months[mo]) months[mo]={rev:0,purch:0,count:0};
+    months[mo].rev+=d.dispatchRev+d.extraRev; months[mo].purch+=d.purchased; months[mo].count++;
+  });
+  const MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const monthRows=Object.keys(months).sort((a,b)=>b.localeCompare(a)).map(mo=>{
+    const parts=mo.split("-"), y=parts[0], m=parts[1];
+    const dimM=new Date(+y,+m,0).getDate(); const o=months[mo];
+    const feedM=cfg.feedDaily*o.count, ovM=(cfg.overheadMonthlyTotal/dimM)*o.count;
+    return {label:MO[+m-1]+" "+y.substring(2), rev:o.rev, cost:feedM+ovM+o.purch, net:o.rev-feedM-ovM-o.purch, days:o.count};
+  });
+
+  // ── Per-cattle feed P&L ──
+  const activeCattle=cattle.filter(c=>c.active);
+  const perCattle=activeCattle.map(c=>{
+    const rate=c.type==="B"?cfg.rateB:cfg.rateC;
+    const milk=c.milkAvg7||0;
+    const rev=milk*rate;
+    const fc=feedCostOf(c.feed,rates.current);
+    return {code:c.code,type:c.type,milk:milk,rev:rev,feed:fc,pnl:rev-fc};
+  }).sort((a,b)=>b.pnl-a.pnl);
+
+  function Line({label,value,color,strong,sub,indent}){
+    return (
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:strong?"8px 0":"4px 0",borderTop:strong?"1.5px solid #eef2f7":"none"}}>
+        <div style={{fontSize:strong?14:13,fontWeight:strong?700:500,color:color||"#555",paddingLeft:indent?12:0}}>{label}{sub&&<span style={{fontSize:10,color:"#aaa",fontWeight:500}}> {sub}</span>}</div>
+        <div style={{fontSize:strong?15:13,fontWeight:strong?700:600,color:color||"#1a1a1a"}}>{value}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+
+      <TabBar tabs={[{key:"day",label:"Day"},{key:"monthly",label:"Monthly"},{key:"cattle",label:"By cattle"}]} active={view} onChange={setView}/>
+
+      {view==="day"&&(
+        <div>
+          <Card style={{marginBottom:12}}>
+            <SectionLabel>Date</SectionLabel>
+            <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}
+              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",WebkitAppearance:"none",fontFamily:"inherit",color:"#1a1a1a",display:"block",minWidth:0}}/>
+          </Card>
+
+          <div style={{background:net>=0?"#f0fdf4":"#fef2f2",border:`1.5px solid ${net>=0?"#bbf7d0":"#fecaca"}`,borderRadius:14,padding:"18px 20px",marginBottom:12,textAlign:"center"}}>
+            <div style={{fontSize:11,fontWeight:700,color:net>=0?"#15803d":"#dc2626",textTransform:"uppercase",letterSpacing:"0.8px"}}>{net>=0?"Net Profit":"Net Loss"} · {fmtDate(date)}</div>
+            <div style={{fontSize:32,fontWeight:800,color:net>=0?"#15803d":"#dc2626",marginTop:4}}>{fmtRs(Math.abs(net))}</div>
+          </div>
+
+          <Card style={{marginBottom:12}}>
+            <SectionLabel color="#15803d">Revenue</SectionLabel>
+            <Line label="Milk sold to customers" value={fmtRs(day.dispatchRev)}/>
+            {day.extraRev>0&&<Line label="Extra milk sold" value={fmtRs(day.extraRev)}/>}
+            <Line label="Total revenue" value={fmtRs(revenue)} color="#15803d" strong/>
+          </Card>
+
+          <Card style={{marginBottom:12}}>
+            <SectionLabel color="#dc2626">Costs</SectionLabel>
+            <Line label="Feed (all active cattle)" value={fmtRs(feed)}/>
+            <Line label="Overheads" value={fmtRs(ovDay)} sub={"(monthly ÷ "+daysInMonthOf(date)+" days)"}/>
+            {OVERHEAD_CATS.filter(o=>(cfg.overheads[o.key]||0)>0).map(o=>(
+              <Line key={o.key} label={o.label} value={fmtRs((cfg.overheads[o.key]||0)/daysInMonthOf(date))} indent color="#94a3b8"/>
+            ))}
+            {day.purchased>0&&<Line label="Purchased outside milk" value={fmtRs(day.purchased)}/>}
+            <Line label="Total costs" value={fmtRs(totalCost)} color="#dc2626" strong/>
+          </Card>
+
+          <Card style={{marginBottom:12}}>
+            <div onClick={()=>{ if(!ovOpen) setOvDraft(Object.assign({},cfg.overheads)); setOvOpen(!ovOpen); }} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>⚙️ Overhead costs (₹/month)</div>
+              <div style={{fontSize:15,color:"#94a3b8"}}>{ovOpen?"▲":"▼"}</div>
+            </div>
+            {ovOpen&&ovDraft&&(
+              <div style={{marginTop:12}}>
+                {OVERHEAD_CATS.map(o=>(
+                  <div key={o.key} style={{display:"flex",gap:10,alignItems:"center",marginBottom:7}}>
+                    <div style={{flex:1,fontSize:13,color:"#1a1a1a"}}>{o.label}</div>
+                    <input type="number" min="0" step="100" value={fv(ovDraft[o.key])} onChange={e=>setOvDraft(p=>Object.assign({},p,{[o.key]:e.target.value}))} placeholder="0" style={{...inp,width:110,flexShrink:0,textAlign:"right"}}/>
+                  </div>
+                ))}
+                <Btn onClick={saveOv} disabled={saving} style={{width:"100%",marginTop:8}}>{saving?"Saving…":"Save overheads"}</Btn>
+                <div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>Entered per month; each day uses amount ÷ number of days in that month.</div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {view==="monthly"&&(
+        <Card>
+          <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:12}}>Monthly P&L</div>
+          {monthRows.length===0?<div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>No data yet.</div>:(
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <thead><tr style={{borderBottom:"2px solid #f1f5f9"}}>
+                  {["Month","Revenue","Costs","Net","Days"].map(h=>(
+                    <th key={h} style={{textAlign:h==="Month"?"left":"right",padding:"5px 7px",color:"#888",fontWeight:600,fontSize:11,textTransform:"uppercase"}}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {monthRows.map((r,i)=>(
+                    <tr key={i} style={{borderBottom:"1px solid #f8fafc"}}>
+                      <td style={{padding:"7px",fontWeight:600,color:"#1a1a1a"}}>{r.label}</td>
+                      <td style={{padding:"7px",textAlign:"right"}}>{fmtRs(r.rev)}</td>
+                      <td style={{padding:"7px",textAlign:"right"}}>{fmtRs(r.cost)}</td>
+                      <td style={{padding:"7px",textAlign:"right",fontWeight:700,color:r.net>=0?"#15803d":"#dc2626"}}>{r.net>=0?"+":""}{fmtRs(r.net)}</td>
+                      <td style={{padding:"7px",textAlign:"right",color:"#aaa"}}>{r.days}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div style={{fontSize:11,color:"#94a3b8",marginTop:12}}>Costs = feed + overheads + purchased milk, over the days with logged data in each month. Feed uses your current mix.</div>
+        </Card>
+      )}
+
+      {view==="cattle"&&(
+        <Card>
+          <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:4}}>Feed P&L per cattle</div>
+          <div style={{fontSize:11,color:"#94a3b8",marginBottom:12}}>Milk value (7-day avg × rate) − feed cost, per day.</div>
+          {perCattle.length===0?<div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>No active cattle.</div>:(
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <thead><tr style={{borderBottom:"2px solid #f1f5f9"}}>
+                  {["Cattle","Milk/day","Value","Feed","P&L"].map(h=>(
+                    <th key={h} style={{textAlign:h==="Cattle"?"left":"right",padding:"5px 7px",color:"#888",fontWeight:600,fontSize:11,textTransform:"uppercase"}}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {perCattle.map((r,i)=>(
+                    <tr key={i} style={{borderBottom:"1px solid #f8fafc"}}>
+                      <td style={{padding:"7px",fontWeight:700,color:"#1a1a1a"}}>{r.type==="B"?"🐃":"🐄"} {r.code}</td>
+                      <td style={{padding:"7px",textAlign:"right"}}>{fmtN(r.milk,1)} L</td>
+                      <td style={{padding:"7px",textAlign:"right"}}>{fmtRs(r.rev)}</td>
+                      <td style={{padding:"7px",textAlign:"right"}}>{fmtRs(r.feed)}</td>
+                      <td style={{padding:"7px",textAlign:"right",fontWeight:700,color:r.pnl>=0?"#15803d":"#dc2626"}}>{r.pnl>=0?"+":""}{fmtRs(r.pnl)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div style={{fontSize:11,color:"#94a3b8",marginTop:12}}>This is feed-level P&L only (excludes overheads). Pregnant/dry cattle show a loss as they produce no milk yet.</div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
@@ -1450,6 +1656,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
         {key:"operations",title:"Operations",desc:"Overview, daily log & monthly summary",emoji:"📊",color:"#2D7FB5"},
         {key:"cattle",title:"Cattle",desc:"Herd details, milk/day, add or sell cattle",emoji:"🐄",color:"#92400e"},
         {key:"feed",title:"Feed",desc:"Feed mix & cost per cattle, and rates",emoji:"🌾",color:"#2d6a4f"},
+        {key:"pnl",title:"Profit & Loss",desc:"Daily & monthly P&L including all costs",emoji:"📈",color:"#15803d"},
         {key:"customers",title:"Customers",desc:"Delivery customers & their list positions",emoji:"🧾",color:"#1A5C8A"}
       ].map(s=>(
         <div key={s.key} onClick={()=>setSection(s.key)} style={{cursor:"pointer",background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04)",padding:"18px 20px",marginBottom:12,display:"flex",alignItems:"center",gap:14,borderLeft:"4px solid "+s.color}}>
@@ -1464,7 +1671,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
     </div>
   );
 
-  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":"Customers";
+  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":"Customers";
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
@@ -1478,6 +1685,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       {section==="customers"&&<CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers}/>}
       {section==="cattle"&&<CattleAdmin cattle={cattle} lang={lang} t={t} onChanged={reloadCattle}/>}
       {section==="feed"&&<FeedAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t} onChanged={reloadCattle}/>}
+      {section==="pnl"&&<PnLAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t}/>}
 
       {section==="operations"&&(loading
         ? <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>{t.loading}</div></div>
