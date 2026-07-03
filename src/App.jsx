@@ -329,16 +329,16 @@ function StatBox({label,value,sub,color="#2D7FB5"}) {
     </div>
   );
 }
-function TabBar({tabs,active,onChange}) {
+function TabBar({tabs,active,onChange,large}) {
   return (
     <div style={{display:"flex",gap:5,background:"#f1f5f9",borderRadius:10,padding:4,marginBottom:18}}>
       {tabs.map(t=>(
         <button key={t.key} onClick={()=>onChange(t.key)} style={{
-          flex:1,padding:"8px 0",borderRadius:8,border:"none",cursor:"pointer",
+          flex:1,padding:large?"13px 0":"8px 0",borderRadius:8,border:"none",cursor:"pointer",
           background:active===t.key?"#fff":"transparent",
           color:active===t.key?"#1a1a1a":"#888",
           fontWeight:active===t.key?700:500,
-          fontSize:13,boxShadow:active===t.key?"0 1px 4px rgba(0,0,0,0.08)":"none",
+          fontSize:large?18:13,boxShadow:active===t.key?"0 1px 4px rgba(0,0,0,0.08)":"none",
           fontFamily:"inherit"
         }}>{t.label}</button>
       ))}
@@ -525,7 +525,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
           return (
             <div key={c} style={{display:"flex",alignItems:"center",gap:10,marginBottom:11}}>
               <span style={{fontWeight:800,fontSize:22,color:color,width:40,flexShrink:0}}>{c}</span>
-              <input type="number" inputMode="decimal" min="0" step="any" placeholder="0.000"
+              <input type="number" inputMode="decimal" className="bdf-cell" min="0" step="any" placeholder="0.000"
                 value={rawKg[c]||""} onChange={e=>setRawKg(p=>({...p,[c]:e.target.value}))}
                 style={{...bigInput(filled),flex:1,width:"auto",minWidth:0}}/>
             </div>
@@ -537,6 +537,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
 
   return (
     <div>
+      <style>{`.bdf-cell:focus{border-color:#1d4ed8 !important;background:#dbeafe !important;box-shadow:0 0 0 5px rgba(37,99,235,0.55) !important;}`}</style>
       {cattleBlock(buffaloCattle,"#92400e","#fffbeb")}
       {cattleBlock(cowCattle,"#2D7FB5","#EBF5FD")}
 
@@ -546,12 +547,12 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
         <div style={{display:"flex",gap:12}}>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:15,fontWeight:700,color:"#92400e",marginBottom:6}}>{t.buffalo}</div>
-            <input type="number" inputMode="decimal" min="0" step="any" placeholder="0.000"
+            <input type="number" inputMode="decimal" className="bdf-cell" min="0" step="any" placeholder="0.000"
               value={measuredB||""} onChange={e=>setMeasuredB(e.target.value)} style={bigInput(isFilled(measuredB))}/>
           </div>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:15,fontWeight:700,color:"#2D7FB5",marginBottom:6}}>{t.cow}</div>
-            <input type="number" inputMode="decimal" min="0" step="any" placeholder="0.000"
+            <input type="number" inputMode="decimal" className="bdf-cell" min="0" step="any" placeholder="0.000"
               value={measuredC||""} onChange={e=>setMeasuredC(e.target.value)} style={bigInput(isFilled(measuredC))}/>
           </div>
         </div>
@@ -568,12 +569,12 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
             <div style={{display:"flex",gap:12}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={subLabel}>{t.qty}</div>
-                <input type="number" inputMode="decimal" min="0" step="any" placeholder="0"
+                <input type="number" inputMode="decimal" className="bdf-cell" min="0" step="any" placeholder="0"
                   value={purchased||""} onChange={e=>setPurchased(e.target.value)} style={bigInput(isFilled(purchased))}/>
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={subLabel}>{t.rate}</div>
-                <input type="number" inputMode="decimal" min="0" step="any" placeholder="0"
+                <input type="number" inputMode="decimal" className="bdf-cell" min="0" step="any" placeholder="0"
                   value={purchaseRate||""} onChange={e=>setPurchaseRate(e.target.value)} style={neutralInput}/>
               </div>
             </div>
@@ -589,7 +590,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
             <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={subLabel}>{t.qty}</div>
-                <input type="number" inputMode="decimal" min="0" step="any" placeholder="0"
+                <input type="number" inputMode="decimal" className="bdf-cell" min="0" step="any" placeholder="0"
                   value={extraQty||""} onChange={e=>setExtraQty(e.target.value)} style={bigInput(isFilled(extraQty))}/>
               </div>
               <div style={{flex:1,minWidth:0}}>
@@ -598,7 +599,7 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
                     style={{width:20,height:20,cursor:"pointer",accentColor:"#2D7FB5"}}/>
                   <span style={{fontSize:14,color:"#475569",fontWeight:600}}>{t.sold}</span>
                 </label>
-                <input type="number" inputMode="decimal" min="0" step="any" placeholder={t.sellingRate}
+                <input type="number" inputMode="decimal" className="bdf-cell" min="0" step="any" placeholder={t.sellingRate}
                   value={extraRate||""} onChange={e=>setExtraRate(e.target.value)} disabled={!extraSold}
                   style={{...neutralInput,fontSize:16,border:"2px solid "+(extraSold?"#cbd5e1":"#eef2f7"),background:extraSold?"#fff":"#f8fafc",color:extraSold?"#1a1a1a":"#cbd5e1",cursor:extraSold?"text":"not-allowed"}}/>
               </div>
@@ -669,7 +670,7 @@ function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTL
         </div>
       </Card>
 
-      <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={activeSlot} onChange={setActiveSlot}/>
+      <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={activeSlot} onChange={setActiveSlot} large/>
 
       <Card style={{marginBottom:14}}>
         {activeSlot==="morning"
@@ -1308,7 +1309,7 @@ function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
   function fv(x){ return (x===undefined||x===null)?"":x; }
   const inp={width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
 
-  const active=cattle.filter(c=>c.active);
+  const active=cattle.filter(c=>c.active&&!c.sold);
   const buffalo=active.filter(c=>c.type==="B");
   const cow=active.filter(c=>c.type==="C");
   const totalCost=active.reduce((s,c)=>s+feedCostOf(c.feed,rates.current),0);
@@ -1501,7 +1502,7 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
   });
 
   // ── Per-cattle feed P&L ──
-  const activeCattle=cattle.filter(c=>c.active);
+  const activeCattle=cattle.filter(c=>c.active&&!c.sold);
   const perCattle=activeCattle.map(c=>{
     const rate=c.type==="B"?cfg.rateB:cfg.rateC;
     const milk=c.milkAvg7||0;
@@ -1892,8 +1893,8 @@ export default function App() {
   const morningCustomers = customers.filter(c=>c.active&&c.slot==="morning");
   const eveningCustomers = customers.filter(c=>c.active&&c.slot==="evening");
   // Until the Cattle sheet is set up, fall back to the original fixed lists so the app keeps working
-  const buffaloCattle = cattle.length ? cattle.filter(c=>c.active&&c.type==="B").map(c=>c.code) : BUFFALO_CATTLE;
-  const cowCattle     = cattle.length ? cattle.filter(c=>c.active&&c.type==="C").map(c=>c.code) : COW_CATTLE;
+  const buffaloCattle = cattle.length ? cattle.filter(c=>c.active&&!c.sold&&c.type==="B").map(c=>c.code) : BUFFALO_CATTLE;
+  const cowCattle     = cattle.length ? cattle.filter(c=>c.active&&!c.sold&&c.type==="C").map(c=>c.code) : COW_CATTLE;
 
   const r=ROLES_META[role];
   return (
