@@ -1106,15 +1106,24 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
   const [sellFor,setSellFor]=useState(null);
   const [sellPrice,setSellPrice]=useState("");
   const [sellDate,setSellDate]=useState(today());
+  const [expanded,setExpanded]=useState({});
 
-  function blankForm(){return {code:"",type:"B",status:"Lactating",dateIn:"",dateAI:"",purchasePrice:"",location:"",breed:"",notes:"",rowIndex:null};}
+  function blankForm(){return {code:"",type:"B",status:"Lactating",pregnant:false,dateIn:"",lastCalving:"",lactationNo:"",dateAI:"",breed:"",boughtFrom:"",purchasePrice:"",calfGender:"",location:"",notes:"",prevCalving:"",aiServiceCount:"",pregCheckDate:"",pregCheckResult:"",bcs:"",lastVaccination:"",lastDeworming:"",healthNotes:"",rowIndex:null};}
   function showToast(msg,type="success"){setToast({msg,type});setTimeout(()=>setToast(null),3000);}
+  function daysSince(dstr){ if(!dstr) return null; const d=new Date(dstr+"T00:00:00"); if(isNaN(d)) return null; return Math.max(0,Math.round((Date.now()-d.getTime())/86400000)); }
+  function addDays(dstr,days){ if(!dstr) return null; const d=new Date(dstr+"T00:00:00"); if(isNaN(d)) return null; d.setDate(d.getDate()+days); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+  function daysBetween(a,b){ if(!a||!b) return null; const da=new Date(a+"T00:00:00"),db=new Date(b+"T00:00:00"); if(isNaN(da)||isNaN(db)) return null; return Math.round((db.getTime()-da.getTime())/86400000); }
+  const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
 
   async function handleSave(){
     if(!form.code.trim()){showToast("Cattle code is required (e.g. B10)","error");return;}
     setSaving(true);
     try{
-      const payload={code:form.code.trim(),type:form.type,status:form.status,dateIn:form.dateIn||"",dateAI:form.dateAI||"",purchasePrice:form.purchasePrice||"",location:form.location||"",breed:form.breed||"",notes:form.notes||""};
+      const payload={code:form.code.trim(),type:form.type,status:form.status,pregnant:!!form.pregnant,
+        dateIn:form.dateIn||"",lastCalving:form.lastCalving||"",lactationNo:form.lactationNo||"",dateAI:form.dateAI||"",
+        breed:form.breed||"",boughtFrom:form.boughtFrom||"",purchasePrice:form.purchasePrice||"",calfGender:form.calfGender||"",
+        location:form.location||"",notes:form.notes||"",
+        prevCalving:form.prevCalving||"",aiServiceCount:form.aiServiceCount||"",pregCheckDate:form.pregCheckDate||"",pregCheckResult:form.pregCheckResult||"",bcs:form.bcs||"",lastVaccination:form.lastVaccination||"",lastDeworming:form.lastDeworming||"",healthNotes:form.healthNotes||""};
       if(form.rowIndex) payload.rowIndex=form.rowIndex;
       await apiPost("saveCattle",payload);
       setForm(null); onChanged&&onChanged();
@@ -1122,24 +1131,19 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
     }catch(e){showToast(e.message,"error");}
     finally{setSaving(false);}
   }
-  async function handleToggle(c){
-    try{await apiPost("toggleCattle",{rowIndex:c.rowIndex,active:!c.active});onChanged&&onChanged();showToast(c.active?"Cattle deactivated":"Cattle reactivated");}catch(e){showToast(e.message,"error");}
-  }
   async function confirmSell(){
     const c=sellFor; setSellFor(null);
-    try{await apiPost("sellCattle",{rowIndex:c.rowIndex,soldPrice:sellPrice||"",soldDate:sellDate||""});onChanged&&onChanged();showToast("Marked as sold");}catch(e){showToast(e.message,"error");}
+    try{await apiPost("sellCattle",{rowIndex:c.rowIndex,soldPrice:sellPrice||"",soldDate:sellDate||""});onChanged&&onChanged();showToast(c.code+" archived as sold");}
+    catch(e){showToast(e.message,"error");}
     setSellPrice(""); setSellDate(today());
   }
   async function confirmDeleteYes(){
     const c=confirmDelete; setConfirmDelete(null);
-    try{await apiPost("deleteCattle",{rowIndex:c.rowIndex});onChanged&&onChanged();showToast("Cattle deleted");}catch(e){showToast(e.message,"error");}
+    try{await apiPost("deleteCattle",{rowIndex:c.rowIndex});onChanged&&onChanged();showToast("Cattle deleted");}
+    catch(e){showToast(e.message,"error");}
   }
-  function daysIn(dateIn){ if(!dateIn) return null; const d=new Date(dateIn+"T00:00:00"); if(isNaN(d)) return null; return Math.max(0,Math.round((Date.now()-d.getTime())/86400000)); }
 
-  const STATUS=["Lactating","Pregnant","Dry"];
-  const statusColor=(s)=> s==="Lactating"?{bg:"#f0fdf4",bd:"#bbf7d0",fg:"#15803d"}:s==="Pregnant"?{bg:"#EBF5FD",bd:"#9ACFF0",fg:"#1A5C8A"}:{bg:"#f8fafc",bd:"#e2e8f0",fg:"#64748b"};
-  const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
-
+  // ─── ADD / EDIT FORM ───
   if(form) return (
     <div>
       {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
@@ -1155,23 +1159,64 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
             <select value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))} style={inp}>
               <option value="B">🐃 Buffalo</option><option value="C">🐄 Cow</option></select></div>
         </div>
-        <div style={{marginBottom:12}}><SectionLabel>Status</SectionLabel>
-          <select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))} style={inp}>
-            {STATUS.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div><SectionLabel>Date entered farm</SectionLabel>
-            <input type="date" value={form.dateIn||""} onChange={e=>setForm(p=>({...p,dateIn:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
-          <div><SectionLabel>Last AI date</SectionLabel>
-            <input type="date" value={form.dateAI||""} onChange={e=>setForm(p=>({...p,dateAI:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12,alignItems:"end"}}>
+          <div><SectionLabel>Milking status</SectionLabel>
+            <select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))} style={inp}>
+              <option value="Lactating">Lactating (milking)</option><option value="Dry">Dry (not milking)</option></select></div>
+          <label style={{display:"flex",alignItems:"center",gap:8,padding:"9px 0",cursor:"pointer"}}>
+            <input type="checkbox" checked={form.pregnant||false} onChange={e=>setForm(p=>({...p,pregnant:e.target.checked}))} style={{width:18,height:18,accentColor:"#2D7FB5"}}/>
+            <span style={{fontSize:13,color:"#1a1a1a",fontWeight:600}}>Pregnant</span></label>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div><SectionLabel>Purchase price (₹)</SectionLabel>
+          <div><SectionLabel>Last calving date</SectionLabel>
+            <input type="date" value={form.lastCalving||""} onChange={e=>setForm(p=>({...p,lastCalving:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+          <div><SectionLabel>Lactation no.</SectionLabel>
+            <input type="number" min="0" value={form.lactationNo||""} onChange={e=>setForm(p=>({...p,lactationNo:e.target.value}))} placeholder="e.g. 2" style={inp}/></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div><SectionLabel>Last AI date</SectionLabel>
+            <input type="date" value={form.dateAI||""} onChange={e=>setForm(p=>({...p,dateAI:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+          <div><SectionLabel>Calf gender</SectionLabel>
+            <select value={form.calfGender||""} onChange={e=>setForm(p=>({...p,calfGender:e.target.value}))} style={inp}>
+              <option value="">—</option><option value="F">Female</option><option value="M">Male</option></select></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div><SectionLabel>Date acquired</SectionLabel>
+            <input type="date" value={form.dateIn||""} onChange={e=>setForm(p=>({...p,dateIn:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+          <div><SectionLabel>Cost price (₹)</SectionLabel>
             <input type="number" min="0" value={form.purchasePrice||""} onChange={e=>setForm(p=>({...p,purchasePrice:e.target.value}))} placeholder="0" style={inp}/></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div><SectionLabel>Breed</SectionLabel>
             <input value={form.breed||""} onChange={e=>setForm(p=>({...p,breed:e.target.value}))} placeholder="e.g. Murrah" style={inp}/></div>
+          <div><SectionLabel>Bought from</SectionLabel>
+            <input value={form.boughtFrom||""} onChange={e=>setForm(p=>({...p,boughtFrom:e.target.value}))} placeholder="seller / market" style={inp}/></div>
         </div>
         <div style={{marginBottom:12}}><SectionLabel>Location / shed</SectionLabel>
           <input value={form.location||""} onChange={e=>setForm(p=>({...p,location:e.target.value}))} placeholder="e.g. Shed 1" style={inp}/></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div><SectionLabel>Previous calving date</SectionLabel>
+            <input type="date" value={form.prevCalving||""} onChange={e=>setForm(p=>({...p,prevCalving:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+          <div><SectionLabel>AI services this cycle</SectionLabel>
+            <input type="number" min="0" value={form.aiServiceCount||""} onChange={e=>setForm(p=>({...p,aiServiceCount:e.target.value}))} placeholder="e.g. 1" style={inp}/></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div><SectionLabel>Pregnancy check date</SectionLabel>
+            <input type="date" value={form.pregCheckDate||""} onChange={e=>setForm(p=>({...p,pregCheckDate:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+          <div><SectionLabel>Pregnancy result</SectionLabel>
+            <select value={form.pregCheckResult||""} onChange={e=>setForm(p=>({...p,pregCheckResult:e.target.value}))} style={inp}>
+              <option value="">—</option><option value="Positive">Positive</option><option value="Negative">Negative</option><option value="Pending">Pending</option></select></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div><SectionLabel>Last vaccination</SectionLabel>
+            <input type="date" value={form.lastVaccination||""} onChange={e=>setForm(p=>({...p,lastVaccination:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+          <div><SectionLabel>Last deworming</SectionLabel>
+            <input type="date" value={form.lastDeworming||""} onChange={e=>setForm(p=>({...p,lastDeworming:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+        </div>
+        <div style={{marginBottom:12}}><SectionLabel>Body condition score (1-5)</SectionLabel>
+          <input type="number" min="1" max="5" step="0.5" value={form.bcs||""} onChange={e=>setForm(p=>({...p,bcs:e.target.value}))} placeholder="e.g. 3.5" style={inp}/></div>
+        <div style={{marginBottom:12}}><SectionLabel>Health log (vaccines, illnesses, treatments)</SectionLabel>
+          <textarea value={form.healthNotes||""} onChange={e=>setForm(p=>({...p,healthNotes:e.target.value}))} rows={2} placeholder="e.g. FMD vaccine 12 Jun; dewormed 1 Jul" style={{...inp,resize:"vertical"}}/></div>
         <div style={{marginBottom:16}}><SectionLabel>Notes</SectionLabel>
           <textarea value={form.notes||""} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} placeholder="Any details worth keeping" style={{...inp,resize:"vertical"}}/></div>
         <Btn onClick={handleSave} style={{width:"100%"}} disabled={saving}>{saving?"Saving…":form.rowIndex?"Update Cattle":"Add Cattle"}</Btn>
@@ -1179,47 +1224,96 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
     </div>
   );
 
-  const _rank=c=>c.sold?2:(c.active?0:1); // active first, inactive next, sold last
-  const buffalo=cattle.filter(c=>c.type==="B").slice().sort((a,b)=>_rank(a)-_rank(b));
-  const cow=cattle.filter(c=>c.type==="C").slice().sort((a,b)=>_rank(a)-_rank(b));
+  // ─── LIST ───
+  const buffalo=cattle.filter(c=>c.type==="B");
+  const cow=cattle.filter(c=>c.type==="C");
+  const milkingTotal=cattle.filter(c=>c.status==="Lactating").length;
 
-  function Row({c}){
-    const sc=statusColor(c.status);
-    const d=daysIn(c.dateIn);
+  function Tag({text,bg,bd,fg}){ return <span style={{fontSize:10,fontWeight:700,color:fg,background:bg,border:"1px solid "+bd,borderRadius:20,padding:"2px 8px"}}>{text}</span>; }
+  function Detail({label,value}){
+    if(value===""||value==null) return null;
+    return <div style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:12.5,padding:"5px 0",borderBottom:"1px solid #f8fafc"}}><span style={{color:"#94a3b8"}}>{label}</span><span style={{color:"#1a1a1a",fontWeight:600,textAlign:"right"}}>{value}</span></div>;
+  }
+
+  function CattleCard({c}){
+    const color=c.type==="B"?"#92400e":"#2D7FB5";
+    const isLact=c.status==="Lactating";
+    const dim=isLact?daysSince(c.lastCalving):null;
+    const aiDone=!!c.dateAI;
+    const gest=c.type==="B"?310:283;
+    const expCalv=(c.pregnant&&c.dateAI)?addDays(c.dateAI,gest):null;
+    const expDry=expCalv?addDays(expCalv,-60):null;
+    const calvInterval=(c.lastCalving&&c.prevCalving)?daysBetween(c.prevCalving,c.lastCalving):null;
+    const open=!!expanded[c.rowIndex];
     return (
-      <div style={{padding:"10px 0",borderBottom:"1px solid #f8fafc",opacity:c.active?1:0.5}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{fontSize:15,fontWeight:700,color:"#1a1a1a",width:38}}>{c.code}</div>
-          <span style={{background:sc.bg,border:"1px solid "+sc.bd,color:sc.fg,fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10}}>{c.status||"—"}</span>
-          {c.sold&&<span style={{fontSize:9,fontWeight:700,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,padding:"1px 5px"}}>SOLD</span>}
-          {!c.active&&!c.sold&&<span style={{fontSize:9,fontWeight:700,color:"#dc2626",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:4,padding:"1px 5px"}}>INACTIVE</span>}
-          <div style={{flex:1}}/>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:15,fontWeight:700,color:"#2D7FB5"}}>{fmtN(c.milkAvg7||0,1)} L</div>
-            <div style={{fontSize:9,color:"#aaa"}}>milk/day (7d avg)</div>
+      <div style={{border:"1.5px solid "+(open?color:"#e2e8f0"),borderRadius:12,padding:"12px 14px",marginBottom:10,background:"#fff"}}>
+        <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+          <div style={{fontSize:22,fontWeight:800,color:color,width:46,flexShrink:0}}>{c.code}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+              {isLact?<Tag text="Lactating" bg="#f0fdf4" bd="#bbf7d0" fg="#15803d"/>:<Tag text="Dry" bg="#f1f5f9" bd="#e2e8f0" fg="#64748b"/>}
+              {c.pregnant&&<Tag text="Pregnant" bg="#EBF5FD" bd="#9ACFF0" fg="#1A5C8A"/>}
+              {aiDone?<Tag text="AI done" bg="#f0fdf4" bd="#bbf7d0" fg="#15803d"/>:<Tag text="AI pending" bg="#fffbeb" bd="#fde68a" fg="#92400e"/>}
+            </div>
+            <div style={{fontSize:12,color:"#64748b",marginTop:6}}>
+              {isLact
+                ? (dim!=null ? <span>Days in milk: <b style={{color:"#1a1a1a"}}>{dim}</b></span> : <span style={{color:"#cbd5e1"}}>Days in milk: add last calving date</span>)
+                : <span>In dry period{expCalv?` · calving ~ ${fmtDate(expCalv)}`:""}</span>}
+            </div>
+          </div>
+          <div style={{textAlign:"right",flexShrink:0}}>
+            <div style={{fontSize:18,fontWeight:800,color:"#2D7FB5"}}>{fmtN(c.milkAvg7||0,1)}<span style={{fontSize:11,color:"#94a3b8"}}> L</span></div>
+            <div style={{fontSize:9,color:"#aaa"}}>milk/day</div>
           </div>
         </div>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:5,marginLeft:46,fontSize:11,color:"#94a3b8"}}>
-          {d!=null&&<span>{d} days in farm</span>}
-          {c.dateAI&&<span>AI: {fmtDate(c.dateAI)}</span>}
-          {c.purchasePrice!==""&&c.purchasePrice!=null&&<span>Bought: {fmtRs(c.purchasePrice)}</span>}
-          {c.location&&<span>{c.location}</span>}
+
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
+          <button onClick={()=>setExpanded(p=>({...p,[c.rowIndex]:!open}))} style={{background:"none",border:"none",color:color,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{open?"Hide details ▲":"Details ▼"}</button>
         </div>
-        <div style={{display:"flex",gap:6,marginTop:8,marginLeft:46,flexWrap:"wrap"}}>
-          <button onClick={()=>setForm({...c})} style={{background:"#EBF5FD",border:"none",borderRadius:7,padding:"4px 10px",fontSize:12,color:"#2D7FB5",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
-          <button onClick={()=>handleToggle(c)} style={{background:c.active?"#fff9f0":"#f0fdf4",border:"1px solid "+(c.active?"#fde68a":"#bbf7d0"),borderRadius:7,padding:"4px 10px",fontSize:12,color:c.active?"#92400e":"#15803d",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{c.active?"Deactivate":"Reactivate"}</button>
-          {!c.sold&&<button onClick={()=>{setSellFor(c);setSellPrice("");setSellDate(today());}} style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:7,padding:"4px 10px",fontSize:12,color:"#92400e",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Sell</button>}
-          <button onClick={()=>setConfirmDelete(c)} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:7,padding:"4px 8px",fontSize:12,color:"#dc2626",cursor:"pointer",fontFamily:"inherit"}}>✕</button>
-        </div>
+
+        {open&&(
+          <div style={{marginTop:4,borderTop:"1px solid #f1f5f9",paddingTop:8}}>
+            <Detail label="Acquired" value={c.dateIn?fmtDate(c.dateIn):""}/>
+            <Detail label="Last calving" value={c.lastCalving?fmtDate(c.lastCalving):""}/>
+            <Detail label="Lactation no." value={c.lactationNo}/>
+            <Detail label="Last AI" value={c.dateAI?fmtDate(c.dateAI):""}/>
+            {expCalv&&<Detail label="Expected calving" value={fmtDate(expCalv)}/>}
+            <Detail label="Breed" value={c.breed}/>
+            <Detail label="Bought from" value={c.boughtFrom}/>
+            <Detail label="Cost price" value={(c.purchasePrice!==""&&c.purchasePrice!=null)?fmtRs(c.purchasePrice):""}/>
+            <Detail label="Calf gender" value={c.calfGender==="M"?"Male":c.calfGender==="F"?"Female":""}/>
+            <Detail label="Previous calving" value={c.prevCalving?fmtDate(c.prevCalving):""}/>
+            {calvInterval!=null&&<Detail label="Calving interval" value={calvInterval+" days"}/>}
+            {expDry&&<Detail label="Suggested dry-off" value={fmtDate(expDry)}/>}
+            <Detail label="AI services (cycle)" value={c.aiServiceCount}/>
+            <Detail label="Pregnancy check" value={c.pregCheckResult?(c.pregCheckResult+(c.pregCheckDate?" · "+fmtDate(c.pregCheckDate):"")):(c.pregCheckDate?fmtDate(c.pregCheckDate):"")}/>
+            <Detail label="Body condition (BCS)" value={c.bcs}/>
+            <Detail label="Last vaccination" value={c.lastVaccination?fmtDate(c.lastVaccination):""}/>
+            <Detail label="Last deworming" value={c.lastDeworming?fmtDate(c.lastDeworming):""}/>
+            <Detail label="Lactation-to-date" value={(c.lactToDate||0)>0?fmtN(c.lactToDate,1)+" L":""}/>
+            <Detail label="Peak day yield" value={(c.peakYield||0)>0?fmtN(c.peakYield,1)+" L":""}/>
+            <Detail label="Location" value={c.location}/>
+            <Detail label="Health log" value={c.healthNotes}/>
+            <Detail label="Notes" value={c.notes}/>
+            <div style={{display:"flex",gap:8,marginTop:12}}>
+              <Btn onClick={()=>setForm({...c})} style={{flex:1,padding:"9px 0",fontSize:13}}>Edit</Btn>
+              <Btn variant="ghost" onClick={()=>{setSellFor(c);setSellPrice("");setSellDate(today());}} style={{flex:1,padding:"9px 0",fontSize:13}}>Sell / archive</Btn>
+            </div>
+            <div style={{textAlign:"center",marginTop:8}}>
+              <button onClick={()=>setConfirmDelete(c)} style={{background:"none",border:"none",color:"#cbd5e1",fontSize:11,cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}>Delete permanently</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   function Group({title,list,color}){
+    const m=list.filter(c=>c.status==="Lactating").length;
     return (
       <Card style={{marginBottom:12}}>
-        <div style={{fontWeight:700,fontSize:13,color,marginBottom:6}}>{title} ({list.filter(c=>c.active).length} active)</div>
-        {list.length===0?<div style={{fontSize:12,color:"#aaa",padding:"6px 0"}}>None yet.</div>:list.map(c=><Row key={c.rowIndex} c={c}/>)}
+        <div style={{fontWeight:700,fontSize:13,color:color,marginBottom:10}}>{title} — {list.length} head · {m} milking</div>
+        {list.length===0?<div style={{fontSize:12,color:"#aaa",padding:"6px 0"}}>None yet.</div>:list.map(c=><CattleCard key={c.rowIndex} c={c}/>)}
       </Card>
     );
   }
@@ -1231,8 +1325,8 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
       {confirmDelete&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <div style={{background:"#fff",borderRadius:14,padding:"24px 20px",maxWidth:320,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>
-            <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a",marginBottom:8}}>Delete Cattle?</div>
-            <div style={{fontSize:13,color:"#555",marginBottom:20}}><strong>{confirmDelete.code}</strong> and its production columns will be permanently removed. This cannot be undone.</div>
+            <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a",marginBottom:8}}>Delete {confirmDelete.code}?</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:20}}>This permanently removes the cattle and its production columns. To keep history, use <b>Sell / archive</b> instead.</div>
             <div style={{display:"flex",gap:10}}>
               <Btn variant="ghost" onClick={()=>setConfirmDelete(null)} style={{flex:1}}>Cancel</Btn>
               <Btn variant="danger" onClick={confirmDeleteYes} style={{flex:1}}>Delete</Btn>
@@ -1244,15 +1338,15 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
       {sellFor&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <div style={{background:"#fff",borderRadius:14,padding:"24px 20px",maxWidth:320,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>
-            <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a",marginBottom:12}}>Mark {sellFor.code} as sold</div>
+            <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a",marginBottom:12}}>Sell / archive {sellFor.code}</div>
             <div style={{marginBottom:12}}><SectionLabel>Sale date</SectionLabel>
               <input type="date" value={sellDate} onChange={e=>setSellDate(e.target.value)} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
             <div style={{marginBottom:18}}><SectionLabel>Sale price (₹, optional)</SectionLabel>
               <input type="number" min="0" value={sellPrice} onChange={e=>setSellPrice(e.target.value)} placeholder="0" style={inp}/></div>
-            <div style={{fontSize:12,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:16}}>This deactivates the cattle but keeps all its history.</div>
+            <div style={{fontSize:12,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:16}}>The cattle is archived in the sheet and removed from the app (production, feed, P&L).</div>
             <div style={{display:"flex",gap:10}}>
               <Btn variant="ghost" onClick={()=>setSellFor(null)} style={{flex:1}}>Cancel</Btn>
-              <Btn onClick={confirmSell} style={{flex:1}}>Confirm sale</Btn>
+              <Btn onClick={confirmSell} style={{flex:1}}>Confirm</Btn>
             </div>
           </div>
         </div>
@@ -1261,21 +1355,21 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
         <div>
           <div style={{fontSize:18,fontWeight:700,color:"#1a1a1a"}}>Cattle</div>
-          <div style={{fontSize:12,color:"#888",marginTop:2}}>{cattle.filter(c=>c.active).length} active of {cattle.length} total</div>
+          <div style={{fontSize:12,color:"#888",marginTop:2}}>{cattle.length} in herd · {milkingTotal} milking</div>
         </div>
         <Btn onClick={()=>setForm(blankForm())} style={{padding:"8px 16px",fontSize:13}}>+ Add</Btn>
       </div>
 
       {cattle.length===0&&(
         <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"12px 14px",fontSize:12.5,color:"#92400e",marginBottom:12}}>
-          No cattle loaded yet. In Apps Script, run <strong>setupCattle()</strong> once (or open <code>?action=setupCattle</code> on your script URL) to create the Cattle sheet, then refresh.
+          No cattle in the herd yet. Tap <b>+ Add</b> to add one.
         </div>
       )}
 
       <Group title="🐃 Buffalo" list={buffalo} color="#92400e"/>
       <Group title="🐄 Cow" list={cow} color="#2D7FB5"/>
       <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:12,color:"#1A5C8A",marginTop:4}}>
-        💡 Adding a cattle creates its milk-entry field for the Supervisor and its Production Log columns automatically. Selling keeps history but removes it from daily entry.
+        💡 Only <b>Lactating</b> cattle appear in the Supervisor production entry. Sold cattle are archived in the sheet and hidden everywhere in the app.
       </div>
     </div>
   );
@@ -1309,7 +1403,7 @@ function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
   function fv(x){ return (x===undefined||x===null)?"":x; }
   const inp={width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"center",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
 
-  const active=cattle.filter(c=>c.active&&!c.sold);
+  const active=cattle.filter(c=>!c.sold);
   const buffalo=active.filter(c=>c.type==="B");
   const cow=active.filter(c=>c.type==="C");
   const totalCost=active.reduce((s,c)=>s+feedCostOf(c.feed,rates.current),0);
@@ -1502,7 +1596,7 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
   });
 
   // ── Per-cattle feed P&L ──
-  const activeCattle=cattle.filter(c=>c.active&&!c.sold);
+  const activeCattle=cattle.filter(c=>!c.sold);
   const perCattle=activeCattle.map(c=>{
     const rate=c.type==="B"?cfg.rateB:cfg.rateC;
     const milk=c.milkAvg7||0;
@@ -1880,8 +1974,8 @@ export default function App() {
   const morningCustomers = customers.filter(c=>c.active&&c.slot==="morning");
   const eveningCustomers = customers.filter(c=>c.active&&c.slot==="evening");
   // Until the Cattle sheet is set up, fall back to the original fixed lists so the app keeps working
-  const buffaloCattle = cattle.length ? cattle.filter(c=>c.active&&!c.sold&&c.type==="B").map(c=>c.code) : BUFFALO_CATTLE;
-  const cowCattle     = cattle.length ? cattle.filter(c=>c.active&&!c.sold&&c.type==="C").map(c=>c.code) : COW_CATTLE;
+  const buffaloCattle = cattle.length ? cattle.filter(c=>c.status==="Lactating"&&c.type==="B").map(c=>c.code) : BUFFALO_CATTLE;
+  const cowCattle     = cattle.length ? cattle.filter(c=>c.status==="Lactating"&&c.type==="C").map(c=>c.code) : COW_CATTLE;
 
   const r=ROLES_META[role];
   return (
