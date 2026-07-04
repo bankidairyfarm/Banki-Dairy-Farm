@@ -1734,6 +1734,204 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
   );
 }
 
+// ─── TRANSACTIONS ───────────────────────────────────────────────────────────
+const OPEX_CATS  = ["Salaries","Feed","Transport","Veterinary","Marketing","Misc.","Repairs & Maintenance","Milking Supplies","Admin Costs","Electricity","Breeding Costs","Construction"];
+const CAPEX_CATS = ["Boring","Construction","Electricity","Plumbing","Tools & Instruments","Cattle","Inauguration","Farm Misc.","Machinery"];
+const TXN_PAYERS = ["Danish","Vipul"];
+const TXN_MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function txnSubOptions(cat){ return cat==="Capex" ? CAPEX_CATS : OPEX_CATS; }
+
+function TransactionsAdmin({lang, t}) {
+  const [txns,setTxns]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [err,setErr]=useState(null);
+  const [tab,setTab]=useState("entries");
+  const [form,setForm]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+  const [confirmDel,setConfirmDel]=useState(null);
+  const [scope,setScope]=useState("monthly");
+  const [month,setMonth]=useState("");
+
+  function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3000);}
+  const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+
+  async function load(){ setLoading(true); setErr(null); try{ const d=await apiGet("getTransactions"); setTxns(d.transactions||[]); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
+  useEffect(()=>{ load(); },[]);
+
+  function blankForm(){ return {date:today(),name:"",category:"Opex",subCategory:"",payer:TXN_PAYERS[0],amount:"",rowIndex:null}; }
+  async function handleSave(){
+    if(!form.date){showToast("Date is required","error");return;}
+    if(!form.subCategory){showToast("Choose a sub-category","error");return;}
+    if(form.amount===""||isNaN(parseFloat(form.amount))){showToast("Enter an amount","error");return;}
+    setSaving(true);
+    try{
+      const payload={date:form.date,name:form.name||"",category:form.category,subCategory:form.subCategory,payer:form.payer||"",amount:form.amount};
+      if(form.rowIndex){ payload.rowIndex=form.rowIndex; await apiPost("updateTransaction",payload); }
+      else { await apiPost("addTransaction",payload); }
+      setForm(null); await load(); showToast(form.rowIndex?"Transaction updated":"Transaction added");
+    }catch(e){showToast(e.message,"error");}
+    finally{setSaving(false);}
+  }
+  async function confirmDeleteYes(){
+    const tx=confirmDel; setConfirmDel(null);
+    try{ await apiPost("deleteTransaction",{rowIndex:tx.rowIndex}); await load(); showToast("Transaction deleted"); }catch(e){showToast(e.message,"error");}
+  }
+
+  if(loading) return <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>Loading transactions…</div></div>;
+  if(err) return <div><Alert type="error">Could not load transactions: {err}</Alert><Btn onClick={load} variant="ghost" style={{width:"100%"}}>Retry</Btn></div>;
+
+  const all = txns||[];
+  const monthsSet={}; all.forEach(x=>{ if(x.date) monthsSet[x.date.substring(0,7)]=true; });
+  const months=Object.keys(monthsSet).sort((a,b)=>b.localeCompare(a));
+  const curMonth = month || months[0] || today().substring(0,7);
+  function moLabel(mo){ const p=mo.split("-"); return TXN_MO[(+p[1])-1]+" "+p[0]; }
+  function catTag(cat){ const capex=cat==="Capex"; return <span style={{fontSize:10,fontWeight:700,color:capex?"#92400e":"#1A5C8A",background:capex?"#fffbeb":"#EBF5FD",border:"1px solid "+(capex?"#fde68a":"#9ACFF0"),borderRadius:20,padding:"2px 8px"}}>{cat||"—"}</span>; }
+
+  // ─── FORM ───
+  if(form) return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+        <button onClick={()=>setForm(null)} style={{background:"none",border:"none",color:"#2D7FB5",cursor:"pointer",fontSize:20,lineHeight:1}}>←</button>
+        <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a"}}>{form.rowIndex?"Edit Transaction":"Add Transaction"}</div>
+      </div>
+      <Card>
+        <div style={{marginBottom:12}}><SectionLabel>Date *</SectionLabel>
+          <input type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+        <div style={{marginBottom:12}}><SectionLabel>Name / description</SectionLabel>
+          <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Chokar from Ram Traders" style={inp}/></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div><SectionLabel>Category</SectionLabel>
+            <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value,subCategory:""}))} style={inp}>
+              <option value="Opex">Opex</option><option value="Capex">Capex</option></select></div>
+          <div><SectionLabel>Sub-category *</SectionLabel>
+            <select value={form.subCategory} onChange={e=>setForm(p=>({...p,subCategory:e.target.value}))} style={inp}>
+              <option value="">— choose —</option>
+              {txnSubOptions(form.category).map(sc=><option key={sc} value={sc}>{sc}</option>)}</select></div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          <div><SectionLabel>Payer</SectionLabel>
+            <select value={form.payer} onChange={e=>setForm(p=>({...p,payer:e.target.value}))} style={inp}>
+              {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}</select></div>
+          <div><SectionLabel>Amount (₹) *</SectionLabel>
+            <input type="number" inputMode="decimal" min="0" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} placeholder="0" style={inp}/></div>
+        </div>
+        <Btn onClick={handleSave} style={{width:"100%"}} disabled={saving}>{saving?"Saving…":form.rowIndex?"Update Transaction":"Add Transaction"}</Btn>
+      </Card>
+    </div>
+  );
+
+  // ─── SUMMARY helpers ───
+  const scopeRows = scope==="lifetime" ? all : all.filter(x=>x.date && x.date.substring(0,7)===curMonth);
+  function breakdown(rows){
+    const g={Opex:{},Capex:{}};
+    rows.forEach(x=>{ const k=(x.category==="Capex")?"Capex":"Opex"; g[k][x.subCategory||"(none)"]=(g[k][x.subCategory||"(none)"]||0)+(x.amount||0); });
+    function arr(o){ return Object.keys(o).map(k=>({name:k,val:o[k]})).filter(z=>z.val>0).sort((a,b)=>b.val-a.val); }
+    const opex=arr(g.Opex), capex=arr(g.Capex);
+    const oT=opex.reduce((s,z)=>s+z.val,0), cT=capex.reduce((s,z)=>s+z.val,0);
+    return {opex,capex,oT,cT,maxVal:Math.max(1,...opex.map(z=>z.val),...capex.map(z=>z.val))};
+  }
+  const bd=breakdown(scopeRows);
+  function Bars({items,maxVal,color}){
+    if(items.length===0) return <div style={{fontSize:12,color:"#aaa",padding:"4px 0"}}>None.</div>;
+    return <div>{items.map(it=>(
+      <div key={it.name} style={{marginBottom:9}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
+          <span style={{color:"#475569"}}>{it.name}</span><span style={{fontWeight:700,color:"#1a1a1a"}}>{fmtRs(it.val)}</span>
+        </div>
+        <div style={{height:10,background:"#f1f5f9",borderRadius:6,overflow:"hidden"}}>
+          <div style={{height:"100%",width:(it.val/maxVal*100)+"%",background:color,borderRadius:6}}/>
+        </div>
+      </div>
+    ))}</div>;
+  }
+
+  const recent = all.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+
+  return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+
+      {confirmDel&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",borderRadius:14,padding:"24px 20px",maxWidth:320,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>
+            <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a",marginBottom:8}}>Delete transaction?</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:20}}><b>{confirmDel.name||confirmDel.subCategory}</b> · {fmtRs(confirmDel.amount)} · {fmtDate(confirmDel.date)}</div>
+            <div style={{display:"flex",gap:10}}>
+              <Btn variant="ghost" onClick={()=>setConfirmDel(null)} style={{flex:1}}>Cancel</Btn>
+              <Btn variant="danger" onClick={confirmDeleteYes} style={{flex:1}}>Delete</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <TabBar tabs={[{key:"entries",label:"Entries"},{key:"summary",label:"Summary"}]} active={tab} onChange={setTab}/>
+
+      {tab==="entries"&&(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontSize:12,color:"#888"}}>{all.length} transaction{all.length===1?"":"s"}</div>
+            <Btn onClick={()=>setForm(blankForm())} style={{padding:"8px 16px",fontSize:13}}>+ Add</Btn>
+          </div>
+          {all.length===0&&(
+            <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"12px 14px",fontSize:12.5,color:"#92400e",marginBottom:12}}>
+              No transactions yet. Tap <b>+ Add</b>, or paste your history into the <b>Transactions</b> sheet (columns: Date, Name, Category, SubCategory, Payer, Amount).
+            </div>
+          )}
+          {recent.map(tx=>(
+            <div key={tx.rowIndex} style={{display:"flex",alignItems:"center",gap:8,border:"1px solid #eef2f7",borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tx.name||tx.subCategory||"—"}</div>
+                <div style={{fontSize:11,color:"#94a3b8",marginTop:2,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                  {catTag(tx.category)}<span>{tx.subCategory}</span><span>· {fmtDate(tx.date)}</span>{tx.payer&&<span>· {tx.payer}</span>}
+                </div>
+              </div>
+              <div style={{fontSize:14,fontWeight:700,color:"#1a1a1a",flexShrink:0}}>{fmtRs(tx.amount)}</div>
+              <button onClick={()=>setForm({...tx})} style={{background:"#EBF5FD",border:"none",borderRadius:7,padding:"5px 8px",fontSize:12,color:"#2D7FB5",cursor:"pointer",fontFamily:"inherit"}}>✎</button>
+              <button onClick={()=>setConfirmDel(tx)} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:7,padding:"5px 8px",fontSize:12,color:"#dc2626",cursor:"pointer",fontFamily:"inherit"}}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab==="summary"&&(
+        <div>
+          <TabBar tabs={[{key:"monthly",label:"Monthly"},{key:"lifetime",label:"Lifetime"}]} active={scope} onChange={setScope}/>
+          {scope==="monthly"&&(
+            <Card style={{marginBottom:12}}>
+              <SectionLabel>Month</SectionLabel>
+              <select value={curMonth} onChange={e=>setMonth(e.target.value)} style={inp}>
+                {(months.length?months:[curMonth]).map(mo=><option key={mo} value={mo}>{moLabel(mo)}</option>)}
+              </select>
+            </Card>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+            <StatBox label="Total" value={fmtRs(bd.oT+bd.cT)} color="#1A5C8A"/>
+            <StatBox label="Opex" value={fmtRs(bd.oT)} color="#2D7FB5"/>
+            <StatBox label="Capex" value={fmtRs(bd.cT)} color="#92400e"/>
+          </div>
+          <Card style={{marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#2D7FB5"}}>Opex by category</div>
+              <div style={{fontWeight:700,fontSize:13,color:"#2D7FB5"}}>{fmtRs(bd.oT)}</div>
+            </div>
+            <Bars items={bd.opex} maxVal={bd.maxVal} color="#2D7FB5"/>
+          </Card>
+          <Card style={{marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#92400e"}}>Capex by category</div>
+              <div style={{fontWeight:700,fontSize:13,color:"#92400e"}}>{fmtRs(bd.cT)}</div>
+            </div>
+            <Bars items={bd.capex} maxVal={bd.maxVal} color="#d97706"/>
+          </Card>
+          {scopeRows.length===0&&<div style={{fontSize:12.5,color:"#aaa",textAlign:"center",padding:"10px 0"}}>No transactions in this period.</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
@@ -1761,6 +1959,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
         {key:"cattle",title:"Cattle",desc:"Herd details, milk/day, add or sell cattle",emoji:"🐄",color:"#92400e"},
         {key:"feed",title:"Feed",desc:"Feed mix & cost per cattle, and rates",emoji:"🌾",color:"#2d6a4f"},
         {key:"pnl",title:"Profit & Loss",desc:"Daily & monthly P&L including all costs",emoji:"📈",color:"#15803d"},
+        {key:"txns",title:"Transactions",desc:"Log spends & monthly / lifetime summary",emoji:"💰",color:"#1A5C8A"},
         {key:"customers",title:"Customers",desc:"Delivery customers & their list positions",emoji:"🧾",color:"#1A5C8A"}
       ].map(s=>(
         <div key={s.key} onClick={()=>setSection(s.key)} style={{cursor:"pointer",background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04)",padding:"18px 20px",marginBottom:12,display:"flex",alignItems:"center",gap:14,borderLeft:"4px solid "+s.color}}>
@@ -1775,7 +1974,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
     </div>
   );
 
-  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":"Customers";
+  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":"Customers";
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
@@ -1790,6 +1989,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       {section==="cattle"&&<CattleAdmin cattle={cattle} lang={lang} t={t} onChanged={reloadCattle}/>}
       {section==="feed"&&<FeedAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t} onChanged={reloadCattle}/>}
       {section==="pnl"&&<PnLAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t}/>}
+      {section==="txns"&&<TransactionsAdmin lang={lang} t={t}/>}
 
       {section==="operations"&&(loading
         ? <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>{t.loading}</div></div>
