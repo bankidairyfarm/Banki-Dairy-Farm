@@ -754,7 +754,7 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[]}) {
         <div style={{display:"flex",gap:6,alignItems:"center",marginTop:1}}>
           {(customer.phone)&&<span style={{fontSize:11,color:"#aaa"}}>{customer.phone}</span>}
           {prevValue&&prevValue!=="Nil"
-            ?<span style={{fontSize:11,color:"#94a3b8",fontStyle:"italic"}}>{t.yesterday}: {prevValue} L</span>
+            ?<span dir="ltr" style={{fontSize:11,color:"#94a3b8",fontStyle:"italic"}}>{lang==="ur"?`${t.yesterday} L: ${prevValue}`:`${t.yesterday}: ${prevValue} L`}</span>
             :prevValue==="Nil"
             ?<span style={{fontSize:11,color:"#cbd5e1",fontStyle:"italic"}}>{t.yesterday}: {t.absent}</span>
             :null}
@@ -787,7 +787,7 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
     setSubmittedSlots({morning:false,evening:false}); setStatus(null);
     setMVals({}); setEVals({});
     const prev=new Date(date+"T00:00:00"); prev.setDate(prev.getDate()-1);
-    const prevDateStr=prev.toISOString().split("T")[0];
+    const prevDateStr=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,"0")}-${String(prev.getDate()).padStart(2,"0")}`;
     apiGet("getDispatchByDate",{date:prevDateStr}).then(d=>setPrevData(d)).catch(()=>setPrevData(null));
   },[date]);
 
