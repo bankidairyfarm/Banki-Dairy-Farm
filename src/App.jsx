@@ -1709,30 +1709,22 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
           <Card style={{marginBottom:14}}>
             <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a",marginBottom:12}}>{t.todaySnap}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <StatBox label={t.produced} value={`${fmtN(summary.todayProduce||0,1)} L`} color="#2D7FB5"/>
-              {(summary.todaySourced||0)>0
-                ? <StatBox label={t.sourcedToday} value={`${fmtN(summary.todaySourced,1)} L`} color="#92400e"/>
-                : <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1A5C8A"/>
-              }
+              <StatBox label={t.totalAvail} value={`${fmtN(summary.todayTotal||summary.todayProduce||0,1)} L`} color="#2d6a4f"/>
+              <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1A5C8A"/>
             </div>
-            {(summary.todaySourced||0)>0&&(
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-                <StatBox label={t.totalAvail} value={`${fmtN(summary.todayTotal||0,1)} L`} color="#2d6a4f"/>
-                <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1A5C8A"/>
-              </div>
-            )}
-            {/* B/C breakdown */}
-            {(summary.todayProduceB||summary.todayProduceC)>0&&(
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-                <StatBox label={t.bufToday} value={`${fmtN(summary.todayProduceB||0,1)} L`} color="#92400e"/>
-                <StatBox label={t.cowToday} value={`${fmtN(summary.todayProduceC||0,1)} L`} color="#2D7FB5"/>
-              </div>
-            )}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               <StatBox label={t.gap} value={`${fmtN(Math.abs(todayGap),1)} L`}
                 sub={todayGap>0?t.surplus:todayGap<0?t.deficit:t.balanced}
                 color={todayGap>=0?"#2D7FB5":"#dc2626"}/>
               <StatBox label={t.revToday} value={fmtRs(summary.todayRevenue||0)} color="#2D7FB5"/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              <StatBox label={t.produced} value={`${fmtN(summary.todayProduce||0,1)} L`} color="#2D7FB5"/>
+              <StatBox label={t.sourcedToday} value={`${fmtN(summary.todaySourced||0,1)} L`} color="#92400e"/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <StatBox label={t.bufToday} value={`${fmtN(summary.todayProduceB||0,1)} L`} color="#92400e"/>
+              <StatBox label={t.cowToday} value={`${fmtN(summary.todayProduceC||0,1)} L`} color="#2D7FB5"/>
             </div>
             {(summary.todayTotal||summary.todayProduce||0)>0&&(
               <div style={{padding:"9px 13px",borderRadius:9,background:todayGap>=0?"#f0fdf4":"#fef2f2",color:todayGap>=0?"#15803d":"#dc2626",fontSize:13,fontWeight:600}}>
@@ -1743,26 +1735,21 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
           </Card>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-            <StatBox label={t.produced30}   value={`${fmtN(summary.last30DaysProduce||0,0)} L`}   color="#2D7FB5"/>
+            <StatBox label={t.totalAvail30}  value={`${fmtN(summary.last30DaysTotal||summary.last30DaysProduce||0,0)} L`} color="#2d6a4f"/>
             <StatBox label={t.dispatched30} value={`${fmtN(summary.last30DaysDispatched||0,0)} L`} color="#1A5C8A"/>
           </div>
-          {(summary.last30DaysSourced||0)>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-              <StatBox label={t.sourced30}     value={`${fmtN(summary.last30DaysSourced,0)} L`}   color="#92400e"/>
-              <StatBox label={t.totalAvail30}  value={`${fmtN(summary.last30DaysTotal,0)} L`}     color="#2d6a4f"/>
-            </div>
-          )}
-          {/* B/C 30-day breakdown */}
-          {(summary.last30DaysProduceB||summary.last30DaysProduceC)>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-              <StatBox label={t.buf30} value={`${fmtN(summary.last30DaysProduceB||0,0)} L`} color="#92400e"/>
-              <StatBox label={t.cow30} value={`${fmtN(summary.last30DaysProduceC||0,0)} L`} color="#2D7FB5"/>
-            </div>
-          )}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
             <StatBox label={t.gap30} value={`${fmtN(Math.abs(gap30),0)} L`}
               sub={gap30>0?t.surplus:gap30<0?t.deficit:t.balanced} color={gap30>=0?"#2D7FB5":"#dc2626"}/>
             <StatBox label={t.rev30} value={fmtRs(summary.last30DaysRevenue||0)} color="#2D7FB5"/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+            <StatBox label={t.produced30}   value={`${fmtN(summary.last30DaysProduce||0,0)} L`}   color="#2D7FB5"/>
+            <StatBox label={t.sourced30}     value={`${fmtN(summary.last30DaysSourced||0,0)} L`}   color="#92400e"/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+            <StatBox label={t.buf30} value={`${fmtN(summary.last30DaysProduceB||0,0)} L`} color="#92400e"/>
+            <StatBox label={t.cow30} value={`${fmtN(summary.last30DaysProduceC||0,0)} L`} color="#2D7FB5"/>
           </div>
 
           <Card>
@@ -1783,16 +1770,16 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                 <thead><tr style={{borderBottom:"2px solid #f1f5f9"}}>
-                  {[t.tableDate,t.produced,t.dispatched,t.gap,t.revenue,t.status].map(h=>(
+                  {[t.tableDate,t.totalAvail,t.dispatched,t.gap,t.revenue,t.status].map(h=>(
                     <th key={h} style={{textAlign:"left",padding:"5px 7px",color:"#888",fontWeight:600,fontSize:11,textTransform:"uppercase"}}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {recentDays.map((row,i)=>{
-                    const g=(row.produced||0)-(row.dispatched||0);
+                    const g=(row.total!=null?row.total:(row.produced||0))-(row.dispatched||0);
                     return <tr key={i} style={{borderBottom:"1px solid #f8fafc"}}>
                       <td style={{padding:"7px",fontWeight:600,color:"#1a1a1a"}}>{fmtDate(row.date)}</td>
-                      <td style={{padding:"7px"}}>{fmtN(row.produced,1)}</td>
+                      <td style={{padding:"7px"}}>{fmtN(row.total!=null?row.total:row.produced,1)}</td>
                       <td style={{padding:"7px"}}>{fmtN(row.dispatched,1)}</td>
                       <td style={{padding:"7px",fontWeight:600,color:g>=0?"#15803d":"#dc2626"}}>{g>=0?"+":""}{fmtN(g,1)}</td>
                       <td style={{padding:"7px"}}>{fmtRs(row.revenue||0)}</td>
@@ -1817,16 +1804,16 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                 <thead><tr style={{borderBottom:"2px solid #f1f5f9"}}>
-                  {[t.month,t.produced,t.dispatched,t.revenue,t.gap].map(h=>(
+                  {[t.month,t.totalAvail,t.dispatched,t.revenue,t.gap].map(h=>(
                     <th key={h} style={{textAlign:"left",padding:"5px 7px",color:"#888",fontWeight:600,fontSize:11,textTransform:"uppercase"}}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {monthlyTrend.map((row,i)=>{
-                    const g=(row.produced||0)-(row.dispatched||0);
+                    const g=(row.total!=null?row.total:(row.produced||0))-(row.dispatched||0);
                     return <tr key={i} style={{borderBottom:"1px solid #f8fafc"}}>
                       <td style={{padding:"7px",fontWeight:600}}>{row.month}</td>
-                      <td style={{padding:"7px"}}>{fmtN(row.produced,1)}</td>
+                      <td style={{padding:"7px"}}>{fmtN(row.total!=null?row.total:row.produced,1)}</td>
                       <td style={{padding:"7px"}}>{fmtN(row.dispatched,1)}</td>
                       <td style={{padding:"7px"}}>{fmtRs(row.revenue||0)}</td>
                       <td style={{padding:"7px",fontWeight:600,color:g>=0?"#15803d":"#dc2626"}}>{g>=0?"+":""}{fmtN(g,1)}</td>
