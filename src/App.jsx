@@ -1530,22 +1530,23 @@ function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
 
 // ─── PROFIT & LOSS ──────────────────────────────────────────────────────────
 const OVERHEAD_CATS = [
-  {key:"labour",     label:"Labour / Salaries"},
-  {key:"electricity",label:"Electricity"},
-  {key:"veterinary", label:"Veterinary & Medicines"},
-  {key:"milking",    label:"Milking Supplies"},
-  {key:"marketing",  label:"Marketing / Branding"},
-  {key:"repairs",    label:"Repairs & Maintenance"},
-  {key:"admin",      label:"Admin Costs"},
-  {key:"misc",       label:"Misc."},
+  {key:"labour",     label:"Salaries / Labour"},
   {key:"transport",  label:"Transport"},
-  {key:"breeding",   label:"Breeding Costs"}
+  {key:"veterinary", label:"Veterinary & Medicines"},
+  {key:"marketing",  label:"Marketing / Branding"},
+  {key:"misc",       label:"Misc."},
+  {key:"repairs",    label:"Repairs & Maintenance"},
+  {key:"milking",    label:"Milking Supplies"},
+  {key:"admin",      label:"Admin Costs"},
+  {key:"electricity",label:"Electricity"},
+  {key:"breeding",   label:"Breeding Costs"},
+  {key:"construction",label:"Construction"}
 ];
 function daysInMonthOf(dstr){ const p=String(dstr).split("-"); return new Date(+p[0], +p[1], 0).getDate(); }
 
 function OpexRevenueChart({months}){
   const data=(months||[]).slice().sort((a,b)=>a.month.localeCompare(b.month));
-  if(data.length===0) return <Card><div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>No data yet.</div></Card>;
+  if(data.length===0) return <Card style={{marginBottom:12}}><div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>No data yet.</div></Card>;
   const MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   function cls(k){ const s=String(k).toLowerCase(); if(s.indexOf("feed")>=0)return "feed"; if(s.indexOf("salar")>=0||s.indexOf("labou")>=0)return "sal"; return "other"; }
   const rows=data.map(m=>{
@@ -1554,7 +1555,7 @@ function OpexRevenueChart({months}){
     return {month:m.month, feed:feed, sal:sal, other:other, opex:feed+sal+other, rev:m.revenue||0};
   });
   const maxV=Math.max(1,...rows.map(r=>Math.max(r.opex,r.rev)));
-  const barW=28, gap=22, padL=10, padR=10, padT=24, padB=26, chartH=190;
+  const barW=30, gap=24, padL=10, padR=10, padT=22, padB=42, chartH=180;
   const W=padL+padR+rows.length*(barW+gap);
   const H=padT+chartH+padB;
   const yOf=v=>padT+chartH-(v/maxV)*chartH;
@@ -1563,23 +1564,35 @@ function OpexRevenueChart({months}){
   const pts=rows.map((r,i)=>[xOf(i)+barW/2, yOf(r.rev)]);
   const linePath=pts.map((p,i)=>(i===0?"M":"L")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
   function fmtK(v){ return v>=1000 ? (Math.round(v/100)/10)+"k" : Math.round(v); }
+  function seg(r,val,yTopSeg,yBotSeg,fill,textCol){
+    if(val<=0) return null;
+    const h=yBotSeg-yTopSeg; const pct=r.opex>0?Math.round(val/r.opex*100):0;
+    return (
+      <g>
+        <rect x={r._x} y={yTopSeg} width={barW} height={h} fill={fill}/>
+        {h>=13&&<text x={r._x+barW/2} y={yTopSeg+h/2+3} fontSize="8" textAnchor="middle" fill={textCol}>{pct}%</text>}
+      </g>
+    );
+  }
   return (
-    <Card>
+    <Card style={{marginBottom:12}}>
       <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:2}}>Opex vs Revenue</div>
-      <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Monthly operating cost (stacked) vs revenue (line).</div>
+      <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Cost mix % inside bars · blue % under each month = revenue as a share of that month total Opex.</div>
       <div style={{overflowX:"auto"}}>
         <svg viewBox={`0 0 ${W} ${H}`} width={Math.max(W,320)} height={H} style={{display:"block"}}>
           <line x1={padL} y1={padT+chartH} x2={W-padR} y2={padT+chartH} stroke="#e2e8f0"/>
           {rows.map((r,i)=>{
-            const bx=xOf(i), base=padT+chartH;
+            r._x=xOf(i); const base=padT+chartH;
             const yFeed=yOf(r.feed), yFeedSal=yOf(r.feed+r.sal), yTop=yOf(r.opex);
+            const revPct=r.opex>0?Math.round(r.rev/r.opex*100):0;
             return (
               <g key={r.month}>
-                {r.feed>0&&<rect x={bx} y={yFeed} width={barW} height={base-yFeed} fill={cFeed}/>}
-                {r.sal>0&&<rect x={bx} y={yFeedSal} width={barW} height={yFeed-yFeedSal} fill={cSal}/>}
-                {r.other>0&&<rect x={bx} y={yTop} width={barW} height={yFeedSal-yTop} fill={cOther}/>}
-                {r.opex>0&&<text x={bx+barW/2} y={yTop-4} fontSize="8.5" textAnchor="middle" fill="#64748b">{fmtK(r.opex)}</text>}
-                <text x={bx+barW/2} y={base+15} fontSize="9.5" textAnchor="middle" fill="#475569">{MO[(+r.month.split("-")[1])-1]}</text>
+                {seg(r,r.feed,yFeed,base,cFeed,"#ffffff")}
+                {seg(r,r.sal,yFeedSal,yFeed,cSal,"#ffffff")}
+                {seg(r,r.other,yTop,yFeedSal,cOther,"#334155")}
+                {r.opex>0&&<text x={r._x+barW/2} y={yTop-4} fontSize="8.5" textAnchor="middle" fill="#64748b">{fmtK(r.opex)}</text>}
+                <text x={r._x+barW/2} y={base+15} fontSize="9.5" textAnchor="middle" fill="#475569">{MO[(+r.month.split("-")[1])-1]}</text>
+                {r.opex>0&&<text x={r._x+barW/2} y={base+30} fontSize="9" fontWeight="700" textAnchor="middle" fill={cRev}>{revPct}%</text>}
               </g>
             );
           })}
@@ -1602,33 +1615,121 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
   const [err,setErr]=useState(null);
-  const [view,setView]=useState("chart");
+  const [view,setView]=useState("monthly");
   const [openMonth,setOpenMonth]=useState(null);
+  const [date,setDate]=useState(today());
+  const [ovOpen,setOvOpen]=useState(false);
+  const [ovDraft,setOvDraft]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+  function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3000);}
+  function fv(x){ return (x===undefined||x===null)?"":x; }
+  const inp={width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"right",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
 
   async function load(){ setLoading(true); setErr(null); try{ setData(await apiGet("getPnL")); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
   useEffect(()=>{ load(); },[]);
+  async function saveOv(){
+    setSaving(true);
+    try{ await apiPost("saveOverheads",{overheads:ovDraft}); setOvOpen(false); await load(); showToast("Estimates saved"); }
+    catch(e){ showToast(e.message,"error"); }
+    finally{ setSaving(false); }
+  }
 
   if(loading) return <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>Loading P&L…</div></div>;
   if(err) return <div><Alert type="error">Could not load P&L: {err}</Alert><Btn onClick={load} variant="ghost" style={{width:"100%"}}>Retry</Btn></div>;
 
   const rateB=data.rateB||70, rateC=data.rateC||60;
   const months=data.months||[];
+  const overheads=data.overheads||{};
   const MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   function moLabel(m){ const p=m.split("-"); return MO[(+p[1])-1]+" "+p[0]; }
 
+  // ── Day estimate ──
+  const day=(data.days||[]).find(d=>d.date===date)||{dispatchRev:0,extraRev:0,revenue:0,purchased:0};
+  const dRevenue=day.revenue||0;
+  const ovMonthly=OVERHEAD_CATS.reduce((s,o)=>s+(parseFloat(overheads[o.key])||0),0);
+  const ovDay=ovMonthly/daysInMonthOf(date);
+  const feed=data.feedDaily||0;
+  const dCost=feed+ovDay+(day.purchased||0);
+  const dNet=dRevenue-dCost;
+
+  function Line({label,value,color,strong,sub,indent}){
+    return (
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:strong?"8px 0":"4px 0",borderTop:strong?"1.5px solid #eef2f7":"none"}}>
+        <div style={{fontSize:strong?14:13,fontWeight:strong?700:500,color:color||"#555",paddingLeft:indent?12:0}}>{label}{sub&&<span style={{fontSize:10,color:"#aaa",fontWeight:500}}> {sub}</span>}</div>
+        <div style={{fontSize:strong?15:13,fontWeight:strong?700:600,color:color||"#1a1a1a"}}>{value}</div>
+      </div>
+    );
+  }
+
+  // per-cattle feed P&L
   const herd=cattle.filter(c=>!c.sold);
   const perCattle=herd.map(c=>{ const rate=c.type==="B"?rateB:rateC; const milk=c.milkAvg7||0; const rev=milk*rate; const fc=feedCostOf(c.feed,rates.current); return {code:c.code,type:c.type,milk:milk,rev:rev,feed:fc,pnl:rev-fc}; }).sort((a,b)=>b.pnl-a.pnl);
-
   const latest=months[0];
 
   return (
     <div>
-      <TabBar tabs={[{key:"chart",label:"Chart"},{key:"monthly",label:"Monthly"},{key:"cattle",label:"By cattle"}]} active={view} onChange={setView}/>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
 
-      {view==="chart"&&<OpexRevenueChart months={months}/>}
+      <TabBar tabs={[{key:"day",label:"Day"},{key:"monthly",label:"Monthly"},{key:"cattle",label:"By cattle"}]} active={view} onChange={setView}/>
+
+      {view==="day"&&(
+        <div>
+          <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"8px 12px",fontSize:11.5,color:"#92400e",marginBottom:12}}>
+            ⓘ Daily <b>estimate</b> for real-time guidance — not your actual P&L. See the <b>Monthly</b> tab for actuals from transactions.
+          </div>
+          <Card style={{marginBottom:12}}>
+            <SectionLabel>Date</SectionLabel>
+            <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={today()}
+              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",WebkitAppearance:"none",fontFamily:"inherit",color:"#1a1a1a",display:"block",minWidth:0}}/>
+          </Card>
+
+          <div style={{background:dNet>=0?"#f0fdf4":"#fef2f2",border:"1.5px solid "+(dNet>=0?"#bbf7d0":"#fecaca"),borderRadius:14,padding:"16px 20px",marginBottom:12,textAlign:"center"}}>
+            <div style={{fontSize:11,fontWeight:700,color:dNet>=0?"#15803d":"#dc2626",textTransform:"uppercase",letterSpacing:"0.8px"}}>Est. {dNet>=0?"Net Profit":"Net Loss"} · {fmtDate(date)}</div>
+            <div style={{fontSize:30,fontWeight:800,color:dNet>=0?"#15803d":"#dc2626",marginTop:2}}>{fmtRs(Math.abs(dNet))}</div>
+          </div>
+
+          <Card style={{marginBottom:12}}>
+            <SectionLabel color="#15803d">Revenue</SectionLabel>
+            <Line label="Milk sold to customers" value={fmtRs(day.dispatchRev||0)}/>
+            {(day.extraRev||0)>0&&<Line label="Extra milk sold" value={fmtRs(day.extraRev)}/>}
+            <Line label="Total revenue" value={fmtRs(dRevenue)} color="#15803d" strong/>
+          </Card>
+
+          <Card style={{marginBottom:12}}>
+            <SectionLabel color="#dc2626">Estimated costs</SectionLabel>
+            <Line label="Feed — per day (from mix)" value={fmtRs(feed)}/>
+            {OVERHEAD_CATS.filter(o=>(parseFloat(overheads[o.key])||0)>0).map(o=>(
+              <Line key={o.key} label={o.label} value={fmtRs((parseFloat(overheads[o.key])||0)/daysInMonthOf(date))} indent color="#94a3b8"/>
+            ))}
+            {(day.purchased||0)>0&&<Line label="Purchased outside milk" value={fmtRs(day.purchased)}/>}
+            <Line label="Total est. cost" value={fmtRs(dCost)} color="#dc2626" strong/>
+          </Card>
+
+          <Card style={{marginBottom:12}}>
+            <div onClick={()=>{ if(!ovOpen){ const d={}; OVERHEAD_CATS.forEach(o=>{ d[o.key]=fv(overheads[o.key]); }); setOvDraft(d); } setOvOpen(!ovOpen); }} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>⚙️ Monthly cost estimates (₹/month)</div>
+              <div style={{fontSize:15,color:"#94a3b8"}}>{ovOpen?"▲":"▼"}</div>
+            </div>
+            {ovOpen&&ovDraft&&(
+              <div style={{marginTop:12}}>
+                <div style={{fontSize:11,color:"#94a3b8",marginBottom:8}}>Enter approximate monthly amounts (e.g. from last month). Used only for this daily estimate — not the actual P&L.</div>
+                {OVERHEAD_CATS.map(o=>(
+                  <div key={o.key} style={{display:"flex",gap:10,alignItems:"center",marginBottom:7}}>
+                    <div style={{flex:1,fontSize:13,color:"#1a1a1a"}}>{o.label}</div>
+                    <input type="number" min="0" step="100" value={fv(ovDraft[o.key])} onChange={e=>setOvDraft(p=>Object.assign({},p,{[o.key]:e.target.value}))} placeholder="0" style={{...inp,width:120,flexShrink:0}}/>
+                  </div>
+                ))}
+                <Btn onClick={saveOv} disabled={saving} style={{width:"100%",marginTop:8}}>{saving?"Saving…":"Save estimates"}</Btn>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
 
       {view==="monthly"&&(
         <div>
+          <OpexRevenueChart months={months}/>
           {latest&&(
             <div style={{background:latest.net>=0?"#f0fdf4":"#fef2f2",border:"1.5px solid "+(latest.net>=0?"#bbf7d0":"#fecaca"),borderRadius:14,padding:"16px 20px",marginBottom:12,textAlign:"center"}}>
               <div style={{fontSize:11,fontWeight:700,color:latest.net>=0?"#15803d":"#dc2626",textTransform:"uppercase",letterSpacing:"0.8px"}}>{latest.net>=0?"Net Profit":"Net Loss"} · {moLabel(latest.month)}</div>
@@ -1636,7 +1737,6 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
               <div style={{fontSize:12,color:"#64748b",marginTop:4}}>Revenue {fmtRs(latest.revenue)} − Opex {fmtRs(latest.opexTotal)}</div>
             </div>
           )}
-
           {months.length===0?<Card><div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>No data yet.</div></Card>:months.map(r=>{
             const open=openMonth===r.month;
             const subs=Object.keys(r.opex||{}).map(k=>({name:k,val:r.opex[k]})).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
@@ -1665,9 +1765,8 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
               </Card>
             );
           })}
-
           <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:12,color:"#1A5C8A",marginTop:4}}>
-            💡 Revenue is from your History sheet for past months and live sales for the current month. Costs are your actual Opex transactions. Capex is capital spend, shown separately (not in operating profit).
+            💡 Revenue: History for past months, live sales for the current month. Costs: actual Opex transactions. Capex shown separately (not in operating profit).
           </div>
         </div>
       )}
