@@ -1543,12 +1543,66 @@ const OVERHEAD_CATS = [
 ];
 function daysInMonthOf(dstr){ const p=String(dstr).split("-"); return new Date(+p[0], +p[1], 0).getDate(); }
 
+function OpexRevenueChart({months}){
+  const data=(months||[]).slice().sort((a,b)=>a.month.localeCompare(b.month));
+  if(data.length===0) return <Card><div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>No data yet.</div></Card>;
+  const MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function cls(k){ const s=String(k).toLowerCase(); if(s.indexOf("feed")>=0)return "feed"; if(s.indexOf("salar")>=0||s.indexOf("labou")>=0)return "sal"; return "other"; }
+  const rows=data.map(m=>{
+    let feed=0,sal=0,other=0;
+    Object.keys(m.opex||{}).forEach(k=>{ const v=m.opex[k]||0; const c=cls(k); if(c==="feed")feed+=v; else if(c==="sal")sal+=v; else other+=v; });
+    return {month:m.month, feed:feed, sal:sal, other:other, opex:feed+sal+other, rev:m.revenue||0};
+  });
+  const maxV=Math.max(1,...rows.map(r=>Math.max(r.opex,r.rev)));
+  const barW=28, gap=22, padL=10, padR=10, padT=24, padB=26, chartH=190;
+  const W=padL+padR+rows.length*(barW+gap);
+  const H=padT+chartH+padB;
+  const yOf=v=>padT+chartH-(v/maxV)*chartH;
+  const xOf=i=>padL+i*(barW+gap)+gap/2;
+  const cFeed="#2D7FB5", cSal="#7FB2D6", cOther="#CFE3F2", cRev="#1A5C8A";
+  const pts=rows.map((r,i)=>[xOf(i)+barW/2, yOf(r.rev)]);
+  const linePath=pts.map((p,i)=>(i===0?"M":"L")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  function fmtK(v){ return v>=1000 ? (Math.round(v/100)/10)+"k" : Math.round(v); }
+  return (
+    <Card>
+      <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:2}}>Opex vs Revenue</div>
+      <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Monthly operating cost (stacked) vs revenue (line).</div>
+      <div style={{overflowX:"auto"}}>
+        <svg viewBox={`0 0 ${W} ${H}`} width={Math.max(W,320)} height={H} style={{display:"block"}}>
+          <line x1={padL} y1={padT+chartH} x2={W-padR} y2={padT+chartH} stroke="#e2e8f0"/>
+          {rows.map((r,i)=>{
+            const bx=xOf(i), base=padT+chartH;
+            const yFeed=yOf(r.feed), yFeedSal=yOf(r.feed+r.sal), yTop=yOf(r.opex);
+            return (
+              <g key={r.month}>
+                {r.feed>0&&<rect x={bx} y={yFeed} width={barW} height={base-yFeed} fill={cFeed}/>}
+                {r.sal>0&&<rect x={bx} y={yFeedSal} width={barW} height={yFeed-yFeedSal} fill={cSal}/>}
+                {r.other>0&&<rect x={bx} y={yTop} width={barW} height={yFeedSal-yTop} fill={cOther}/>}
+                {r.opex>0&&<text x={bx+barW/2} y={yTop-4} fontSize="8.5" textAnchor="middle" fill="#64748b">{fmtK(r.opex)}</text>}
+                <text x={bx+barW/2} y={base+15} fontSize="9.5" textAnchor="middle" fill="#475569">{MO[(+r.month.split("-")[1])-1]}</text>
+              </g>
+            );
+          })}
+          <path d={linePath} fill="none" stroke={cRev} strokeWidth="2"/>
+          {pts.map((p,i)=>(<circle key={i} cx={p[0]} cy={p[1]} r="2.6" fill={cRev}/>))}
+        </svg>
+      </div>
+      <div style={{display:"flex",gap:14,flexWrap:"wrap",marginTop:10}}>
+        {[["Feed Cost",cFeed],["Salaries",cSal],["Other Opex",cOther]].map(item=>(
+          <div key={item[0]} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#64748b"}}><span style={{width:11,height:11,background:item[1],borderRadius:2,display:"inline-block"}}></span>{item[0]}</div>
+        ))}
+        <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#64748b"}}><span style={{width:14,height:2,background:cRev,display:"inline-block"}}></span>Revenue</div>
+      </div>
+    </Card>
+  );
+}
+
 function PnLAdmin({cattle=[], feedRates, lang, t}) {
   const rates=(feedRates&&feedRates.current)?feedRates:DEFAULT_FEED_RATES;
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
   const [err,setErr]=useState(null);
-  const [view,setView]=useState("monthly");
+  const [view,setView]=useState("chart");
   const [openMonth,setOpenMonth]=useState(null);
 
   async function load(){ setLoading(true); setErr(null); try{ setData(await apiGet("getPnL")); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
@@ -1569,7 +1623,9 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
 
   return (
     <div>
-      <TabBar tabs={[{key:"monthly",label:"Monthly P&L"},{key:"cattle",label:"By cattle"}]} active={view} onChange={setView}/>
+      <TabBar tabs={[{key:"chart",label:"Chart"},{key:"monthly",label:"Monthly"},{key:"cattle",label:"By cattle"}]} active={view} onChange={setView}/>
+
+      {view==="chart"&&<OpexRevenueChart months={months}/>}
 
       {view==="monthly"&&(
         <div>
