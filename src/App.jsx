@@ -25,6 +25,9 @@ const TR = {
   en: {
     // Login
     appName: "Banki Dairy Farm", appSub: "Operations Tracker",
+    supProdLog:"Production Log", supProdLogDesc:"Enter today’s milk production",
+    supFeed:"Feed Chart", supFeedDesc:"What to feed each animal (view only)",
+    feedTitle:"Feeding guide", feedPerSlot:"Amount per feeding (half of the daily total)", milkDayLbl:"milk/day", noFeedSet:"No feed set",
     selectRole: "Select your role to continue",
     roleSupervisor: "Supervisor", roleDelivery: "Delivery", roleOwner: "Owner",
     roleSupDesc: "Log daily milk production",
@@ -90,6 +93,9 @@ const TR = {
   },
   hi: {
     appName: "बंकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
+    supProdLog:"उत्पादन लॉग", supProdLogDesc:"आज का दूध दर्ज करें",
+    supFeed:"चारा चार्ट", supFeedDesc:"हर पशु को क्या खिलाएं (सिर्फ़ देखें)",
+    feedTitle:"चारा गाइड", feedPerSlot:"प्रति बार मात्रा (दैनिक का आधा)", milkDayLbl:"दूध/दिन", noFeedSet:"चारा तय नहीं",
     selectRole: "जारी रखने के लिए अपनी भूमिका चुनें",
     roleSupervisor: "सुपरवाइज़र", roleDelivery: "डिलीवरी", roleOwner: "मालिक",
     roleSupDesc: "दैनिक दूध उत्पादन दर्ज करें",
@@ -151,6 +157,9 @@ const TR = {
   },
   ur: {
     appName: "بانکی ڈیری فارم", appSub: "آپریشن ٹریکر",
+    supProdLog:"پیداوار لاگ", supProdLogDesc:"آج کا دودھ درج کریں",
+    supFeed:"فیڈ چارٹ", supFeedDesc:"ہر جانور کو کیا کھلائیں (صرف دیکھیں)",
+    feedTitle:"فیڈ گائیڈ", feedPerSlot:"فی بار مقدار (روزانہ کا آدھا)", milkDayLbl:"دودھ/دن", noFeedSet:"فیڈ مقرر نہیں",
     selectRole: "جاری رکھنے کے لیے اپنا کردار چنیں",
     roleSupervisor: "سپروائزر", roleDelivery: "ڈیلیوری", roleOwner: "مالک",
     roleSupDesc: "روزانہ دودھ کی پیداوار درج کریں",
@@ -611,7 +620,82 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
   );
 }
 
-function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTLE}) {
+function SupervisorCover({t,onPick}){
+  const cards=[
+    {key:"production",title:t.supProdLog,desc:t.supProdLogDesc,emoji:"🥛",color:"#2D7FB5"},
+    {key:"feed",title:t.supFeed,desc:t.supFeedDesc,emoji:"🌾",color:"#2d6a4f"}
+  ];
+  return (
+    <div>
+      {cards.map(c=>(
+        <div key={c.key} onClick={()=>onPick(c.key)} style={{cursor:"pointer",background:"#fff",borderRadius:16,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04)",padding:"22px 20px",marginBottom:14,display:"flex",alignItems:"center",gap:16,borderLeft:"5px solid "+c.color}}>
+          <div style={{fontSize:38}}>{c.emoji}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:19,fontWeight:800,color:"#1a1a1a"}}>{c.title}</div>
+            <div style={{fontSize:13,color:"#888",marginTop:3}}>{c.desc}</div>
+          </div>
+          <div style={{fontSize:26,color:"#cbd5e1"}}>›</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SupervisorFeedView({cattle=[], t, onBack}){
+  const [slot,setSlot]=useState("morning");
+  const herd=cattle.filter(c=>!c.sold);
+  const buffalo=herd.filter(c=>c.type==="B");
+  const cow=herd.filter(c=>c.type==="C");
+  const factor=0.5; // per feeding = half of the daily total
+
+  function FeedCard({c,color,bg}){
+    const items=FEED_COMPONENTS.map(fc=>({label:fc.label, qty:((c.feed&&c.feed[fc.key])||0)*factor})).filter(x=>x.qty>0);
+    return (
+      <div style={{background:"#fff",border:"2px solid "+bg,borderRadius:14,padding:"14px 16px",marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:items.length?6:0}}>
+          <div style={{fontSize:24,fontWeight:800,color:color,minWidth:48}}>{c.code}</div>
+          <div style={{flex:1}}/>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:18,fontWeight:800,color:"#2D7FB5"}}>{fmtN(c.milkAvg7||0,1)}<span style={{fontSize:12,color:"#94a3b8"}}> L</span></div>
+            <div style={{fontSize:10,color:"#aaa"}}>{t.milkDayLbl}</div>
+          </div>
+        </div>
+        {items.length===0?<div style={{fontSize:14,color:"#aaa",paddingTop:6}}>{t.noFeedSet}</div>:items.map(it=>(
+          <div key={it.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderTop:"1px solid #f1f5f9"}}>
+            <span style={{fontSize:16,color:"#1a1a1a",fontWeight:600}}>{it.label}</span>
+            <span style={{fontSize:20,fontWeight:800,color:color,whiteSpace:"nowrap"}}>{fmtN(it.qty,2)} <span style={{fontSize:13,color:"#94a3b8",fontWeight:600}}>kg</span></span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:"#2D7FB5",cursor:"pointer",fontSize:22,lineHeight:1}}>←</button>
+        <div style={{fontSize:20,fontWeight:700,color:"#1a1a1a"}}>{t.feedTitle}</div>
+      </div>
+      <div style={{fontSize:12.5,color:"#94a3b8",marginBottom:12,marginLeft:34}}>{t.feedPerSlot}</div>
+      <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={slot} onChange={setSlot} large/>
+      {buffalo.length>0&&(
+        <div style={{marginBottom:4}}>
+          <div style={{fontSize:16,fontWeight:800,color:"#92400e",marginBottom:8}}>{t.buffalo}</div>
+          {buffalo.map(c=><FeedCard key={c.rowIndex||c.code} c={c} color="#92400e" bg="#fde68a"/>)}
+        </div>
+      )}
+      {cow.length>0&&(
+        <div>
+          <div style={{fontSize:16,fontWeight:800,color:"#2D7FB5",marginBottom:8}}>{t.cow}</div>
+          {cow.map(c=><FeedCard key={c.rowIndex||c.code} c={c} color="#2D7FB5" bg="#9ACFF0"/>)}
+        </div>
+      )}
+      {herd.length===0&&<div style={{fontSize:13,color:"#aaa",textAlign:"center",padding:"20px 0"}}>No cattle.</div>}
+    </div>
+  );
+}
+
+function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTLE, cattle=[]}) {
   const t=TR[lang];
   const [date,setDate]=useState(today());
   const [activeSlot,setActiveSlot]=useState("morning");
@@ -623,6 +707,7 @@ function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTL
   const [ePurchased,setEPurchased]=useState(""); const [ePurchaseRate,setEPurchaseRate]=useState("");
   const [eExtraQty,setEExtraQty]=useState(""); const [eExtraSold,setEExtraSold]=useState(false); const [eExtraRate,setEExtraRate]=useState("");
   const [status,setStatus]=useState(null); const [errMsg,setErrMsg]=useState("");
+  const [section,setSection]=useState(null);
 
   const allCattle=[...buffaloCattle,...cowCattle];
   const mTotal=allCattle.reduce((s,c)=>s+toNet(mRaw[c]||0),0);
@@ -653,9 +738,13 @@ function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTL
     } catch(e){setErrMsg(e.message);setStatus("error");}
   }
 
+  if(section===null) return <SupervisorCover t={t} onPick={setSection}/>;
+  if(section==="feed") return <SupervisorFeedView cattle={cattle} t={t} onBack={()=>setSection(null)}/>;
+
   return (
     <div>
-      <div style={{marginBottom:18}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+        <button onClick={()=>setSection(null)} style={{background:"none",border:"none",color:"#2D7FB5",cursor:"pointer",fontSize:22,lineHeight:1}}>←</button>
         <div style={{fontSize:20,fontWeight:700,color:"#1a1a1a"}}>{t.supTitle}</div>
         
       </div>
@@ -1539,8 +1628,7 @@ const OVERHEAD_CATS = [
   {key:"milking",    label:"Milking Supplies"},
   {key:"admin",      label:"Admin Costs"},
   {key:"electricity",label:"Electricity"},
-  {key:"breeding",   label:"Breeding Costs"},
-  {key:"construction",label:"Construction"}
+  {key:"breeding",   label:"Breeding Costs"}
 ];
 function daysInMonthOf(dstr){ const p=String(dstr).split("-"); return new Date(+p[0], +p[1], 0).getDate(); }
 
@@ -2268,7 +2356,7 @@ export default function App() {
         {custLoading
           ? <div style={{textAlign:"center",padding:"60px 20px",color:"#aaa",fontSize:13}}>Loading…</div>
           : <>
-            {role==="supervisor"&&<SupervisorView lang={lang} buffaloCattle={buffaloCattle} cowCattle={cowCattle}/>}
+            {role==="supervisor"&&<SupervisorView lang={lang} buffaloCattle={buffaloCattle} cowCattle={cowCattle} cattle={cattle}/>}
             {role==="delivery"&&<DeliveryView lang={lang} morningCustomers={morningCustomers} eveningCustomers={eveningCustomers} customers={customers}/>}
             {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers} cattle={cattle} reloadCattle={reloadCattle} feedRates={feedRates}/>}
           </>
