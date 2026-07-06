@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
@@ -28,6 +28,7 @@ const TR = {
     supProdLog:"Production Log", supProdLogDesc:"Enter today’s milk production",
     supFeed:"Feed Chart", supFeedDesc:"What to feed each animal (view only)",
     feedTitle:"Feeding guide", feedPerSlot:"Amount per feeding (half of the daily total)", milkDayLbl:"milk/day", noFeedSet:"No feed set",
+    cattleColLbl:"Cattle", feedMineralNote:"Mineral Mix is given only in the evening (full amount).",
     selectRole: "Select your role to continue",
     roleSupervisor: "Supervisor", roleDelivery: "Delivery", roleOwner: "Owner",
     roleSupDesc: "Log daily milk production",
@@ -96,6 +97,7 @@ const TR = {
     supProdLog:"उत्पादन लॉग", supProdLogDesc:"आज का दूध दर्ज करें",
     supFeed:"चारा चार्ट", supFeedDesc:"हर पशु को क्या खिलाएं (सिर्फ़ देखें)",
     feedTitle:"चारा गाइड", feedPerSlot:"प्रति बार मात्रा (दैनिक का आधा)", milkDayLbl:"दूध/दिन", noFeedSet:"चारा तय नहीं",
+    cattleColLbl:"पशु", feedMineralNote:"मिनरल मिक्स सिर्फ़ शाम को दें (पूरी मात्रा)।",
     selectRole: "जारी रखने के लिए अपनी भूमिका चुनें",
     roleSupervisor: "सुपरवाइज़र", roleDelivery: "डिलीवरी", roleOwner: "मालिक",
     roleSupDesc: "दैनिक दूध उत्पादन दर्ज करें",
@@ -160,6 +162,7 @@ const TR = {
     supProdLog:"پیداوار لاگ", supProdLogDesc:"آج کا دودھ درج کریں",
     supFeed:"فیڈ چارٹ", supFeedDesc:"ہر جانور کو کیا کھلائیں (صرف دیکھیں)",
     feedTitle:"فیڈ گائیڈ", feedPerSlot:"فی بار مقدار (روزانہ کا آدھا)", milkDayLbl:"دودھ/دن", noFeedSet:"فیڈ مقرر نہیں",
+    cattleColLbl:"جانور", feedMineralNote:"منرل مکس صرف شام کو دیں (پوری مقدار)۔",
     selectRole: "جاری رکھنے کے لیے اپنا کردار چنیں",
     roleSupervisor: "سپروائزر", roleDelivery: "ڈیلیوری", roleOwner: "مالک",
     roleSupDesc: "روزانہ دودھ کی پیداوار درج کریں",
@@ -641,56 +644,63 @@ function SupervisorCover({t,onPick}){
   );
 }
 
-function SupervisorFeedView({cattle=[], t, onBack}){
+const SUP_FEED_ITEMS = [
+  {key:"cc", en:"Chokar + Chuni",    hi:"चोकर + चुनी",    ur:"چوکر + چنی",   get:f=>(f.chokar||0)+(f.arhar||0)},
+  {key:"bh", en:"Bhoosa",            hi:"भूसा",           ur:"بھوسا",        get:f=>(f.bhoosa||0)},
+  {key:"bs", en:"Barseem",           hi:"बरसीम",          ur:"برسیم",        get:f=>(f.barseem||0)},
+  {key:"jg", en:"Jaggery/Salt/Soda", hi:"गुड़/नमक/सोडा",  ur:"گڑ/نمک/سوڈا",  get:f=>(f.jaggery||0)},
+  {key:"mn", en:"Mineral Mix",       hi:"मिनरल मिक्स",    ur:"منرل مکس",      get:f=>(f.mineral||0), eveningOnly:true}
+];
+function supFeedLabel(it,lang){ return it[lang]||it.en; }
+function supSlotQty(it,f,slot){ const daily=it.get(f); if(it.eveningOnly) return slot==="evening"?daily:0; return daily/2; }
+
+function SupervisorFeedView({cattle=[], t, lang, onBack}){
   const [slot,setSlot]=useState("morning");
   const herd=cattle.filter(c=>!c.sold);
-  const buffalo=herd.filter(c=>c.type==="B");
-  const cow=herd.filter(c=>c.type==="C");
-  const factor=0.5; // per feeding = half of the daily total
-
-  function FeedCard({c,color,bg}){
-    const items=FEED_COMPONENTS.map(fc=>({label:fc.label, qty:((c.feed&&c.feed[fc.key])||0)*factor})).filter(x=>x.qty>0);
-    return (
-      <div style={{background:"#fff",border:"2px solid "+bg,borderRadius:14,padding:"14px 16px",marginBottom:12}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:items.length?6:0}}>
-          <div style={{fontSize:24,fontWeight:800,color:color,minWidth:48}}>{c.code}</div>
-          <div style={{flex:1}}/>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:18,fontWeight:800,color:"#2D7FB5"}}>{fmtN(c.milkAvg7||0,1)}<span style={{fontSize:12,color:"#94a3b8"}}> L</span></div>
-            <div style={{fontSize:10,color:"#aaa"}}>{t.milkDayLbl}</div>
-          </div>
-        </div>
-        {items.length===0?<div style={{fontSize:14,color:"#aaa",paddingTop:6}}>{t.noFeedSet}</div>:items.map(it=>(
-          <div key={it.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderTop:"1px solid #f1f5f9"}}>
-            <span style={{fontSize:16,color:"#1a1a1a",fontWeight:600}}>{it.label}</span>
-            <span style={{fontSize:20,fontWeight:800,color:color,whiteSpace:"nowrap"}}>{fmtN(it.qty,2)} <span style={{fontSize:13,color:"#94a3b8",fontWeight:600}}>kg</span></span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
+  const ordered=[...herd.filter(c=>c.type==="B"), ...herd.filter(c=>c.type==="C")];
+  const cellPad="14px 12px";
+  const sticky={position:"sticky",left:0,zIndex:1};
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
         <button onClick={onBack} style={{background:"none",border:"none",color:"#2D7FB5",cursor:"pointer",fontSize:22,lineHeight:1}}>←</button>
         <div style={{fontSize:20,fontWeight:700,color:"#1a1a1a"}}>{t.feedTitle}</div>
       </div>
-      <div style={{fontSize:12.5,color:"#94a3b8",marginBottom:12,marginLeft:34}}>{t.feedPerSlot}</div>
+      <div style={{fontSize:12.5,color:"#94a3b8",marginBottom:12,marginLeft:34}}>{t.feedPerSlot} · kg</div>
       <TabBar tabs={[{key:"morning",label:`☀️ ${t.morning}`},{key:"evening",label:`🌙 ${t.evening}`}]} active={slot} onChange={setSlot} large/>
-      {buffalo.length>0&&(
-        <div style={{marginBottom:4}}>
-          <div style={{fontSize:16,fontWeight:800,color:"#92400e",marginBottom:8}}>{t.buffalo}</div>
-          {buffalo.map(c=><FeedCard key={c.rowIndex||c.code} c={c} color="#92400e" bg="#fde68a"/>)}
+      {ordered.length===0
+        ? <div style={{fontSize:13,color:"#aaa",textAlign:"center",padding:"20px 0"}}>No cattle.</div>
+        : (
+        <div style={{overflowX:"auto",border:"1px solid #eef2f7",borderRadius:12}}>
+          <table style={{borderCollapse:"collapse",width:"100%",fontSize:15}}>
+            <thead>
+              <tr style={{background:"#f1f5f9"}}>
+                <th style={{...sticky,background:"#f1f5f9",textAlign:"left",padding:cellPad,fontSize:13,fontWeight:800,color:"#334155",borderBottom:"2px solid #e2e8f0"}}>{t.cattleColLbl}</th>
+                <th style={{padding:cellPad,fontSize:12,fontWeight:700,color:"#64748b",borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>{t.milkDayLbl}</th>
+                {SUP_FEED_ITEMS.map(it=>(
+                  <th key={it.key} style={{padding:cellPad,fontSize:13,fontWeight:700,color:"#334155",borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>{supFeedLabel(it,lang)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ordered.map(c=>{
+                const color=c.type==="B"?"#92400e":"#2D7FB5";
+                return (
+                  <tr key={c.rowIndex||c.code} style={{borderBottom:"1px solid #f1f5f9"}}>
+                    <td style={{...sticky,background:"#fff",padding:cellPad,fontWeight:800,fontSize:19,color:color,borderRight:"1px solid #eef2f7"}}>{c.code}</td>
+                    <td style={{padding:cellPad,textAlign:"center",fontSize:14,color:"#2D7FB5",fontWeight:700,whiteSpace:"nowrap"}}>{fmtN(c.milkAvg7||0,1)}</td>
+                    {SUP_FEED_ITEMS.map(it=>{
+                      const q=supSlotQty(it,c.feed||{},slot);
+                      return <td key={it.key} style={{padding:cellPad,textAlign:"center",fontSize:18,fontWeight:700,color:q>0?"#1a1a1a":"#dbe2ea",whiteSpace:"nowrap"}}>{q>0?fmtN(q,2):"—"}</td>;
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
-      {cow.length>0&&(
-        <div>
-          <div style={{fontSize:16,fontWeight:800,color:"#2D7FB5",marginBottom:8}}>{t.cow}</div>
-          {cow.map(c=><FeedCard key={c.rowIndex||c.code} c={c} color="#2D7FB5" bg="#9ACFF0"/>)}
-        </div>
-      )}
-      {herd.length===0&&<div style={{fontSize:13,color:"#aaa",textAlign:"center",padding:"20px 0"}}>No cattle.</div>}
+      <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:12,color:"#1A5C8A",marginTop:12}}>ℹ️ {t.feedMineralNote}</div>
     </div>
   );
 }
@@ -739,7 +749,7 @@ function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTL
   }
 
   if(section===null) return <SupervisorCover t={t} onPick={setSection}/>;
-  if(section==="feed") return <SupervisorFeedView cattle={cattle} t={t} onBack={()=>setSection(null)}/>;
+  if(section==="feed") return <SupervisorFeedView cattle={cattle} t={t} lang={lang} onBack={()=>setSection(null)}/>;
 
   return (
     <div>
@@ -1187,6 +1197,13 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
   );
 }
 
+function phaseTag(st){
+  if(st==="Dry") return {text:"Dry",bg:"#f1f5f9",bd:"#e2e8f0",fg:"#64748b"};
+  if(st==="Colostral") return {text:"Colostral",bg:"#fffbeb",bd:"#fde68a",fg:"#92400e"};
+  if(st==="Transition") return {text:"Transition",bg:"#ecfeff",bd:"#a5f3fc",fg:"#0e7490"};
+  return {text:"Lactating",bg:"#f0fdf4",bd:"#bbf7d0",fg:"#15803d"};
+}
+
 function CattleAdmin({cattle=[], lang, t, onChanged}) {
   const [form,setForm]=useState(null);
   const [saving,setSaving]=useState(false);
@@ -1197,7 +1214,7 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
   const [sellDate,setSellDate]=useState(today());
   const [expanded,setExpanded]=useState({});
 
-  function blankForm(){return {code:"",type:"B",status:"Lactating",pregnant:false,dateIn:"",lastCalving:"",lactationNo:"",dateAI:"",breed:"",boughtFrom:"",purchasePrice:"",calfGender:"",location:"",notes:"",prevCalving:"",aiServiceCount:"",pregCheckDate:"",pregCheckResult:"",bcs:"",lastVaccination:"",lastDeworming:"",healthNotes:"",rowIndex:null};}
+  function blankForm(){return {code:"",type:"B",status:"Lactating",pregnant:false,dateIn:"",lastCalving:"",lactationNo:"",aiLog:[],breed:"",boughtFrom:"",purchasePrice:"",calfGender:"",location:"",notes:"",prevCalving:"",pregCheckDate:"",pregCheckResult:"",bcs:"",lastVaccination:"",lastDeworming:"",healthNotes:"",rowIndex:null};}
   function showToast(msg,type="success"){setToast({msg,type});setTimeout(()=>setToast(null),3000);}
   function daysSince(dstr){ if(!dstr) return null; const d=new Date(dstr+"T00:00:00"); if(isNaN(d)) return null; return Math.max(0,Math.round((Date.now()-d.getTime())/86400000)); }
   function addDays(dstr,days){ if(!dstr) return null; const d=new Date(dstr+"T00:00:00"); if(isNaN(d)) return null; d.setDate(d.getDate()+days); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
@@ -1209,10 +1226,10 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
     setSaving(true);
     try{
       const payload={code:form.code.trim(),type:form.type,status:form.status,pregnant:!!form.pregnant,
-        dateIn:form.dateIn||"",lastCalving:form.lastCalving||"",lactationNo:form.lactationNo||"",dateAI:form.dateAI||"",
+        dateIn:form.dateIn||"",lastCalving:form.lastCalving||"",lactationNo:form.lactationNo||"",aiLog:form.aiLog||[],
         breed:form.breed||"",boughtFrom:form.boughtFrom||"",purchasePrice:form.purchasePrice||"",calfGender:form.calfGender||"",
         location:form.location||"",notes:form.notes||"",
-        prevCalving:form.prevCalving||"",aiServiceCount:form.aiServiceCount||"",pregCheckDate:form.pregCheckDate||"",pregCheckResult:form.pregCheckResult||"",bcs:form.bcs||"",lastVaccination:form.lastVaccination||"",lastDeworming:form.lastDeworming||"",healthNotes:form.healthNotes||""};
+        prevCalving:form.prevCalving||"",pregCheckDate:form.pregCheckDate||"",pregCheckResult:form.pregCheckResult||"",bcs:form.bcs||"",lastVaccination:form.lastVaccination||"",lastDeworming:form.lastDeworming||"",healthNotes:form.healthNotes||""};
       if(form.rowIndex) payload.rowIndex=form.rowIndex;
       await apiPost("saveCattle",payload);
       setForm(null); onChanged&&onChanged();
@@ -1251,7 +1268,7 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12,alignItems:"end"}}>
           <div><SectionLabel>Milking status</SectionLabel>
             <select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))} style={inp}>
-              <option value="Lactating">Lactating (milking)</option><option value="Dry">Dry (not milking)</option></select></div>
+              <option value="Colostral">Colostral</option><option value="Transition">Transition</option><option value="Lactating">Lactating</option><option value="Dry">Dry (not milking)</option></select></div>
           <label style={{display:"flex",alignItems:"center",gap:8,padding:"9px 0",cursor:"pointer"}}>
             <input type="checkbox" checked={form.pregnant||false} onChange={e=>setForm(p=>({...p,pregnant:e.target.checked}))} style={{width:18,height:18,accentColor:"#2D7FB5"}}/>
             <span style={{fontSize:13,color:"#1a1a1a",fontWeight:600}}>Pregnant</span></label>
@@ -1262,13 +1279,19 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
           <div><SectionLabel>Lactation no.</SectionLabel>
             <input type="number" min="0" value={form.lactationNo||""} onChange={e=>setForm(p=>({...p,lactationNo:e.target.value}))} placeholder="e.g. 2" style={inp}/></div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div><SectionLabel>Last AI date</SectionLabel>
-            <input type="date" value={form.dateAI||""} onChange={e=>setForm(p=>({...p,dateAI:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
-          <div><SectionLabel>Calf gender</SectionLabel>
-            <select value={form.calfGender||""} onChange={e=>setForm(p=>({...p,calfGender:e.target.value}))} style={inp}>
-              <option value="">—</option><option value="F">Female</option><option value="M">Male</option></select></div>
+        <div style={{marginBottom:12}}>
+          <SectionLabel>AI dates (add each attempt)</SectionLabel>
+          {(form.aiLog||[]).map((d,idx)=>(
+            <div key={idx} style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
+              <input type="date" value={d||""} max={today()} onChange={e=>setForm(p=>{const a=(p.aiLog||[]).slice(); a[idx]=e.target.value; return {...p,aiLog:a};})} style={{...inp,flex:1,minWidth:0,WebkitAppearance:"none"}}/>
+              <button type="button" onClick={()=>setForm(p=>({...p,aiLog:(p.aiLog||[]).filter((x,j)=>j!==idx)}))} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"9px 11px",color:"#dc2626",cursor:"pointer",fontFamily:"inherit"}}>✕</button>
+            </div>
+          ))}
+          <Btn variant="ghost" onClick={()=>setForm(p=>({...p,aiLog:[...(p.aiLog||[]),""]}))} style={{width:"100%",padding:"9px 0",fontSize:13}}>+ Add AI date</Btn>
         </div>
+        <div style={{marginBottom:12}}><SectionLabel>Calf gender</SectionLabel>
+          <select value={form.calfGender||""} onChange={e=>setForm(p=>({...p,calfGender:e.target.value}))} style={inp}>
+            <option value="">—</option><option value="F">Female</option><option value="M">Male</option></select></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div><SectionLabel>Date acquired</SectionLabel>
             <input type="date" value={form.dateIn||""} onChange={e=>setForm(p=>({...p,dateIn:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
@@ -1283,12 +1306,8 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
         </div>
         <div style={{marginBottom:12}}><SectionLabel>Location / shed</SectionLabel>
           <input value={form.location||""} onChange={e=>setForm(p=>({...p,location:e.target.value}))} placeholder="e.g. Shed 1" style={inp}/></div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div><SectionLabel>Previous calving date</SectionLabel>
-            <input type="date" value={form.prevCalving||""} onChange={e=>setForm(p=>({...p,prevCalving:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
-          <div><SectionLabel>AI services this cycle</SectionLabel>
-            <input type="number" min="0" value={form.aiServiceCount||""} onChange={e=>setForm(p=>({...p,aiServiceCount:e.target.value}))} placeholder="e.g. 1" style={inp}/></div>
-        </div>
+        <div style={{marginBottom:12}}><SectionLabel>Previous calving date</SectionLabel>
+          <input type="date" value={form.prevCalving||""} onChange={e=>setForm(p=>({...p,prevCalving:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div><SectionLabel>Pregnancy check date</SectionLabel>
             <input type="date" value={form.pregCheckDate||""} onChange={e=>setForm(p=>({...p,pregCheckDate:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
@@ -1326,8 +1345,9 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
 
   function CattleCard({c}){
     const color=c.type==="B"?"#92400e":"#2D7FB5";
-    const isLact=c.status==="Lactating";
-    const dim=isLact?daysSince(c.lastCalving):null;
+    const isMilk=["Lactating","Transition","Colostral"].indexOf(c.status)>=0;
+    const pt=phaseTag(c.status);
+    const dim=isMilk?daysSince(c.lastCalving):null;
     const aiDone=!!c.dateAI;
     const gest=c.type==="B"?310:283;
     const expCalv=(c.pregnant&&c.dateAI)?addDays(c.dateAI,gest):null;
@@ -1340,12 +1360,12 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
           <div style={{fontSize:22,fontWeight:800,color:color,width:46,flexShrink:0}}>{c.code}</div>
           <div style={{flex:1,minWidth:0}}>
             <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
-              {isLact?<Tag text="Lactating" bg="#f0fdf4" bd="#bbf7d0" fg="#15803d"/>:<Tag text="Dry" bg="#f1f5f9" bd="#e2e8f0" fg="#64748b"/>}
+              <Tag text={pt.text} bg={pt.bg} bd={pt.bd} fg={pt.fg}/>
               {c.pregnant&&<Tag text="Pregnant" bg="#EBF5FD" bd="#9ACFF0" fg="#1A5C8A"/>}
               {aiDone?<Tag text="AI done" bg="#f0fdf4" bd="#bbf7d0" fg="#15803d"/>:<Tag text="AI pending" bg="#fffbeb" bd="#fde68a" fg="#92400e"/>}
             </div>
             <div style={{fontSize:12,color:"#64748b",marginTop:6}}>
-              {isLact
+              {isMilk
                 ? (dim!=null ? <span>Days in milk: <b style={{color:"#1a1a1a"}}>{dim}</b></span> : <span style={{color:"#cbd5e1"}}>Days in milk: add last calving date</span>)
                 : <span>In dry period{expCalv?` · calving ~ ${fmtDate(expCalv)}`:""}</span>}
             </div>
@@ -1365,7 +1385,7 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
             <Detail label="Acquired" value={c.dateIn?fmtDate(c.dateIn):""}/>
             <Detail label="Last calving" value={c.lastCalving?fmtDate(c.lastCalving):""}/>
             <Detail label="Lactation no." value={c.lactationNo}/>
-            <Detail label="Last AI" value={c.dateAI?fmtDate(c.dateAI):""}/>
+            <Detail label="AI dates" value={(c.aiLog&&c.aiLog.length)?c.aiLog.map(d=>fmtDate(d)).join(", "):""}/>
             {expCalv&&<Detail label="Expected calving" value={fmtDate(expCalv)}/>}
             <Detail label="Breed" value={c.breed}/>
             <Detail label="Bought from" value={c.boughtFrom}/>
@@ -1374,7 +1394,7 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
             <Detail label="Previous calving" value={c.prevCalving?fmtDate(c.prevCalving):""}/>
             {calvInterval!=null&&<Detail label="Calving interval" value={calvInterval+" days"}/>}
             {expDry&&<Detail label="Suggested dry-off" value={fmtDate(expDry)}/>}
-            <Detail label="AI services (cycle)" value={c.aiServiceCount}/>
+            <Detail label="AI attempts" value={c.aiServiceCount}/>
             <Detail label="Pregnancy check" value={c.pregCheckResult?(c.pregCheckResult+(c.pregCheckDate?" · "+fmtDate(c.pregCheckDate):"")):(c.pregCheckDate?fmtDate(c.pregCheckDate):"")}/>
             <Detail label="Body condition (BCS)" value={c.bcs}/>
             <Detail label="Last vaccination" value={c.lastVaccination?fmtDate(c.lastVaccination):""}/>
@@ -1633,6 +1653,8 @@ const OVERHEAD_CATS = [
 function daysInMonthOf(dstr){ const p=String(dstr).split("-"); return new Date(+p[0], +p[1], 0).getDate(); }
 
 function OpexRevenueChart({months}){
+  const chartScrollRef=useRef(null);
+  useEffect(()=>{ const el=chartScrollRef.current; if(el) el.scrollLeft=el.scrollWidth; },[]);
   const data=(months||[]).slice().sort((a,b)=>a.month.localeCompare(b.month));
   if(data.length===0) return <Card style={{marginBottom:12}}><div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>No data yet.</div></Card>;
   const MO=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -1666,7 +1688,7 @@ function OpexRevenueChart({months}){
     <Card style={{marginBottom:12}}>
       <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:2}}>Opex vs Revenue</div>
       <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Cost mix % inside bars · blue % under each month = revenue as a share of that month total Opex.</div>
-      <div style={{overflowX:"auto"}}>
+      <div ref={chartScrollRef} style={{overflowX:"auto"}}>
         <svg viewBox={`0 0 ${W} ${H}`} width={Math.max(W,320)} height={H} style={{display:"block"}}>
           <line x1={padL} y1={padT+chartH} x2={W-padR} y2={padT+chartH} stroke="#e2e8f0"/>
           {rows.map((r,i)=>{
@@ -1848,6 +1870,14 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
                     ))}
                     {r.capexTotal>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,padding:"5px 0 0",color:"#92400e",borderTop:"1px solid #eef2f7",marginTop:5}}><span>Capex (not in profit)</span><span style={{fontWeight:700}}>{fmtRs(r.capexTotal)}</span></div>}
                     <div style={{fontSize:11,color:"#cbd5e1",marginTop:6}}>Avg cattle this month: {r.cattleCount}</div>
+                    {r.soldLitres>0&&(
+                      <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #f1f5f9"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:4}}>Per litre sold ({fmtN(r.soldLitres,0)} L)</div>
+                        <div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,padding:"2px 0"}}><span style={{color:"#64748b"}}>Revenue / L</span><span style={{fontWeight:600,color:"#15803d"}}>{fmtRs(r.revenue/r.soldLitres)}</span></div>
+                        <div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,padding:"2px 0"}}><span style={{color:"#64748b"}}>Cost / L</span><span style={{fontWeight:600,color:"#dc2626"}}>{fmtRs(r.opexTotal/r.soldLitres)}</span></div>
+                        <div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,padding:"2px 0"}}><span style={{color:"#64748b"}}>Margin / L</span><span style={{fontWeight:700,color:(r.revenue-r.opexTotal)>=0?"#15803d":"#dc2626"}}>{fmtRs((r.revenue-r.opexTotal)/r.soldLitres)}</span></div>
+                      </div>
+                    )}
                   </div>
                 )}
               </Card>
@@ -1899,6 +1929,17 @@ const TXN_PAYERS = ["Danish","Vipul"];
 const TXN_MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function txnSubOptions(cat){ return cat==="Capex" ? CAPEX_CATS : OPEX_CATS; }
 
+function TxnFilterSelect({label,value,onChange,options}){
+  return (
+    <div style={{minWidth:0}}>
+      <div style={{fontSize:10,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.4px",marginBottom:3}}>{label}</div>
+      <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"8px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff"}}>
+        {options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function TransactionsAdmin({lang, t}) {
   const [txns,setTxns]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -1910,6 +1951,10 @@ function TransactionsAdmin({lang, t}) {
   const [confirmDel,setConfirmDel]=useState(null);
   const [scope,setScope]=useState("monthly");
   const [month,setMonth]=useState("");
+  const [fMonthE,setFMonthE]=useState("all");
+  const [fCat,setFCat]=useState("all");
+  const [fSub,setFSub]=useState("all");
+  const [fPayer,setFPayer]=useState("all");
 
   function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3000);}
   const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
@@ -1945,6 +1990,8 @@ function TransactionsAdmin({lang, t}) {
   const curMonth = month || months[0] || today().substring(0,7);
   function moLabel(mo){ const p=mo.split("-"); return TXN_MO[(+p[1])-1]+" "+p[0]; }
   function catTag(cat){ const capex=cat==="Capex"; return <span style={{fontSize:10,fontWeight:700,color:capex?"#92400e":"#1A5C8A",background:capex?"#fffbeb":"#EBF5FD",border:"1px solid "+(capex?"#fde68a":"#9ACFF0"),borderRadius:20,padding:"2px 8px"}}>{cat||"—"}</span>; }
+  function subOptionsFor(cat){ if(cat==="Capex")return CAPEX_CATS; if(cat==="Opex")return OPEX_CATS; const seen={},out=[]; OPEX_CATS.concat(CAPEX_CATS).forEach(x=>{ if(!seen[x]){seen[x]=1;out.push(x);} }); return out; }
+  function matchCSP(x){ if(fCat!=="all"&&(x.category||"")!==fCat)return false; if(fSub!=="all"&&(x.subCategory||"")!==fSub)return false; if(fPayer!=="all"&&(x.payer||"")!==fPayer)return false; return true; }
 
   // ─── FORM ───
   if(form) return (
@@ -1981,7 +2028,7 @@ function TransactionsAdmin({lang, t}) {
   );
 
   // ─── SUMMARY helpers ───
-  const scopeRows = scope==="lifetime" ? all : all.filter(x=>x.date && x.date.substring(0,7)===curMonth);
+  const scopeRows = (scope==="lifetime" ? all : all.filter(x=>x.date && x.date.substring(0,7)===curMonth)).filter(matchCSP);
   function breakdown(rows){
     const g={Opex:{},Capex:{}};
     rows.forEach(x=>{ const k=(x.category==="Capex")?"Capex":"Opex"; g[k][x.subCategory||"(none)"]=(g[k][x.subCategory||"(none)"]||0)+(x.amount||0); });
@@ -2006,6 +2053,12 @@ function TransactionsAdmin({lang, t}) {
   }
 
   const recent = all.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const entriesFiltered = recent.filter(x=>matchCSP(x) && (fMonthE==="all" || (x.date||"").substring(0,7)===fMonthE));
+  const entriesTotal = entriesFiltered.reduce((s,x)=>s+(x.amount||0),0);
+  const catOpts=[{v:"all",l:"All"},{v:"Opex",l:"Opex"},{v:"Capex",l:"Capex"}];
+  const payerOpts=[{v:"all",l:"All"}].concat(TXN_PAYERS.map(pn=>({v:pn,l:pn})));
+  const subOpts=[{v:"all",l:"All"}].concat(subOptionsFor(fCat).map(x=>({v:x,l:x})));
+  const monthOptsE=[{v:"all",l:"All months"}].concat(months.map(m=>({v:m,l:moLabel(m)})));
 
   return (
     <div>
@@ -2028,7 +2081,7 @@ function TransactionsAdmin({lang, t}) {
 
       {tab==="entries"&&(
         <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div style={{fontSize:12,color:"#888"}}>{all.length} transaction{all.length===1?"":"s"}</div>
             <Btn onClick={()=>setForm(blankForm())} style={{padding:"8px 16px",fontSize:13}}>+ Add</Btn>
           </div>
@@ -2037,7 +2090,21 @@ function TransactionsAdmin({lang, t}) {
               No transactions yet. Tap <b>+ Add</b>, or paste your history into the <b>Transactions</b> sheet (columns: Date, Name, Category, SubCategory, Payer, Amount).
             </div>
           )}
-          {recent.map(tx=>(
+          {all.length>0&&(
+            <Card style={{marginBottom:12}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <TxnFilterSelect label="Month" value={fMonthE} onChange={setFMonthE} options={monthOptsE}/>
+                <TxnFilterSelect label="Category" value={fCat} onChange={v=>{setFCat(v);setFSub("all");}} options={catOpts}/>
+                <TxnFilterSelect label="Sub-category" value={fSub} onChange={setFSub} options={subOpts}/>
+                <TxnFilterSelect label="Payer" value={fPayer} onChange={setFPayer} options={payerOpts}/>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10,paddingTop:8,borderTop:"1px solid #f1f5f9"}}>
+                <span style={{fontSize:12,color:"#64748b"}}>{entriesFiltered.length} shown</span>
+                <span style={{fontSize:14,fontWeight:800,color:"#1a1a1a"}}>Total: {fmtRs(entriesTotal)}</span>
+              </div>
+            </Card>
+          )}
+          {entriesFiltered.map(tx=>(
             <div key={tx.rowIndex} style={{display:"flex",alignItems:"center",gap:8,border:"1px solid #eef2f7",borderRadius:10,padding:"10px 12px",marginBottom:8}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tx.name||tx.subCategory||"—"}</div>
@@ -2050,6 +2117,7 @@ function TransactionsAdmin({lang, t}) {
               <button onClick={()=>setConfirmDel(tx)} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:7,padding:"5px 8px",fontSize:12,color:"#dc2626",cursor:"pointer",fontFamily:"inherit"}}>✕</button>
             </div>
           ))}
+          {all.length>0&&entriesFiltered.length===0&&<div style={{fontSize:12.5,color:"#aaa",textAlign:"center",padding:"12px 0"}}>No transactions match the filters.</div>}
         </div>
       )}
 
@@ -2064,6 +2132,13 @@ function TransactionsAdmin({lang, t}) {
               </select>
             </Card>
           )}
+          <Card style={{marginBottom:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+              <TxnFilterSelect label="Category" value={fCat} onChange={v=>{setFCat(v);setFSub("all");}} options={catOpts}/>
+              <TxnFilterSelect label="Sub-category" value={fSub} onChange={setFSub} options={subOpts}/>
+              <TxnFilterSelect label="Payer" value={fPayer} onChange={setFPayer} options={payerOpts}/>
+            </div>
+          </Card>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
             <StatBox label="Total" value={fmtRs(bd.oT+bd.cT)} color="#1A5C8A"/>
             <StatBox label="Opex" value={fmtRs(bd.oT)} color="#2D7FB5"/>
@@ -2086,6 +2161,64 @@ function TransactionsAdmin({lang, t}) {
           {scopeRows.length===0&&<div style={{fontSize:12.5,color:"#aaa",textAlign:"center",padding:"10px 0"}}>No transactions in this period.</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+function ActionItemsView({cattle=[]}){
+  const AI_WAIT=60, AI_REPEAT=21, DEWORM=90, VACCINE=180;
+  function daysSince(d){ if(!d) return null; const dt=new Date(d+"T00:00:00"); if(isNaN(dt)) return null; return Math.floor((Date.now()-dt.getTime())/86400000); }
+  const herd=cattle.filter(c=>!c.sold);
+  const ai=[], deworm=[], vacc=[];
+  herd.forEach(c=>{
+    if(!c.pregnant){
+      const dc=daysSince(c.lastCalving);
+      if(dc!=null && dc>=AI_WAIT){
+        const dai=daysSince(c.dateAI);
+        if(dai==null) ai.push({code:c.code,type:c.type,reason:dc+" days since calving, no AI yet"});
+        else if(dai>=AI_REPEAT) ai.push({code:c.code,type:c.type,reason:"AI "+dai+" days ago, not confirmed pregnant"});
+      }
+    }
+    const dw=daysSince(c.lastDeworming);
+    if(dw==null) deworm.push({code:c.code,type:c.type,reason:"not recorded"});
+    else if(dw>=DEWORM) deworm.push({code:c.code,type:c.type,reason:dw+" days ago"});
+    const vc=daysSince(c.lastVaccination);
+    if(vc==null) vacc.push({code:c.code,type:c.type,reason:"not recorded"});
+    else if(vc>=VACCINE) vacc.push({code:c.code,type:c.type,reason:vc+" days ago"});
+  });
+
+  function Section({title,emoji,items,color,bg}){
+    return (
+      <Card style={{marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:items.length?10:0}}>
+          <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a"}}>{emoji} {title}</div>
+          <span style={{fontSize:12,fontWeight:800,color:items.length?color:"#94a3b8",background:items.length?bg:"#f1f5f9",borderRadius:20,padding:"2px 10px"}}>{items.length}</span>
+        </div>
+        {items.length===0
+          ? <div style={{fontSize:12.5,color:"#94a3b8"}}>All up to date ✓</div>
+          : items.map((it,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderTop:"1px solid #f1f5f9"}}>
+              <span style={{fontSize:16,fontWeight:800,color:it.type==="B"?"#92400e":"#2D7FB5",minWidth:42}}>{it.code}</span>
+              <span style={{fontSize:12.5,color:"#64748b",flex:1}}>{it.reason}</span>
+            </div>
+          ))}
+      </Card>
+    );
+  }
+
+  const total=ai.length+deworm.length+vacc.length;
+  return (
+    <div>
+      <div style={{background:total?"#fef2f2":"#f0fdf4",border:"1.5px solid "+(total?"#fecaca":"#bbf7d0"),borderRadius:14,padding:"14px 18px",marginBottom:12,textAlign:"center"}}>
+        <div style={{fontSize:11,fontWeight:700,color:total?"#dc2626":"#15803d",textTransform:"uppercase",letterSpacing:"0.8px"}}>{total?"Items needing attention":"Nothing due"}</div>
+        <div style={{fontSize:28,fontWeight:800,color:total?"#dc2626":"#15803d",marginTop:2}}>{total}</div>
+      </div>
+      <Section title="AI due" emoji="🧬" items={ai} color="#7c3aed" bg="#f3e8ff"/>
+      <Section title="Deworming due" emoji="💊" items={deworm} color="#0e7490" bg="#ecfeff"/>
+      <Section title="Vaccination due" emoji="💉" items={vacc} color="#b45309" bg="#fffbeb"/>
+      <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:11.5,color:"#1A5C8A",marginTop:4}}>
+        💡 Rules: AI due ≥60 days after calving if not pregnant (and no AI in last 21 days). Deworming due after 90 days. Vaccination after 180 days. "Not recorded" = no date entered on the cattle yet. Update dates in the Cattle section to clear items.
+      </div>
     </div>
   );
 }
@@ -2114,11 +2247,12 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       </div>
       {[
         {key:"operations",title:"Operations",desc:"Overview, daily log & monthly summary",emoji:"📊",color:"#2D7FB5"},
-        {key:"cattle",title:"Cattle",desc:"Herd details, milk/day, add or sell cattle",emoji:"🐄",color:"#92400e"},
-        {key:"feed",title:"Feed",desc:"Feed mix & cost per cattle, and rates",emoji:"🌾",color:"#2d6a4f"},
-        {key:"pnl",title:"Profit & Loss",desc:"Daily & monthly P&L including all costs",emoji:"📈",color:"#15803d"},
         {key:"txns",title:"Transactions",desc:"Log spends & monthly / lifetime summary",emoji:"💰",color:"#1A5C8A"},
-        {key:"customers",title:"Customers",desc:"Delivery customers & their list positions",emoji:"🧾",color:"#1A5C8A"}
+        {key:"pnl",title:"Profit & Loss",desc:"Daily & monthly P&L including all costs",emoji:"📈",color:"#15803d"},
+        {key:"feed",title:"Feed",desc:"Feed mix & cost per cattle, and rates",emoji:"🌾",color:"#2d6a4f"},
+        {key:"cattle",title:"Cattle",desc:"Herd details, milk/day, add or sell cattle",emoji:"🐄",color:"#92400e"},
+        {key:"customers",title:"Customers",desc:"Delivery customers & their list positions",emoji:"🧾",color:"#1A5C8A"},
+        {key:"actions",title:"Action Items",desc:"AI, vaccination & deworming due",emoji:"🔔",color:"#dc2626"}
       ].map(s=>(
         <div key={s.key} onClick={()=>setSection(s.key)} style={{cursor:"pointer",background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04)",padding:"18px 20px",marginBottom:12,display:"flex",alignItems:"center",gap:14,borderLeft:"4px solid "+s.color}}>
           <div style={{fontSize:30}}>{s.emoji}</div>
@@ -2132,7 +2266,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
     </div>
   );
 
-  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":"Customers";
+  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":section==="actions"?"Action Items":"Customers";
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
@@ -2148,6 +2282,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       {section==="feed"&&<FeedAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t} onChanged={reloadCattle}/>}
       {section==="pnl"&&<PnLAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t}/>}
       {section==="txns"&&<TransactionsAdmin lang={lang} t={t}/>}
+      {section==="actions"&&<ActionItemsView cattle={cattle}/>}
 
       {section==="operations"&&(loading
         ? <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>{t.loading}</div></div>
@@ -2332,8 +2467,8 @@ export default function App() {
   const morningCustomers = customers.filter(c=>c.active&&c.slot==="morning");
   const eveningCustomers = customers.filter(c=>c.active&&c.slot==="evening");
   // Until the Cattle sheet is set up, fall back to the original fixed lists so the app keeps working
-  const buffaloCattle = cattle.length ? cattle.filter(c=>c.status==="Lactating"&&c.type==="B").map(c=>c.code) : BUFFALO_CATTLE;
-  const cowCattle     = cattle.length ? cattle.filter(c=>c.status==="Lactating"&&c.type==="C").map(c=>c.code) : COW_CATTLE;
+  const buffaloCattle = cattle.length ? cattle.filter(c=>["Lactating","Transition","Colostral"].indexOf(c.status)>=0&&c.type==="B").map(c=>c.code) : BUFFALO_CATTLE;
+  const cowCattle     = cattle.length ? cattle.filter(c=>["Lactating","Transition","Colostral"].indexOf(c.status)>=0&&c.type==="C").map(c=>c.code) : COW_CATTLE;
 
   const r=ROLES_META[role];
   return (
