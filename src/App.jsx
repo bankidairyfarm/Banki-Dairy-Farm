@@ -6,6 +6,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp
 // ─── ACCESS PINS ───────────────────────────────────────────────────────────
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
+const FINANCE_PIN = "8851";
 const PINS = {
   supervisor: "7055",
   delivery:   "1234",
@@ -158,7 +159,7 @@ const TR = {
     sourced30: "खरीदा (30 दिन)", totalAvail30: "कुल उपलब्ध (30 दिन)",
   },
   ur: {
-    appName: "بنکی ڈیری فارم", appSub: "آپریشن ٹریکر",
+    appName: "بانکی ڈیری فارم", appSub: "آپریشن ٹریکر",
     supProdLog:"پیداوار لاگ", supProdLogDesc:"آج کا دودھ درج کریں",
     supFeed:"فیڈ چارٹ", supFeedDesc:"ہر جانور کو کیا کھلائیں (صرف دیکھیں)",
     feedTitle:"فیڈ گائیڈ", feedPerSlot:"فی بار مقدار (روزانہ کا آدھا)", milkDayLbl:"دودھ/دن", noFeedSet:"فیڈ مقرر نہیں",
@@ -1306,8 +1307,9 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
         </div>
         <div style={{marginBottom:12}}><SectionLabel>Location / shed</SectionLabel>
           <input value={form.location||""} onChange={e=>setForm(p=>({...p,location:e.target.value}))} placeholder="e.g. Shed 1" style={inp}/></div>
-        <div style={{marginBottom:12}}><SectionLabel>Previous calving date</SectionLabel>
-          <input type="date" value={form.prevCalving||""} onChange={e=>setForm(p=>({...p,prevCalving:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+        <div style={{marginBottom:12}}><SectionLabel>Previous calving date (optional)</SectionLabel>
+          <input type="date" value={form.prevCalving||""} onChange={e=>setForm(p=>({...p,prevCalving:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/>
+          <div style={{fontSize:11,color:"#aaa",marginTop:3}}>The calving BEFORE the last one — used only to show the calving interval. Leave blank if unknown.</div></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div><SectionLabel>Pregnancy check date</SectionLabel>
             <input type="date" value={form.pregCheckDate||""} onChange={e=>setForm(p=>({...p,pregCheckDate:e.target.value}))} max={today()} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
@@ -1540,6 +1542,7 @@ function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <div style={{fontSize:15,fontWeight:700,color:"#1a1a1a",width:38}}>{c.code}</div>
           <span style={{fontSize:10,fontWeight:700,color:isB?"#92400e":"#2D7FB5",background:isB?"#fffbeb":"#EBF5FD",border:"1px solid "+(isB?"#fde68a":"#9ACFF0"),borderRadius:10,padding:"2px 7px"}}>{isB?"🐃 B":"🐄 C"}</span>
+          <span style={{fontSize:10,fontWeight:700,color:"#1A5C8A",background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:10,padding:"2px 7px"}}>{fmtN(c.milkAvg7||0,1)} L/day</span>
           <div style={{flex:1}}/>
           <div style={{textAlign:"right"}}>
             <div style={{fontSize:15,fontWeight:700,color:"#2d6a4f"}}>{fmtRs(cost)}<span style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>/day</span></div>
@@ -2223,6 +2226,25 @@ function ActionItemsView({cattle=[]}){
   );
 }
 
+function FinanceLock({onUnlock}){
+  const [pin,setPin]=useState("");
+  const [err,setErr]=useState(false);
+  function submit(){ if(pin===FINANCE_PIN){ setErr(false); onUnlock(); } else { setErr(true); setPin(""); } }
+  return (
+    <div style={{maxWidth:280,margin:"24px auto",textAlign:"center"}}>
+      <div style={{fontSize:38,marginBottom:8}}>🔒</div>
+      <div style={{fontSize:16,fontWeight:700,color:"#1a1a1a",marginBottom:4}}>Protected section</div>
+      <div style={{fontSize:12.5,color:"#888",marginBottom:16}}>Enter the finance passcode to view.</div>
+      <input type="password" inputMode="numeric" maxLength={4} value={pin}
+        onChange={e=>{setPin(e.target.value.replace(/[^0-9]/g,""));setErr(false);}}
+        onKeyDown={e=>{if(e.key==="Enter")submit();}} placeholder="••••"
+        style={{width:"100%",padding:"12px",fontSize:22,textAlign:"center",letterSpacing:"8px",border:"2px solid "+(err?"#fecaca":"#e2e8f0"),borderRadius:10,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+      {err&&<div style={{fontSize:12,color:"#dc2626",marginTop:8,fontWeight:600}}>Wrong passcode. Try again.</div>}
+      <Btn onClick={submit} style={{width:"100%",marginTop:14}}>Unlock</Btn>
+    </div>
+  );
+}
+
 function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
@@ -2231,6 +2253,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
   const [tab,setTab]=useState("overview");
 
   const [section,setSection]=useState(null);
+  const [financeUnlocked,setFinanceUnlocked]=useState(false);
   async function load(){setLoading(true);setError(null);try{setData(await apiGet("getDashboard"));}catch(e){setError(e.message);}finally{setLoading(false);}}
   useEffect(()=>{load();},[]);
 
@@ -2280,8 +2303,9 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       {section==="customers"&&<CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers}/>}
       {section==="cattle"&&<CattleAdmin cattle={cattle} lang={lang} t={t} onChanged={reloadCattle}/>}
       {section==="feed"&&<FeedAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t} onChanged={reloadCattle}/>}
-      {section==="pnl"&&<PnLAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t}/>}
-      {section==="txns"&&<TransactionsAdmin lang={lang} t={t}/>}
+      {(section==="pnl"||section==="txns")&&!financeUnlocked&&<FinanceLock onUnlock={()=>setFinanceUnlocked(true)}/>}
+      {section==="pnl"&&financeUnlocked&&<PnLAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t}/>}
+      {section==="txns"&&financeUnlocked&&<TransactionsAdmin lang={lang} t={t}/>}
       {section==="actions"&&<ActionItemsView cattle={cattle}/>}
 
       {section==="operations"&&(loading
@@ -2467,8 +2491,8 @@ export default function App() {
   const morningCustomers = customers.filter(c=>c.active&&c.slot==="morning");
   const eveningCustomers = customers.filter(c=>c.active&&c.slot==="evening");
   // Until the Cattle sheet is set up, fall back to the original fixed lists so the app keeps working
-  const buffaloCattle = cattle.length ? cattle.filter(c=>["Lactating","Transition","Colostral"].indexOf(c.status)>=0&&c.type==="B").map(c=>c.code) : BUFFALO_CATTLE;
-  const cowCattle     = cattle.length ? cattle.filter(c=>["Lactating","Transition","Colostral"].indexOf(c.status)>=0&&c.type==="C").map(c=>c.code) : COW_CATTLE;
+  const buffaloCattle = cattle.length ? cattle.filter(c=>c.status==="Lactating"&&c.type==="B").map(c=>c.code) : BUFFALO_CATTLE;
+  const cowCattle     = cattle.length ? cattle.filter(c=>c.status==="Lactating"&&c.type==="C").map(c=>c.code) : COW_CATTLE;
 
   const r=ROLES_META[role];
   return (
