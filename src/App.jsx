@@ -158,7 +158,7 @@ const TR = {
     sourced30: "खरीदा (30 दिन)", totalAvail30: "कुल उपलब्ध (30 दिन)",
   },
   ur: {
-    appName: "بانکی ڈیری فارم", appSub: "آپریشن ٹریکر",
+    appName: "بنکی ڈیری فارم", appSub: "آپریشن ٹریکر",
     supProdLog:"پیداوار لاگ", supProdLogDesc:"آج کا دودھ درج کریں",
     supFeed:"فیڈ چارٹ", supFeedDesc:"ہر جانور کو کیا کھلائیں (صرف دیکھیں)",
     feedTitle:"فیڈ گائیڈ", feedPerSlot:"فی بار مقدار (روزانہ کا آدھا)", milkDayLbl:"دودھ/دن", noFeedSet:"فیڈ مقرر نہیں",
