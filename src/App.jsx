@@ -45,7 +45,7 @@ const TR = {
     bTotal: "B Total (kg)", cTotal: "C Total (kg)",
     matches: "✓ Matches", mismatch: "⚠️ Mismatch",
     outsideMilk: "Outside Milk",
-    purchased: "Purchased", extraMilk: "Extra Milk",
+    purchased: "Purchased", extraMilk: "Sold Milk",
     qty: "Qty (L)", rate: "Rate (₹/L)", sold: "Sold", sellingRate: "Selling rate (₹/L)",
     calcTotals: "Calculated Totals",
     total: "Total", submitProd: "Submit Production Log", saving: "Saving…",
@@ -79,6 +79,7 @@ const TR = {
     monthlySummary: "Monthly Summary", noMonthlyData: "No monthly data yet.",
     tableDate: "Date", revenue: "Revenue", status: "Status",
     ok: "✓ OK", gapWarn: "⚠ Gap", month: "Month",
+    prodStatusLbl: "Prod. status", sufficient: "Sufficient", short: "Short",
     errLoad: "❌ Could not load data",
     errScriptUrl: "Check your Google Apps Script URL in App.jsx line 4.",
     retry: "Retry",
@@ -112,7 +113,7 @@ const TR = {
     bTotal: "भैंस कुल (किलो)", cTotal: "गाय कुल (किलो)",
     matches: "✓ सही", mismatch: "⚠️ अंतर है",
     outsideMilk: "बाहरी दूध",
-    purchased: "खरीदा गया", extraMilk: "अतिरिक्त दूध",
+    purchased: "खरीदा गया", extraMilk: "बेचा गया दूध",
     qty: "मात्रा (लीटर)", rate: "दर (₹/लीटर)", sold: "बेचा", sellingRate: "बिक्री दर (₹/लीटर)",
     calcTotals: "गणना किया गया कुल",
     total: "कुल", submitProd: "उत्पादन दर्ज करें", saving: "सहेजा जा रहा है…",
@@ -144,6 +145,7 @@ const TR = {
     monthlySummary: "मासिक सारांश", noMonthlyData: "अभी कोई मासिक डेटा नहीं।",
     tableDate: "तारीख", revenue: "आय", status: "स्थिति",
     ok: "✓ ठीक", gapWarn: "⚠ अंतर", month: "महीना",
+    prodStatusLbl: "उत्पादन स्थिति", sufficient: "पर्याप्त", short: "कम",
     errLoad: "❌ डेटा लोड नहीं हुआ",
     errScriptUrl: "App.jsx लाइन 4 में स्क्रिप्ट URL जाँचें।",
     retry: "फिर कोशिश करें",
@@ -177,7 +179,7 @@ const TR = {
     bTotal: "بھینس کل (کلو)", cTotal: "گائے کل (کلو)",
     matches: "✓ درست", mismatch: "⚠️ فرق ہے",
     outsideMilk: "باہری دودھ",
-    purchased: "خریدا گیا", extraMilk: "اضافی دودھ",
+    purchased: "خریدا گیا", extraMilk: "بیچا گیا دودھ",
     qty: "مقدار (لیٹر)", rate: "ریٹ (₹/لیٹر)", sold: "بیچا", sellingRate: "فروخت ریٹ (₹/لیٹر)",
     calcTotals: "حساب کردہ کل",
     total: "کل", submitProd: "پیداوار درج کریں", saving: "محفوظ ہو رہا ہے…",
@@ -209,6 +211,7 @@ const TR = {
     monthlySummary: "ماہانہ خلاصہ", noMonthlyData: "ابھی کوئی ماہانہ ڈیٹا نہیں۔",
     tableDate: "تاریخ", revenue: "آمدنی", status: "حالت",
     ok: "✓ ٹھیک", gapWarn: "⚠ فرق", month: "مہینہ",
+    prodStatusLbl: "پیداوار حالت", sufficient: "کافی", short: "کمی",
     errLoad: "❌ ڈیٹا لوڈ نہیں ہوا",
     errScriptUrl: "App.jsx لائن 4 میں اسکرپٹ URL چیک کریں۔",
     retry: "دوبارہ کوشش کریں",
@@ -1006,13 +1009,9 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
         name_en:form.name_en, name_hi:form.name_hi, name_ur:form.name_ur,
         slot:form.slot, type:form.type, phone:form.phone||"", selfCollect:!!form.selfCollect
       };
-      if (form.rowIndex) {
-        payload.rowIndex = form.rowIndex;                 // edit in place
-      } else if (form.insertAfter === "top") {
-        payload.atTop = true;                             // add at the very top
-      } else if (form.insertAfter) {
-        payload.afterRowIndex = Number(form.insertAfter); // add after a chosen customer
-      }
+      if (form.rowIndex) payload.rowIndex = form.rowIndex;
+      if (form.insertAfter === "top") payload.atTop = true;
+      else if (form.insertAfter) payload.afterRowIndex = Number(form.insertAfter);
       await apiPost("saveCustomer",payload);
       setForm(null);
       onChanged&&onChanged();
@@ -1092,22 +1091,20 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
             </select>
           </div>
         </div>
-        {!form.rowIndex&&(
-          <div style={{marginBottom:12}}>
-            <SectionLabel>Position in list</SectionLabel>
-            <select value={form.insertAfter||""} onChange={e=>setForm(p=>({...p,insertAfter:e.target.value}))}
-              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",fontFamily:"inherit"}}>
-              <option value="">⬇ Add at the end of the list</option>
-              <option value="top">⬆ At the very top</option>
-              {customers.map(c=>(
-                <option key={c.rowIndex} value={String(c.rowIndex)}>
-                  After: {c.slot==="morning"?"\u2600\ufe0f":"\ud83c\udf19"} {c.name_en}
-                </option>
-              ))}
-            </select>
-            <div style={{fontSize:11,color:"#aaa",marginTop:3}}>Places the new customer right after the selected one — in the delivery list and the dispatch sheet.</div>
-          </div>
-        )}
+        <div style={{marginBottom:12}}>
+          <SectionLabel>Position in list</SectionLabel>
+          <select value={form.insertAfter||""} onChange={e=>setForm(p=>({...p,insertAfter:e.target.value}))}
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",fontFamily:"inherit"}}>
+            <option value="">{form.rowIndex?"↔ Keep current position":"⬇ Add at the end of the list"}</option>
+            <option value="top">⬆ At the very top</option>
+            {customers.filter(c=>c.rowIndex!==form.rowIndex).map(c=>(
+              <option key={c.rowIndex} value={String(c.rowIndex)}>
+                After: {c.slot==="morning"?"☀️":"🌙"} {c.name_en}
+              </option>
+            ))}
+          </select>
+          <div style={{fontSize:11,color:"#aaa",marginTop:3}}>{form.rowIndex?"Move this customer to a new spot — the delivery list reorders to match.":"Places the new customer right after the selected one — in the delivery list and the dispatch sheet."}</div>
+        </div>
         <div style={{marginBottom:12}}>
           <SectionLabel>Phone (optional)</SectionLabel>
           <input value={form.phone||""} onChange={e=>setForm(p=>({...p,phone:e.target.value}))}
@@ -2381,24 +2378,27 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                 <thead><tr style={{borderBottom:"2px solid #f1f5f9"}}>
-                  {[t.tableDate,t.totalAvail,t.dispatched,t.gap,t.revenue,t.status].map(h=>(
+                  {[t.tableDate,t.totalAvail,t.dispatched,t.gap,t.revenue,t.prodStatusLbl,t.buffalo,t.cow].map(h=>(
                     <th key={h} style={{textAlign:"left",padding:"5px 7px",color:"#888",fontWeight:600,fontSize:11,textTransform:"uppercase"}}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {recentDays.map((row,i)=>{
                     const g=(row.total!=null?row.total:(row.produced||0))-(row.dispatched||0);
+                    const ps=(row.produced||0)>=(row.dispatched||0);
                     return <tr key={i} style={{borderBottom:"1px solid #f8fafc"}}>
                       <td style={{padding:"7px",fontWeight:600,color:"#1a1a1a"}}>{fmtDate(row.date)}</td>
                       <td style={{padding:"7px"}}>{fmtN(row.total!=null?row.total:row.produced,1)}</td>
                       <td style={{padding:"7px"}}>{fmtN(row.dispatched,1)}</td>
-                      <td style={{padding:"7px",fontWeight:600,color:g>=0?"#15803d":"#dc2626"}}>{g>=0?"+":""}{fmtN(g,1)}</td>
+                      <td style={{padding:"7px",fontWeight:600,color:g>0?"#dc2626":"#15803d"}}>{g>=0?"+":""}{fmtN(g,1)}</td>
                       <td style={{padding:"7px"}}>{fmtRs(row.revenue||0)}</td>
                       <td style={{padding:"7px"}}>
-                        <span style={{background:g>=0?"#f0fdf4":"#fef2f2",color:g>=0?"#15803d":"#dc2626",border:`1px solid ${g>=0?"#bbf7d0":"#fecaca"}`,borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:600}}>
-                          {g>=0?t.ok:t.gapWarn}
+                        <span style={{background:ps?"#f0fdf4":"#fef2f2",color:ps?"#15803d":"#dc2626",border:`1px solid ${ps?"#bbf7d0":"#fecaca"}`,borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
+                          {ps?t.sufficient:t.short}
                         </span>
                       </td>
+                      <td style={{padding:"7px"}}>{fmtN(row.buffalo!=null?row.buffalo:0,1)}</td>
+                      <td style={{padding:"7px"}}>{fmtN(row.cow!=null?row.cow:0,1)}</td>
                     </tr>;
                   })}
                 </tbody>
@@ -2427,7 +2427,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
                       <td style={{padding:"7px"}}>{fmtN(row.total!=null?row.total:row.produced,1)}</td>
                       <td style={{padding:"7px"}}>{fmtN(row.dispatched,1)}</td>
                       <td style={{padding:"7px"}}>{fmtRs(row.revenue||0)}</td>
-                      <td style={{padding:"7px",fontWeight:600,color:g>=0?"#15803d":"#dc2626"}}>{g>=0?"+":""}{fmtN(g,1)}</td>
+                      <td style={{padding:"7px",fontWeight:600,color:g>0?"#dc2626":"#15803d"}}>{g>=0?"+":""}{fmtN(g,1)}</td>
                     </tr>;
                   })}
                 </tbody>
