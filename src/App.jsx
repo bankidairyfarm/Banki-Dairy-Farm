@@ -991,7 +991,7 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
   const types = ["B","C"];
 
   function blankForm() {
-    return {name_en:"",name_hi:"",name_ur:"",slot:"morning",type:"B",phone:"",selfCollect:false,rowIndex:null,insertAfter:""};
+    return {name_en:"",name_hi:"",name_ur:"",slot:"morning",type:"B",phone:"",selfCollect:false,rate:"",rowIndex:null,insertAfter:""};
   }
 
   function showToast(msg,type="success") {
@@ -1007,7 +1007,8 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
     try {
       const payload = {
         name_en:form.name_en, name_hi:form.name_hi, name_ur:form.name_ur,
-        slot:form.slot, type:form.type, phone:form.phone||"", selfCollect:!!form.selfCollect
+        slot:form.slot, type:form.type, phone:form.phone||"", selfCollect:!!form.selfCollect,
+        rate:form.rate
       };
       if (form.rowIndex) payload.rowIndex = form.rowIndex;
       if (form.insertAfter === "top") payload.atTop = true;
@@ -1119,6 +1120,14 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
             Self-collect (brings own utensil, excluded from bottle count)
           </label>
         </div>
+        <div style={{marginBottom:18}}>
+          <SectionLabel>Custom rate ₹/L (optional)</SectionLabel>
+          <input type="number" inputMode="decimal" value={form.rate??""}
+            onChange={e=>setForm(p=>({...p,rate:e.target.value}))}
+            placeholder="Blank = standard rate"
+            style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+          <div style={{fontSize:11,color:"#aaa",marginTop:3}}>Leave blank to use the standard buffalo/cow rate. Set only for wholesale or special-price buyers (e.g. 75).</div>
+        </div>
         <Btn onClick={handleSave} style={{width:"100%"}} disabled={saving}>
           {saving?"Saving…":form.rowIndex?"Update Customer":"Add Customer"}
         </Btn>
@@ -1146,7 +1155,7 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
                 {cust.selfCollect&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,color:"#6b7280",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:4,padding:"1px 5px"}}>SELF</span>}
                 {!cust.active&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,color:"#dc2626",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:4,padding:"1px 5px"}}>INACTIVE</span>}
               </div>
-              <div style={{fontSize:11,color:"#aaa",marginTop:1}}>{cust.type==="B"?"🐃 Buffalo":"🐄 Cow"}{cust.phone?` · ${cust.phone}`:""}</div>
+              <div style={{fontSize:11,color:"#aaa",marginTop:1}}>{cust.type==="B"?"🐃 Buffalo":"🐄 Cow"}{cust.phone?` · ${cust.phone}`:""}{cust.rate!=null?` · ₹${cust.rate}/L`:""}</div>
             </div>
             <button onClick={()=>setForm({...cust})} style={{background:"#EBF5FD",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"#2D7FB5",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
             <button onClick={()=>handleToggle(cust)} style={{background:cust.active?"#fff9f0":"#f0fdf4",border:`1px solid ${cust.active?"#fde68a":"#bbf7d0"}`,borderRadius:7,padding:"5px 10px",fontSize:12,color:cust.active?"#92400e":"#15803d",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
