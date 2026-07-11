@@ -242,8 +242,6 @@ function customerName(name, lang, customers) {
 
 // ─── CUSTOMER DATA ─────────────────────────────────────────────────────────
 // Customer lists loaded dynamically from Google Sheet via getCustomers
-const MORNING_CUSTOMERS = []; // populated at runtime
-const EVENING_CUSTOMERS = []; // populated at runtime
 
 
 
@@ -261,7 +259,6 @@ function fmtDate(d) {
 function fmtN(n,dec=2) { if(n==null||isNaN(n)) return "—"; return Number(n).toFixed(dec); }
 function fmtRs(n) { if(n==null||isNaN(n)) return "—"; return "₹"+Number(n).toLocaleString("en-IN",{maximumFractionDigits:0}); }
 function toNet(kgWithBucket) { return Math.max(0,((parseFloat(kgWithBucket)||0)-BUCKET_WEIGHT)*CONVERSION); }
-function kgToLtrs(kg) { return Math.max(0,(parseFloat(kg)||0)*CONVERSION); }
 
 // ─── API ───────────────────────────────────────────────────────────────────
 async function apiGet(action,params={}) {
@@ -299,14 +296,6 @@ function Card({children,style={}}) {
 }
 function SectionLabel({children,color="#555"}) {
   return <div style={{fontSize:11,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:6}}>{children}</div>;
-}
-function Input({label,...props}) {
-  return (
-    <div style={{marginBottom:13}}>
-      {label&&<SectionLabel>{label}</SectionLabel>}
-      <input style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",fontFamily:"inherit",color:"#1a1a1a"}} {...props}/>
-    </div>
-  );
 }
 function Btn({children,variant="primary",style={},...props}) {
   const base={padding:"11px 20px",borderRadius:9,fontSize:14,fontWeight:600,border:"none",cursor:"pointer",fontFamily:"inherit"};
@@ -889,6 +878,12 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
     if(!date) return;
     setSubmittedSlots({morning:false,evening:false}); setStatus(null);
     setMVals({}); setEVals({});
+    // Prefill with whatever is ALREADY saved for this date, so a late change to
+    // one customer never blanks the others — everyone's entries stay visible.
+    apiGet("getDispatchByDate",{date}).then(d=>{
+      setMVals(d&&d.morning?d.morning:{});
+      setEVals(d&&d.evening?d.evening:{});
+    }).catch(()=>{});
     const prev=new Date(date+"T00:00:00"); prev.setDate(prev.getDate()-1);
     const prevDateStr=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,"0")}-${String(prev.getDate()).padStart(2,"0")}`;
     apiGet("getDispatchByDate",{date:prevDateStr}).then(d=>setPrevData(d)).catch(()=>setPrevData(null));
@@ -2464,17 +2459,27 @@ export default function App() {
   const [feedRates,setFeedRates]=useState(null);
   const [custLoading,setCustLoading]=useState(true);
 
+  // Load only what the chosen role needs, and only after login. The delivery
+  // person never pulls the heavy cattle data; the supervisor skips the customer
+  // list. This is the main reason the app opens faster on slower phones.
   useEffect(()=>{
-    apiGet("getCustomers")
-      .then(d=>{
-        setCustomers(d.customers||[]);
-        setCustLoading(false);
-      })
-      .catch(()=>setCustLoading(false));
-    apiGet("getCattle")
-      .then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); })
-      .catch(()=>{});
-  },[]);
+    if(!role) return;
+    const needCustomers = role==="delivery" || role==="owner";
+    const needCattle    = role==="supervisor" || role==="owner";
+    if(needCustomers){
+      setCustLoading(true);
+      apiGet("getCustomers")
+        .then(d=>{ setCustomers(d.customers||[]); setCustLoading(false); })
+        .catch(()=>setCustLoading(false));
+    } else {
+      setCustLoading(false);
+    }
+    if(needCattle){
+      apiGet("getCattle")
+        .then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); })
+        .catch(()=>{});
+    }
+  },[role]);
 
   function reloadCustomers() {
     apiGet("getCustomers").then(d=>setCustomers(d.customers||[])).catch(()=>{});
