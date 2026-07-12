@@ -297,6 +297,36 @@ function Card({children,style={}}) {
 function SectionLabel({children,color="#555"}) {
   return <div style={{fontSize:11,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:6}}>{children}</div>;
 }
+function MilkSparkline({daily=[], isB=true}) {
+  if(!daily||daily.length===0) return null;
+  const color = isB?"#b45309":"#2D7FB5";
+  const max = Math.max(1, ...daily.map(d=>d.litres||0));
+  const H = 42;
+  const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return (
+    <div style={{margin:"2px 0 14px"}}>
+      <div style={{fontSize:11,color:"#94a3b8",fontWeight:700,marginBottom:7}}>Last 7 days (L/day)</div>
+      <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:4}}>
+        {daily.map((d,i)=>{
+          const v = d.litres||0;
+          const h = Math.round((v/max)*H);
+          const dt = new Date(d.date+"T00:00:00");
+          const wd = WD[dt.getDay()];
+          const dm = `${dt.getDate()}/${dt.getMonth()+1}`;
+          return (
+            <div key={i} style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+              <div style={{fontSize:10,fontWeight:700,color:v>0?"#1a1a1a":"#cbd5e1",lineHeight:1}}>{v>0?fmtN(v,1):"–"}</div>
+              <div style={{width:"72%",maxWidth:24,height:H,display:"flex",alignItems:"flex-end"}}>
+                <div style={{width:"100%",height:Math.max(v>0?3:2,h),background:v>0?color:"#e5e7eb",borderRadius:"4px 4px 2px 2px"}}/>
+              </div>
+              <div style={{fontSize:8.5,color:"#94a3b8",lineHeight:1.15,textAlign:"center"}}>{wd}<br/>{dm}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 function Btn({children,variant="primary",style={},...props}) {
   const base={padding:"11px 20px",borderRadius:9,fontSize:14,fontWeight:600,border:"none",cursor:"pointer",fontFamily:"inherit"};
   const v={primary:{background:"#2D7FB5",color:"#fff"},ghost:{background:"transparent",color:"#2D7FB5",border:"1.5px solid #2D7FB5"},gray:{background:"#f1f5f9",color:"#475569"},danger:{background:"#dc2626",color:"#fff"}};
@@ -1385,6 +1415,7 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
 
         {open&&(
           <div style={{marginTop:4,borderTop:"1px solid #f1f5f9",paddingTop:8}}>
+            {isMilk&&c.milkDaily7&&c.milkDaily7.length>0&&<MilkSparkline daily={c.milkDaily7} isB={c.type==="B"}/>}
             <Detail label="Acquired" value={c.dateIn?fmtDate(c.dateIn):""}/>
             <Detail label="Last calving" value={c.lastCalving?fmtDate(c.lastCalving):""}/>
             <Detail label="Lactation no." value={c.lactationNo}/>
