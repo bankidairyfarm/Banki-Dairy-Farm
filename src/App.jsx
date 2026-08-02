@@ -17,7 +17,7 @@ const BUFFALO_CATTLE = ["B4","B5","B6","B7","B8","B9"]; // B1 currently dry
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","10","Nil"];
+const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -93,6 +93,14 @@ const TR = {
     buf30: "Buffalo (30d)", cow30: "Cow (30d)",
     sourcedToday: "Sourced Today", totalAvail: "Total Available",
     sourced30: "Sourced (30d)", totalAvail30: "Total Available (30d)",
+    // Payment tracker
+    payments: "Payments", payTitle: "Payment Tracker",
+    paySubDelivery: "Mark who has paid this month",
+    paySubOwner: "Confirm payments — delivery status shown",
+    payPaid: "Paid", payDue: "Due", payUnpaid: "Unpaid", payAll: "All",
+    payAllClear: "All paid here ✓",
+    payLink: "Payment tracker",
+    payHint: "This is only a payment record — it does not affect any revenue or profit figures. Tap Paid or Due for each customer (tap again to clear). Red rows are not yet paid.",
   },
   hi: {
     appName: "बंकी डेयरी फार्म", appSub: "संचालन ट्रैकर",
@@ -159,6 +167,14 @@ const TR = {
     buf30: "भैंस (30 दिन)", cow30: "गाय (30 दिन)",
     sourcedToday: "आज खरीदा", totalAvail: "कुल उपलब्ध",
     sourced30: "खरीदा (30 दिन)", totalAvail30: "कुल उपलब्ध (30 दिन)",
+    // Payment tracker
+    payments: "भुगतान", payTitle: "भुगतान ट्रैकर",
+    paySubDelivery: "इस महीने किसने भुगतान किया, चुनें",
+    paySubOwner: "भुगतान की पुष्टि करें — डिलीवरी स्थिति नीचे",
+    payPaid: "मिल गया", payDue: "बाकी", payUnpaid: "बाकी", payAll: "सभी",
+    payAllClear: "यहाँ सभी का भुगतान हुआ ✓",
+    payLink: "भुगतान ट्रैकर",
+    payHint: "यह सिर्फ़ भुगतान का रिकॉर्ड है — इससे आय या मुनाफ़े के किसी आँकड़े पर असर नहीं पड़ता। हर ग्राहक के लिए 'मिल गया' या 'बाकी' दबाएँ (फिर से दबाने पर हट जाएगा)। लाल पंक्तियाँ अभी बाकी हैं।",
   },
   ur: {
     appName: "بانکی ڈیری فارم", appSub: "آپریشن ٹریکر",
@@ -225,6 +241,14 @@ const TR = {
     buf30: "بھینس (30 دن)", cow30: "گائے (30 دن)",
     sourcedToday: "آج خریدا", totalAvail: "کل دستیاب",
     sourced30: "خریدا (30 دن)", totalAvail30: "کل دستیاب (30 دن)",
+    // Payment tracker
+    payments: "ادائیگی", payTitle: "ادائیگی ٹریکر",
+    paySubDelivery: "اس ماہ کس نے ادائیگی کی، منتخب کریں",
+    paySubOwner: "ادائیگی کی تصدیق کریں — ڈیلیوری اسٹیٹس نیچے",
+    payPaid: "مل گیا", payDue: "باقی", payUnpaid: "باقی", payAll: "سب",
+    payAllClear: "یہاں سب کی ادائیگی ہو گئی ✓",
+    payLink: "ادائیگی ٹریکر",
+    payHint: "یہ صرف ادائیگی کا ریکارڈ ہے — اس سے آمدنی یا منافع کے کسی اعداد پر اثر نہیں پڑتا۔ ہر گاہک کے لیے 'مل گیا' یا 'باقی' دبائیں (دوبارہ دبانے پر ہٹ جائے گا)۔ سرخ قطاریں ابھی باقی ہیں۔",
   },
 };
 
@@ -892,8 +916,150 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[]}) {
   );
 }
 
+// ─── PAYMENT TRACKER (shared by Delivery & Owner) ───────────────────────────
+// A nominal, month-by-month record of who has paid. Deliberately kept OUTSIDE
+// every revenue / P&L calculation — it never feeds the dashboard or profit
+// numbers. Data lives in its own "Payments" sheet (Month × Customer rows).
+//   mode="delivery" -> delivery person sets the first (collection) status
+//   mode="owner"    -> owner sets a second confirmation, and also sees the
+//                      delivery person's status read-only.
+function PaymentTracker({mode="delivery", customers=[], lang, t, onBack}) {
+  const field = mode==="owner" ? "owner" : "delivery"; // which status this view owns
+  const [month,setMonth]=useState(()=>today().substring(0,7)); // YYYY-MM
+  const [payments,setPayments]=useState({}); // { name_en: {delivery, owner} }
+  const [loading,setLoading]=useState(true);
+  const [filter,setFilter]=useState("all"); // "all" | "unpaid"
+  const [toast,setToast]=useState(null);
+  const [busyKey,setBusyKey]=useState(null);
+
+  function showToast(msg,type="success"){setToast({msg,type});setTimeout(()=>setToast(null),2500);}
+
+  useEffect(()=>{
+    setLoading(true);
+    apiGet("getPayments",{month})
+      .then(d=>setPayments(d&&d.payments?d.payments:{}))
+      .catch(()=>setPayments({}))
+      .finally(()=>setLoading(false));
+  },[month]);
+
+  const active  = customers.filter(c=>c.active);
+  const st      = name => { const p=payments[name]||{}; return {delivery:(p.delivery||"").toLowerCase(),owner:(p.owner||"").toLowerCase()}; };
+  const isPaid  = name => st(name)[field]==="paid";
+
+  const paidCount   = active.filter(c=>isPaid(c.name_en)).length;
+  const unpaidCount = active.length - paidCount;
+
+  async function mark(name,status){
+    const cur  = st(name)[field];
+    const next = cur===status ? "" : status; // tap the active one again to clear it
+    setBusyKey(name);
+    setPayments(p=>({...p,[name]:{...(p[name]||{}),[field]:next}})); // optimistic
+    try { await apiPost("setPayment",{month,customer:name,field,status:next}); }
+    catch(e){ showToast(e.message||"Save failed","error"); }
+    finally{ setBusyKey(null); }
+  }
+
+  const morning = active.filter(c=>c.slot==="morning");
+  const evening = active.filter(c=>c.slot==="evening");
+
+  function Row({c}){
+    const s     = st(c.name_en);
+    const mine  = s[field];
+    const paid  = mine==="paid";
+    const due   = mine==="due";
+    const name  = customerName(c.name_en,lang,customers);
+    const isB   = c.type==="B";
+    const badgeColor = isB?"#92400e":"#2D7FB5";
+    const badgeBg    = isB?"#fde68a":"#9ACFF0";
+    const dStatus = s.delivery; // shown read-only in owner view
+    return (
+      <div style={{
+        display:"flex",alignItems:"center",gap:8,padding:"9px 8px",
+        borderRadius:8,marginBottom:4,
+        background: paid?"#f0fdf4":"#fef2f2",
+        border: "1px solid "+(paid?"#bbf7d0":"#fecaca"),
+        borderLeft: "3px solid "+(paid?"#16a34a":"#dc2626")
+      }}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{name}</span>
+            <span style={{background:badgeBg,color:badgeColor,fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:10,flexShrink:0}}>{isB?"🐃 B":"🐄 C"}</span>
+          </div>
+          {mode==="owner"&&(
+            <div style={{fontSize:10.5,marginTop:2,color:"#64748b"}}>
+              {t.roleDelivery}: {dStatus==="paid"
+                ? <span style={{color:"#15803d",fontWeight:700}}>✓ {t.payPaid}</span>
+                : dStatus==="due"
+                ? <span style={{color:"#dc2626",fontWeight:700}}>{t.payDue}</span>
+                : <span style={{color:"#94a3b8",fontWeight:600}}>—</span>}
+            </div>
+          )}
+        </div>
+        <button onClick={()=>mark(c.name_en,"paid")} disabled={busyKey===c.name_en}
+          style={{padding:"6px 10px",borderRadius:8,border:"1.5px solid "+(paid?"#16a34a":"#e2e8f0"),background:paid?"#16a34a":"#fff",color:paid?"#fff":"#64748b",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>✓ {t.payPaid}</button>
+        <button onClick={()=>mark(c.name_en,"due")} disabled={busyKey===c.name_en}
+          style={{padding:"6px 10px",borderRadius:8,border:"1.5px solid "+(due?"#dc2626":"#e2e8f0"),background:due?"#dc2626":"#fff",color:due?"#fff":"#64748b",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>{t.payDue}</button>
+      </div>
+    );
+  }
+
+  function Group({title,list}){
+    if(list.length===0) return null;
+    const shown = filter==="unpaid" ? list.filter(c=>!isPaid(c.name_en)) : list;
+    return (
+      <Card style={{marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:13,color:"#555",marginBottom:10}}>{title} ({shown.length})</div>
+        {shown.length===0
+          ? <div style={{fontSize:12.5,color:"#94a3b8",textAlign:"center",padding:"8px 0"}}>{t.payAllClear}</div>
+          : shown.map(c=><Row key={c.name_en} c={c}/>)}
+      </Card>
+    );
+  }
+
+  return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:"#2D7FB5",cursor:"pointer",fontSize:22,lineHeight:1}}>←</button>
+        <div>
+          <div style={{fontSize:20,fontWeight:700,color:"#1a1a1a"}}>{t.payTitle}</div>
+          <div style={{fontSize:12,color:"#888"}}>{mode==="owner"?t.paySubOwner:t.paySubDelivery}</div>
+        </div>
+      </div>
+
+      <Card style={{marginBottom:12}}>
+        <SectionLabel>{t.month}</SectionLabel>
+        <input type="month" value={month} max={today().substring(0,7)} onChange={e=>setMonth(e.target.value)}
+          style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none",boxSizing:"border-box",WebkitAppearance:"none",fontFamily:"inherit",color:"#1a1a1a",display:"block",minWidth:0}}/>
+      </Card>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+        <StatBox label={t.payPaid} value={String(paidCount)} color="#15803d"/>
+        <StatBox label={t.payUnpaid} value={String(unpaidCount)} color="#dc2626"/>
+      </div>
+
+      <TabBar tabs={[{key:"all",label:t.payAll},{key:"unpaid",label:`${t.payUnpaid} (${unpaidCount})`}]} active={filter} onChange={setFilter}/>
+
+      {loading
+        ? <div style={{textAlign:"center",padding:"40px 20px",color:"#aaa",fontSize:13}}>{t.loading}</div>
+        : active.length===0
+        ? <Card><div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"20px 0"}}>{t.noData}</div></Card>
+        : <>
+            <Group title={`☀️ ${t.morningCustomers}`} list={morning}/>
+            <Group title={`🌙 ${t.eveningCustomers}`} list={evening}/>
+          </>
+      }
+
+      <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:11.5,color:"#1A5C8A",marginTop:4}}>
+        ℹ️ {t.payHint}
+      </div>
+    </div>
+  );
+}
+
 function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers=[]}) {
   const t=TR[lang];
+  const [screen,setScreen]=useState("delivery"); // "delivery" | "payments"
   const [date,setDate]=useState(today());
   const [slot,setSlot]=useState("morning");
   const [mVals,setMVals]=useState({});
@@ -944,11 +1110,16 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
     } catch(e){setErrMsg(e.message);setStatus("error");}
   }
 
+  if(screen==="payments") return <PaymentTracker mode="delivery" customers={customers} lang={lang} t={t} onBack={()=>setScreen("delivery")}/>;
+
   return (
     <div>
-      <div style={{marginBottom:18}}>
-        <div style={{fontSize:20,fontWeight:700,color:"#1a1a1a"}}>{t.delTitle}</div>
-        <div style={{color:"#888",fontSize:13,marginTop:2}}>{t.delSub}</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:18}}>
+        <div>
+          <div style={{fontSize:20,fontWeight:700,color:"#1a1a1a"}}>{t.delTitle}</div>
+          <div style={{color:"#888",fontSize:13,marginTop:2}}>{t.delSub}</div>
+        </div>
+        <Btn variant="ghost" onClick={()=>setScreen("payments")} style={{padding:"8px 12px",fontSize:12,flexShrink:0,whiteSpace:"nowrap"}}>💰 {t.payments}</Btn>
       </div>
 
       {status==="success"&&(
@@ -1011,6 +1182,7 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
   const [form,setForm]=useState(null); // null=list, object=edit form
   const [saving,setSaving]=useState(false);
   const [toast,setToast]=useState(null);
+  const [showPayments,setShowPayments]=useState(false); // owner payment tracker view
 
   const slots = ["morning","evening"];
   const types = ["B","C"];
@@ -1069,6 +1241,8 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
       showToast("Customer deleted");
     } catch(e){showToast(e.message,"error");}
   }
+
+  if(showPayments) return <PaymentTracker mode="owner" customers={customers} lang={lang} t={t} onBack={()=>setShowPayments(false)}/>;
 
   if(form) return (
     <div>
@@ -1219,6 +1393,9 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
           <div style={{fontSize:12,color:"#888",marginTop:2}}>{customers.filter(c=>c.active).length} active of {customers.length} total</div>
         </div>
         <Btn onClick={()=>setForm(blankForm())} style={{padding:"8px 16px",fontSize:13}}>+ Add</Btn>
+      </div>
+      <div onClick={()=>setShowPayments(true)} style={{display:"inline-flex",alignItems:"center",gap:6,color:"#2D7FB5",fontSize:13,fontWeight:700,cursor:"pointer",textDecoration:"underline",marginBottom:14}}>
+        💰 {t.payLink} →
       </div>
       <Section title="☀️ Morning" list={morning}/>
       <Section title="🌙 Evening" list={evening}/>
