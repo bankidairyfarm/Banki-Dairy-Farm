@@ -2454,6 +2454,47 @@ function FinanceLock({onUnlock}){
   );
 }
 
+function BillsView({lang, t}) {
+  const nowM = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); };
+  const [month,setMonth]=useState(nowM());
+  const [status,setStatus]=useState(null);
+  const [msg,setMsg]=useState("");
+  async function generate(){
+    if(!month){ setMsg("Please pick a month."); setStatus("error"); return; }
+    setStatus("loading"); setMsg("");
+    try{
+      const j=await apiGet("getBillsDoc",{month});
+      if(!j||!j.html) throw new Error("No bills were returned for this month.");
+      const blob=new Blob([j.html],{type:"text/html;charset=utf-8"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url; a.download=j.filename||("Banki_Dairy_"+month+"_Bills.html");
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),4000);
+      setMsg((j.count||0)+" bill"+((j.count||0)===1?"":"s")+" for "+(j.monthLabel||month)+" downloaded. Open the file, then print or save as PDF.");
+      setStatus("success");
+    }catch(e){ setMsg(e.message); setStatus("error"); }
+  }
+  return (
+    <div>
+      <Card style={{marginBottom:14}}>
+        <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a",marginBottom:6}}>Generate customer bills</div>
+        <div style={{fontSize:12,color:"#888",marginBottom:14,lineHeight:1.55}}>
+          Builds a printable bill for every customer with deliveries in the chosen month, using the rate set for each customer (including wholesale) and their Urdu name from your customer list. It downloads a ready HTML file — open it, then print or save as PDF.
+        </div>
+        <SectionLabel>Billing month</SectionLabel>
+        <input type="month" value={month} max={nowM()} onChange={e=>setMonth(e.target.value)}
+          style={{width:"100%",padding:"10px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:15,background:"#fafafa",outline:"none",boxSizing:"border-box",WebkitAppearance:"none",fontFamily:"inherit",color:"#1a1a1a"}}/>
+        <div style={{height:14}}/>
+        <Btn onClick={generate} style={{width:"100%"}} disabled={status==="loading"}>
+          {status==="loading"?"Generating…":"⬇ Generate & download bills"}
+        </Btn>
+      </Card>
+      {status==="success"&&<Alert type="success">{msg}</Alert>}
+      {status==="error"&&<Alert type="error">⚠️ {msg}</Alert>}
+    </div>
+  );
+}
 function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
@@ -2484,6 +2525,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
         {key:"feed",title:"Feed",desc:"Feed mix & cost per cattle, and rates",emoji:"🌾",color:"#2d6a4f"},
         {key:"cattle",title:"Cattle",desc:"Herd details, milk/day, add or sell cattle",emoji:"🐄",color:"#92400e"},
         {key:"customers",title:"Customers",desc:"Delivery customers & their list positions",emoji:"🧾",color:"#1A5C8A"},
+        {key:"bills",title:"Bills",desc:"Generate & download monthly customer bills",emoji:"🖨️",color:"#7c3aed"},
         {key:"actions",title:"Action Items",desc:"AI, vaccination & deworming due",emoji:"🔔",color:"#dc2626"}
       ].map(s=>(
         <div key={s.key} onClick={()=>setSection(s.key)} style={{cursor:"pointer",background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04)",padding:"18px 20px",marginBottom:12,display:"flex",alignItems:"center",gap:14,borderLeft:"4px solid "+s.color}}>
@@ -2498,7 +2540,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
     </div>
   );
 
-  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":section==="actions"?"Action Items":"Customers";
+  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":section==="actions"?"Action Items":section==="bills"?"Bills":"Customers";
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
@@ -2516,6 +2558,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       {section==="pnl"&&financeUnlocked&&<PnLAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t}/>}
       {section==="txns"&&financeUnlocked&&<TransactionsAdmin lang={lang} t={t}/>}
       {section==="actions"&&<ActionItemsView cattle={cattle}/>}
+      {section==="bills"&&<BillsView lang={lang} t={t}/>}
 
       {section==="operations"&&(loading
         ? <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>{t.loading}</div></div>
