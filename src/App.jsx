@@ -2505,7 +2505,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
   const [section,setSection]=useState(null);
   const [financeUnlocked,setFinanceUnlocked]=useState(false);
   async function load(){setLoading(true);setError(null);try{setData(await apiGet("getDashboard"));}catch(e){setError(e.message);}finally{setLoading(false);}}
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{ if(section==="operations" && !data) load(); },[section]);
 
   const {summary={},recentDays=[],monthlyTrend=[]}=data||{};
   const gap30=(summary.last30DaysTotal||summary.last30DaysProduce||0)-(summary.last30DaysDispatched||0);
@@ -2717,18 +2717,20 @@ export default function App() {
     if(!role) return;
     const needCustomers = role==="delivery" || role==="owner";
     const needCattle    = role==="supervisor" || role==="owner";
+    const loadCattle=()=>apiGet("getCattle")
+      .then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); })
+      .catch(()=>{});
     if(needCustomers){
       setCustLoading(true);
+      // Fetch customers first (this gates the view). Only after it returns do we
+      // pull the heavier cattle data, so the two never queue against each other
+      // server-side and the owner/delivery view appears quickly.
       apiGet("getCustomers")
-        .then(d=>{ setCustomers(d.customers||[]); setCustLoading(false); })
-        .catch(()=>setCustLoading(false));
+        .then(d=>{ setCustomers(d.customers||[]); setCustLoading(false); if(needCattle) loadCattle(); })
+        .catch(()=>{ setCustLoading(false); if(needCattle) loadCattle(); });
     } else {
       setCustLoading(false);
-    }
-    if(needCattle){
-      apiGet("getCattle")
-        .then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); })
-        .catch(()=>{});
+      if(needCattle) loadCattle();   // supervisor: cattle only, no customer list needed
     }
   },[role]);
 
