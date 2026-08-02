@@ -91,13 +91,14 @@ const TR = {
     submitMorning: "Submit Morning Deliveries", submitEvening: "Submit Evening Deliveries",
     bufToday: "Buffalo Today", cowToday: "Cow Today",
     buf30: "Buffalo (30d)", cow30: "Cow (30d)",
-    sourcedToday: "Sourced Today", totalAvail: "Total Available",
+    sourcedToday: "Sourced Today", sourcedCol: "Sourced", totalAvail: "Total Available",
     sourced30: "Sourced (30d)", totalAvail30: "Total Available (30d)",
     // Payment tracker
     payments: "Payments", payTitle: "Payment Tracker",
     paySubDelivery: "Mark who has paid this month",
     paySubOwner: "Confirm payments — delivery status shown",
     payPaid: "Paid", payDue: "Due", payUnpaid: "Unpaid", payAll: "All",
+    payRevertConfirm: "Change this back to Due (unpaid)?",
     payAllClear: "All paid here ✓",
     payLink: "Payment tracker",
     payHint: "This is only a payment record — it does not affect any revenue or profit figures. Tap Paid or Due for each customer (tap again to clear). Red rows are not yet paid.",
@@ -165,13 +166,14 @@ const TR = {
     submitMorning: "सुबह की डिलीवरी दर्ज करें", submitEvening: "शाम की डिलीवरी दर्ज करें",
     bufToday: "भैंस आज", cowToday: "गाय आज",
     buf30: "भैंस (30 दिन)", cow30: "गाय (30 दिन)",
-    sourcedToday: "आज खरीदा", totalAvail: "कुल उपलब्ध",
+    sourcedToday: "आज खरीदा", sourcedCol: "खरीदा", totalAvail: "कुल उपलब्ध",
     sourced30: "खरीदा (30 दिन)", totalAvail30: "कुल उपलब्ध (30 दिन)",
     // Payment tracker
     payments: "भुगतान", payTitle: "भुगतान ट्रैकर",
     paySubDelivery: "इस महीने किसने भुगतान किया, चुनें",
     paySubOwner: "भुगतान की पुष्टि करें — डिलीवरी स्थिति नीचे",
     payPaid: "मिल गया", payDue: "बाकी", payUnpaid: "बाकी", payAll: "सभी",
+    payRevertConfirm: "इसे वापस बाकी करें?",
     payAllClear: "यहाँ सभी का भुगतान हुआ ✓",
     payLink: "भुगतान ट्रैकर",
     payHint: "यह सिर्फ़ भुगतान का रिकॉर्ड है — इससे आय या मुनाफ़े के किसी आँकड़े पर असर नहीं पड़ता। हर ग्राहक के लिए 'मिल गया' या 'बाकी' दबाएँ (फिर से दबाने पर हट जाएगा)। लाल पंक्तियाँ अभी बाकी हैं।",
@@ -239,13 +241,14 @@ const TR = {
     submitMorning: "صبح کی ڈیلیوری درج کریں", submitEvening: "شام کی ڈیلیوری درج کریں",
     bufToday: "بھینس آج", cowToday: "گائے آج",
     buf30: "بھینس (30 دن)", cow30: "گائے (30 دن)",
-    sourcedToday: "آج خریدا", totalAvail: "کل دستیاب",
+    sourcedToday: "آج خریدا", sourcedCol: "خریدا", totalAvail: "کل دستیاب",
     sourced30: "خریدا (30 دن)", totalAvail30: "کل دستیاب (30 دن)",
     // Payment tracker
     payments: "ادائیگی", payTitle: "ادائیگی ٹریکر",
     paySubDelivery: "اس ماہ کس نے ادائیگی کی، منتخب کریں",
     paySubOwner: "ادائیگی کی تصدیق کریں — ڈیلیوری اسٹیٹس نیچے",
     payPaid: "مل گیا", payDue: "باقی", payUnpaid: "باقی", payAll: "سب",
+    payRevertConfirm: "اسے واپس باقی کریں؟",
     payAllClear: "یہاں سب کی ادائیگی ہو گئی ✓",
     payLink: "ادائیگی ٹریکر",
     payHint: "یہ صرف ادائیگی کا ریکارڈ ہے — اس سے آمدنی یا منافع کے کسی اعداد پر اثر نہیں پڑتا۔ ہر گاہک کے لیے 'مل گیا' یا 'باقی' دبائیں (دوبارہ دبانے پر ہٹ جائے گا)۔ سرخ قطاریں ابھی باقی ہیں۔",
@@ -949,12 +952,16 @@ function PaymentTracker({mode="delivery", customers=[], lang, t, onBack}) {
   const paidCount   = active.filter(c=>isPaid(c.name_en)).length;
   const unpaidCount = active.length - paidCount;
 
-  async function mark(name,status){
-    const cur  = st(name)[field];
-    const next = cur===status ? "" : status; // tap the active one again to clear it
+  async function onSelect(name,val){
+    const cur = st(name)[field]==="paid" ? "paid" : "due";
+    if(val===cur) return;
+    if(val==="due"){ // reverting a Paid back to Due must be deliberate
+      const ok = window.confirm(t.payRevertConfirm+"\n"+customerName(name,lang,customers));
+      if(!ok){ setPayments(p=>({...p})); return; } // cancelled -> re-render resets the dropdown
+    }
     setBusyKey(name);
-    setPayments(p=>({...p,[name]:{...(p[name]||{}),[field]:next}})); // optimistic
-    try { await apiPost("setPayment",{month,customer:name,field,status:next}); }
+    setPayments(p=>({...p,[name]:{...(p[name]||{}),[field]:val}})); // optimistic
+    try { await apiPost("setPayment",{month,customer:name,field,status:val}); showToast(val==="paid"?t.payPaid+" \u2713":t.payDue); }
     catch(e){ showToast(e.message||"Save failed","error"); }
     finally{ setBusyKey(null); }
   }
@@ -995,10 +1002,12 @@ function PaymentTracker({mode="delivery", customers=[], lang, t, onBack}) {
             </div>
           )}
         </div>
-        <button onClick={()=>mark(c.name_en,"paid")} disabled={busyKey===c.name_en}
-          style={{padding:"6px 10px",borderRadius:8,border:"1.5px solid "+(paid?"#16a34a":"#e2e8f0"),background:paid?"#16a34a":"#fff",color:paid?"#fff":"#64748b",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>✓ {t.payPaid}</button>
-        <button onClick={()=>mark(c.name_en,"due")} disabled={busyKey===c.name_en}
-          style={{padding:"6px 10px",borderRadius:8,border:"1.5px solid "+(due?"#dc2626":"#e2e8f0"),background:due?"#dc2626":"#fff",color:due?"#fff":"#64748b",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>{t.payDue}</button>
+        <select value={paid?"paid":"due"} disabled={busyKey===c.name_en}
+          onChange={e=>onSelect(c.name_en, e.target.value)}
+          style={{padding:"7px 10px",borderRadius:8,border:"1.5px solid "+(paid?"#16a34a":"#dc2626"),background:paid?"#16a34a":"#fff",color:paid?"#fff":"#dc2626",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+          <option value="due">{t.payDue}</option>
+          <option value="paid">{"\u2713 "+t.payPaid}</option>
+        </select>
       </div>
     );
   }
@@ -2504,12 +2513,21 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
 
   const [section,setSection]=useState(null);
   const [financeUnlocked,setFinanceUnlocked]=useState(false);
+  const [snapIdx,setSnapIdx]=useState(0);
   async function load(){setLoading(true);setError(null);try{setData(await apiGet("getDashboard"));}catch(e){setError(e.message);}finally{setLoading(false);}}
   useEffect(()=>{ if(section==="operations" && !data) load(); },[section]);
 
   const {summary={},recentDays=[],monthlyTrend=[]}=data||{};
   const gap30=(summary.last30DaysTotal||summary.last30DaysProduce||0)-(summary.last30DaysDispatched||0);
   const todayGap=(summary.todayTotal||summary.todayProduce||0)-(summary.todayDispatched||0);
+  const _si=recentDays.length?Math.min(snapIdx,recentDays.length-1):0;
+  const _snap=recentDays[_si]||{};
+  const _snTotal=_snap.total!=null?_snap.total:(_snap.produced||0);
+  const _snProd=_snap.produced||0;
+  const _snSourced=Math.max(0,_snTotal-_snProd);
+  const _snDisp=_snap.dispatched||0;
+  const _snGap=_snTotal-_snDisp;
+  const _snRev=_snap.revenue||0;
 
   // ── Cover page: choose a section ──
   if(section===null) return (
@@ -2570,31 +2588,41 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       {tab==="overview"&&(
         <div>
           <Card style={{marginBottom:14}}>
-            <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a",marginBottom:12}}>{t.todaySnap}</div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:12}}>
+              <button onClick={()=>setSnapIdx(i=>Math.min(recentDays.length-1,i+1))} disabled={_si>=recentDays.length-1}
+                style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"6px 12px",fontSize:16,fontWeight:800,cursor:_si>=recentDays.length-1?"default":"pointer",color:_si>=recentDays.length-1?"#cbd5e1":"#2D7FB5",fontFamily:"inherit"}}>‹</button>
+              <div style={{textAlign:"center",flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:14,color:"#1a1a1a"}}>{_snap.date?fmtDate(_snap.date):t.todaySnap}</div>
+                {_si===0&&recentDays.length>0&&<div style={{fontSize:10,color:"#94a3b8"}}>{t.latestDay||"Latest day"}</div>}
+              </div>
+              <button onClick={()=>setSnapIdx(i=>Math.max(0,i-1))} disabled={_si<=0}
+                style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"6px 12px",fontSize:16,fontWeight:800,cursor:_si<=0?"default":"pointer",color:_si<=0?"#cbd5e1":"#2D7FB5",fontFamily:"inherit"}}>›</button>
+            </div>
+            {recentDays.length===0?<div style={{color:"#aaa",fontSize:12,textAlign:"center",padding:"10px 0"}}>{t.noDataToday}</div>:<>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <StatBox label={t.totalAvail} value={`${fmtN(summary.todayTotal||summary.todayProduce||0,1)} L`} color="#2d6a4f"/>
-              <StatBox label={t.dispatched} value={`${fmtN(summary.todayDispatched||0,1)} L`} color="#1A5C8A"/>
+              <StatBox label={t.totalAvail} value={`${fmtN(_snTotal,1)} L`} color="#2d6a4f"/>
+              <StatBox label={t.dispatched} value={`${fmtN(_snDisp,1)} L`} color="#1A5C8A"/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <StatBox label={t.gap} value={`${fmtN(Math.abs(todayGap),1)} L`}
-                sub={todayGap>0?t.surplus:todayGap<0?t.deficit:t.balanced}
-                color={todayGap>=0?"#2D7FB5":"#dc2626"}/>
-              <StatBox label={t.revToday} value={fmtRs(summary.todayRevenue||0)} color="#2D7FB5"/>
+              <StatBox label={t.gap} value={`${fmtN(Math.abs(_snGap),1)} L`}
+                sub={_snGap>0?t.surplus:_snGap<0?t.deficit:t.balanced}
+                color={_snGap>=0?"#2D7FB5":"#dc2626"}/>
+              <StatBox label={t.revenue} value={fmtRs(_snRev)} color="#2D7FB5"/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <StatBox label={t.produced} value={`${fmtN(summary.todayProduce||0,1)} L`} color="#2D7FB5"/>
-              <StatBox label={t.sourcedToday} value={`${fmtN(summary.todaySourced||0,1)} L`} color="#92400e"/>
+              <StatBox label={t.produced} value={`${fmtN(_snProd,1)} L`} color="#2D7FB5"/>
+              <StatBox label={t.sourcedCol} value={`${fmtN(_snSourced,1)} L`} color="#92400e"/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-              <StatBox label={t.bufToday} value={`${fmtN(summary.todayProduceB||0,1)} L`} color="#92400e"/>
-              <StatBox label={t.cowToday} value={`${fmtN(summary.todayProduceC||0,1)} L`} color="#2D7FB5"/>
+              <StatBox label={t.buffalo} value={`${fmtN(_snap.buffalo||0,1)} L`} color="#92400e"/>
+              <StatBox label={t.cow} value={`${fmtN(_snap.cow||0,1)} L`} color="#2D7FB5"/>
             </div>
-            {(summary.todayTotal||summary.todayProduce||0)>0&&(
-              <div style={{padding:"9px 13px",borderRadius:9,background:todayGap>=0?"#f0fdf4":"#fef2f2",color:todayGap>=0?"#15803d":"#dc2626",fontSize:13,fontWeight:600}}>
-                {todayGap>=0?`${t.surplusMsg} ${fmtN(todayGap,1)} L`:`${t.deficitMsg} ${fmtN(Math.abs(todayGap),1)} L`}
+            {_snTotal>0&&(
+              <div style={{padding:"9px 13px",borderRadius:9,background:_snGap>=0?"#f0fdf4":"#fef2f2",color:_snGap>=0?"#15803d":"#dc2626",fontSize:13,fontWeight:600}}>
+                {_snGap>=0?`${t.surplusMsg} ${fmtN(_snGap,1)} L`:`${t.deficitMsg} ${fmtN(Math.abs(_snGap),1)} L`}
               </div>
             )}
-            {(summary.todayProduce||0)===0&&<div style={{color:"#aaa",fontSize:12}}>{t.noDataToday}</div>}
+            </>}
           </Card>
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
@@ -2633,7 +2661,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                 <thead><tr style={{borderBottom:"2px solid #f1f5f9"}}>
-                  {[t.tableDate,t.totalAvail,t.dispatched,t.gap,t.revenue,t.prodStatusLbl,t.buffalo,t.cow].map(h=>(
+                  {[t.tableDate,t.totalAvail,t.dispatched,t.gap,t.revenue,t.prodStatusLbl,t.buffalo,t.cow,t.sourcedCol].map(h=>(
                     <th key={h} style={{textAlign:"left",padding:"5px 7px",color:"#888",fontWeight:600,fontSize:11,textTransform:"uppercase"}}>{h}</th>
                   ))}
                 </tr></thead>
@@ -2654,6 +2682,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
                       </td>
                       <td style={{padding:"7px"}}>{fmtN(row.buffalo!=null?row.buffalo:0,1)}</td>
                       <td style={{padding:"7px"}}>{fmtN(row.cow!=null?row.cow:0,1)}</td>
+                      <td style={{padding:"7px"}}>{fmtN((row.total!=null?row.total:(row.produced||0))-(row.produced||0),1)}</td>
                     </tr>;
                   })}
                 </tbody>
