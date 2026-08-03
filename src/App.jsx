@@ -928,7 +928,7 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[]}) {
 //                      delivery person's status read-only.
 function PaymentTracker({mode="delivery", customers=[], lang, t, onBack}) {
   const field = mode==="owner" ? "owner" : "delivery"; // which status this view owns
-  const [month,setMonth]=useState(()=>today().substring(0,7)); // YYYY-MM
+  const [month,setMonth]=useState(()=>{ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }); // default: previous month (we bill after the month ends)
   const [payments,setPayments]=useState({}); // { name_en: {delivery, owner} }
   const [loading,setLoading]=useState(true);
   const [filter,setFilter]=useState("all"); // "all" | "unpaid"
