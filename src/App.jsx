@@ -17,7 +17,7 @@ const BUFFALO_CATTLE = ["B4","B5","B6","B7","B8","B9"]; // B1 currently dry
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","Nil"];
+const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","10","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -382,10 +382,13 @@ function Toast({type="info",children,onDismiss}) {
     </div>
   );
 }
-function StatBox({label,value,sub,color="#2D7FB5"}) {
+function StatBox({label,value,sub,note,color="#2D7FB5"}) {
   return (
     <div style={{background:color+"0a",border:`1px solid ${color}22`,borderRadius:12,padding:"12px 14px",flex:1,minWidth:0}}>
-      <div style={{fontSize:10,color:"#777",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:3}}>{label}</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:6,marginBottom:3}}>
+        <div style={{fontSize:10,color:"#777",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px"}}>{label}</div>
+        {note&&<div style={{fontSize:9.5,color:"#94a3b8",fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{note}</div>}
+      </div>
       <div style={{fontSize:20,fontWeight:700,color,lineHeight:1.1}}>{value}</div>
       {sub&&<div style={{fontSize:11,color:"#999",marginTop:3}}>{sub}</div>}
     </div>
@@ -2176,12 +2179,21 @@ function TransactionsAdmin({lang, t}) {
   const [fCat,setFCat]=useState("all");
   const [fSub,setFSub]=useState("all");
   const [fPayer,setFPayer]=useState("all");
+  const [netData,setNetData]=useState(null);
+  const [netLoading,setNetLoading]=useState(false);
 
   function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3000);}
   const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
 
   async function load(){ setLoading(true); setErr(null); try{ const d=await apiGet("getTransactions"); setTxns(d.transactions||[]); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
   useEffect(()=>{ load(); },[]);
+  async function loadNet(){ setNetLoading(true); try{ const d=await apiGet("getNetContributions"); setNetData(d||{people:[],months:[]}); }catch(e){}finally{ setNetLoading(false); } }
+  useEffect(()=>{ if(tab==="contribution" && !netData) loadNet(); },[tab]);
+  async function assignProceeds(mo,person){
+    setNetData(nd=>nd?{...nd,months:(nd.months||[]).map(m=>m.month===mo?{...m,person}:m)}:nd);
+    try{ await apiPost("setProceedsAssignment",{month:mo,person}); await loadNet(); }
+    catch(e){ showToast("Save failed","error"); }
+  }
 
   function blankForm(){ return {date:today(),name:"",category:"Opex",subCategory:"",payer:TXN_PAYERS[0],amount:"",rowIndex:null}; }
   async function handleSave(){
@@ -2298,7 +2310,47 @@ function TransactionsAdmin({lang, t}) {
         </div>
       )}
 
-      <TabBar tabs={[{key:"entries",label:"Entries"},{key:"summary",label:"Summary"}]} active={tab} onChange={setTab}/>
+      <TabBar tabs={[{key:"entries",label:"Entries"},{key:"summary",label:"Summary"},{key:"contribution",label:"Contribution"}]} active={tab} onChange={setTab}/>
+      {tab==="contribution"&&(
+        <div>
+          <div style={{fontSize:12,color:"#94a3b8",marginBottom:12,lineHeight:1.5}}>Net contribution = money a person spent (from transactions) minus the milk proceeds they kept. Assign each month\u2019s proceeds to whoever collected them below.</div>
+          {netLoading&&!netData?<div style={{textAlign:"center",color:"#aaa",padding:"30px 0"}}>Loading\u2026</div>:netData&&(
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                {(netData.people||[]).map(pp=>(
+                  <Card key={pp.name} style={{marginBottom:0}}>
+                    <div style={{fontWeight:800,fontSize:15,color:"#1a1a1a",marginBottom:8}}>{pp.name}</div>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,color:"#64748b",padding:"2px 0"}}><span>Spent</span><span>{fmtRs(pp.spent)}</span></div>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,color:"#64748b",padding:"2px 0"}}><span>Proceeds kept</span><span>{fmtRs(pp.proceeds)}</span></div>
+                    <div style={{display:"flex",justifyContent:"space-between",borderTop:"1.5px solid #f1f5f9",marginTop:6,paddingTop:6}}>
+                      <span style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>Net</span>
+                      <span style={{fontWeight:800,fontSize:15,color:pp.net>=0?"#15803d":"#dc2626"}}>{fmtRs(pp.net)}</span>
+                    </div>
+                  </Card>
+                ))}
+                {(!netData.people||netData.people.length===0)&&<div style={{color:"#aaa",fontSize:13}}>No data yet.</div>}
+              </div>
+              <Card>
+                <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:10}}>Assign monthly proceeds</div>
+                {(netData.months||[]).filter(m=>m.revenue>0).length===0
+                  ? <div style={{color:"#aaa",fontSize:12.5,textAlign:"center",padding:"8px 0"}}>No revenue months yet.</div>
+                  : (netData.months||[]).filter(m=>m.revenue>0).map(m=>(
+                  <div key={m.month} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #f8fafc"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:13,color:"#1a1a1a"}}>{m.month}</div>
+                      <div style={{fontSize:11,color:"#94a3b8"}}>{fmtRs(m.revenue)} proceeds</div>
+                    </div>
+                    <select value={m.person||""} onChange={e=>assignProceeds(m.month,e.target.value)} style={{...inp,width:"auto",padding:"7px 10px"}}>
+                      <option value="">\u2014 Unassigned</option>
+                      {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </Card>
+            </>
+          )}
+        </div>
+      )}
 
       {tab==="entries"&&(
         <div>
@@ -2610,12 +2662,12 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
               <StatBox label={t.revenue} value={fmtRs(_snRev)} color="#2D7FB5"/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <StatBox label={t.produced} value={`${fmtN(_snProd,1)} L`} color="#2D7FB5"/>
+              <StatBox label={t.produced} value={`${fmtN(_snProd,1)} L`} note={`M ${fmtN(_snap.mProd||0,1)} · E ${fmtN(_snap.eProd||0,1)}`} color="#2D7FB5"/>
               <StatBox label={t.sourcedCol} value={`${fmtN(_snSourced,1)} L`} color="#92400e"/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-              <StatBox label={t.buffalo} value={`${fmtN(_snap.buffalo||0,1)} L`} color="#92400e"/>
-              <StatBox label={t.cow} value={`${fmtN(_snap.cow||0,1)} L`} color="#2D7FB5"/>
+              <StatBox label={t.buffalo} value={`${fmtN(_snap.buffalo||0,1)} L`} note={`M ${fmtN(_snap.mBuf||0,1)} · E ${fmtN(_snap.eBuf||0,1)}`} color="#92400e"/>
+              <StatBox label={t.cow} value={`${fmtN(_snap.cow||0,1)} L`} note={`M ${fmtN(_snap.mCow||0,1)} · E ${fmtN(_snap.eCow||0,1)}`} color="#2D7FB5"/>
             </div>
             {_snTotal>0&&(
               <div style={{padding:"9px 13px",borderRadius:9,background:_snGap>=0?"#f0fdf4":"#fef2f2",color:_snGap>=0?"#15803d":"#dc2626",fontSize:13,fontWeight:600}}>
