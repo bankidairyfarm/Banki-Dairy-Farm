@@ -707,8 +707,9 @@ const SUP_FEED_ITEMS = [
 function supFeedLabel(it,lang){ return it[lang]||it.en; }
 function supSlotQty(it,f,slot){ const daily=it.get(f); if(it.eveningOnly) return slot==="evening"?daily:0; return daily/2; }
 
-function SupervisorFeedView({cattle=[], t, lang, onBack}){
+function SupervisorFeedView({cattle=[], t, lang, feedCategories=[], onBack}){
   const [slot,setSlot]=useState("morning");
+  const FEED_ITEMS = SUP_FEED_ITEMS.concat((feedCategories||[]).map(function(c){ const k=c.key; return {key:k, en:c.en, hi:c.hi, ur:c.ur, get:function(f){return f[k]||0;}}; }));
   const herd=cattle.filter(c=>!c.sold);
   const ordered=[...herd.filter(c=>c.type==="B"), ...herd.filter(c=>c.type==="C")];
   const cellPad="14px 12px";
@@ -730,7 +731,7 @@ function SupervisorFeedView({cattle=[], t, lang, onBack}){
               <tr style={{background:"#f1f5f9"}}>
                 <th style={{...sticky,background:"#f1f5f9",textAlign:"left",padding:cellPad,fontSize:13,fontWeight:800,color:"#334155",borderBottom:"2px solid #e2e8f0"}}>{t.cattleColLbl}</th>
                 <th style={{padding:cellPad,fontSize:12,fontWeight:700,color:"#64748b",borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>{t.milkDayLbl}</th>
-                {SUP_FEED_ITEMS.map(it=>(
+                {FEED_ITEMS.map(it=>(
                   <th key={it.key} style={{padding:cellPad,fontSize:13,fontWeight:700,color:"#334155",borderBottom:"2px solid #e2e8f0",whiteSpace:"nowrap"}}>{supFeedLabel(it,lang)}</th>
                 ))}
               </tr>
@@ -742,7 +743,7 @@ function SupervisorFeedView({cattle=[], t, lang, onBack}){
                   <tr key={c.rowIndex||c.code} style={{borderBottom:"1px solid #f1f5f9"}}>
                     <td style={{...sticky,background:"#fff",padding:cellPad,fontWeight:800,fontSize:19,color:color,borderRight:"1px solid #eef2f7"}}>{c.code}</td>
                     <td style={{padding:cellPad,textAlign:"center",fontSize:14,color:"#2D7FB5",fontWeight:700,whiteSpace:"nowrap"}}>{fmtN(c.milkAvg7||0,1)}</td>
-                    {SUP_FEED_ITEMS.map(it=>{
+                    {FEED_ITEMS.map(it=>{
                       const q=supSlotQty(it,c.feed||{},slot);
                       return <td key={it.key} style={{padding:cellPad,textAlign:"center",fontSize:18,fontWeight:700,color:q>0?"#1a1a1a":"#dbe2ea",whiteSpace:"nowrap"}}>{q>0?fmtN(q,2):"—"}</td>;
                     })}
@@ -758,7 +759,7 @@ function SupervisorFeedView({cattle=[], t, lang, onBack}){
   );
 }
 
-function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTLE, cattle=[]}) {
+function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTLE, cattle=[], feedCategories=[]}) {
   const t=TR[lang];
   const [date,setDate]=useState(today());
   const [activeSlot,setActiveSlot]=useState("morning");
@@ -802,7 +803,7 @@ function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTL
   }
 
   if(section===null) return <SupervisorCover t={t} onPick={setSection}/>;
-  if(section==="feed") return <SupervisorFeedView cattle={cattle} t={t} lang={lang} onBack={()=>setSection(null)}/>;
+  if(section==="feed") return <SupervisorFeedView cattle={cattle} t={t} lang={lang} feedCategories={feedCategories} onBack={()=>setSection(null)}/>;
 
   return (
     <div>
@@ -1720,11 +1721,21 @@ const DEFAULT_FEED_RATES = {
   current:{chokar:28,arhar:28,bhoosa:12,barseem:1,jaggery:50,mineral:80},
   ideal:  {chokar:22,arhar:22,bhoosa:7, barseem:0.5,jaggery:40,mineral:80}
 };
-function feedCostOf(feed,rate){ return FEED_COMPONENTS.reduce((s,c)=>s+(parseFloat(feed&&feed[c.key])||0)*(parseFloat(rate&&rate[c.key])||0),0); }
-function feedKgOf(feed){ return FEED_COMPONENTS.reduce((s,c)=>s+(parseFloat(feed&&feed[c.key])||0),0); }
+function feedCostOf(feed,rate){ let s=0; if(feed) for(const k in feed){ s+=(parseFloat(feed[k])||0)*(parseFloat(rate&&rate[k])||0); } return s; }
+function feedKgOf(feed){ let s=0; if(feed) for(const k in feed){ s+=(parseFloat(feed[k])||0); } return s; }
 
-function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
+function FeedAdmin({cattle=[], feedRates, feedCategories=[], lang, t, onChanged}) {
   const rates = (feedRates&&feedRates.current) ? feedRates : DEFAULT_FEED_RATES;
+  const FC = FEED_COMPONENTS.concat((feedCategories||[]).map(c=>({key:c.key,label:((lang==="hi"&&c.hi)||(lang==="ur"&&c.ur)||c.en),group:"Custom",custom:true})));
+  const [catOpen,setCatOpen]=useState(false);
+  const [catDraft,setCatDraft]=useState({en:"",hi:"",ur:"",rate:"",ideal:""});
+  async function addCat(){
+    if(!catDraft.en.trim()){ showToast("Enter an English name","error"); return; }
+    setSaving(true);
+    try{ await apiPost("addFeedCategory",{en:catDraft.en,hi:catDraft.hi,ur:catDraft.ur,rate:catDraft.rate,ideal:catDraft.ideal}); setCatDraft({en:"",hi:"",ur:"",rate:"",ideal:""}); setCatOpen(false); onChanged&&onChanged(); showToast("Feed category added"); }
+    catch(e){ showToast(e.message||"Save failed","error"); }
+    finally{ setSaving(false); }
+  }
   const [editRow,setEditRow]=useState(null);
   const [draft,setDraft]=useState({});
   const [rateOpen,setRateOpen]=useState(false);
@@ -1774,7 +1785,7 @@ function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
 
         {editing&&(
           <div style={{marginTop:10,background:"#f8fafc",borderRadius:10,padding:"12px"}}>
-            {FEED_COMPONENTS.map(fc=>(
+            {FC.map(fc=>(
               <div key={fc.key} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a"}}>{fc.label}</div>
@@ -1823,7 +1834,7 @@ function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
               <div style={{width:72,textAlign:"center"}}>Current</div>
               <div style={{width:72,textAlign:"center"}}>Ideal</div>
             </div>
-            {FEED_COMPONENTS.map(fc=>(
+            {FC.map(fc=>(
               <div key={fc.key} style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:12.5,fontWeight:600,color:"#1a1a1a"}}>{fc.label}</div>
@@ -1835,6 +1846,29 @@ function FeedAdmin({cattle=[], feedRates, lang, t, onChanged}) {
             ))}
             <Btn onClick={saveRates} disabled={saving} style={{width:"100%",marginTop:8}}>{saving?"Saving…":"Save rates"}</Btn>
             <div style={{fontSize:11,color:"#94a3b8",marginTop:8}}>Current rates drive every feed-cost figure here. Ideal rates are your target, shown for comparison.</div>
+          </div>
+        )}
+      </Card>
+
+      <Card style={{marginBottom:12}}>
+        <div onClick={()=>setCatOpen(!catOpen)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>➕ Add feed category</div>
+          <div style={{fontSize:15,color:"#94a3b8"}}>{catOpen?"▲":"▼"}</div>
+        </div>
+        {catOpen&&(
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Adds a new feed everywhere — owner rates &amp; per-cattle mix, and the supervisor feed sheet. Existing cattle start at 0.</div>
+            <div style={{marginBottom:8}}><SectionLabel>Name (English)</SectionLabel>
+              <input value={catDraft.en} onChange={e=>setCatDraft(d=>({...d,en:e.target.value}))} placeholder="e.g. Silage" style={{...inp,textAlign:"left"}}/></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              <div><SectionLabel>Hindi (optional)</SectionLabel><input value={catDraft.hi} onChange={e=>setCatDraft(d=>({...d,hi:e.target.value}))} dir="auto" style={{...inp,textAlign:"left"}}/></div>
+              <div><SectionLabel>Urdu (optional)</SectionLabel><input value={catDraft.ur} onChange={e=>setCatDraft(d=>({...d,ur:e.target.value}))} dir="rtl" style={{...inp,textAlign:"right"}}/></div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <div><SectionLabel>Rate ₹/kg</SectionLabel><input type="number" min="0" step="0.5" value={catDraft.rate} onChange={e=>setCatDraft(d=>({...d,rate:e.target.value}))} placeholder="0" style={inp}/></div>
+              <div><SectionLabel>Ideal ₹/kg</SectionLabel><input type="number" min="0" step="0.5" value={catDraft.ideal} onChange={e=>setCatDraft(d=>({...d,ideal:e.target.value}))} placeholder="0" style={{...inp,background:"#f8fafc"}}/></div>
+            </div>
+            <Btn onClick={addCat} disabled={saving} style={{width:"100%"}}>{saving?"Saving…":"Add category"}</Btn>
           </div>
         )}
       </Card>
@@ -2181,6 +2215,7 @@ function TransactionsAdmin({lang, t}) {
   const [fPayer,setFPayer]=useState("all");
   const [netData,setNetData]=useState(null);
   const [netLoading,setNetLoading]=useState(false);
+  const [opDraft,setOpDraft]=useState({date:today(),name:"",amount:"",person:TXN_PAYERS[0]});
 
   function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3000);}
   const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
@@ -2193,6 +2228,23 @@ function TransactionsAdmin({lang, t}) {
     setNetData(nd=>nd?{...nd,months:(nd.months||[]).map(m=>m.month===mo?{...m,person}:m)}:nd);
     try{ await apiPost("setProceedsAssignment",{month:mo,person}); await loadNet(); }
     catch(e){ showToast("Save failed","error"); }
+  }
+  async function assignCattle(code,person){
+    setNetData(nd=>nd?{...nd,cattleSales:(nd.cattleSales||[]).map(c=>c.code===code?{...c,person}:c)}:nd);
+    try{ await apiPost("setCattleProceeds",{code,person}); await loadNet(); }
+    catch(e){ showToast("Save failed","error"); }
+  }
+  async function addOther(){
+    if(!opDraft.name.trim()||opDraft.amount===""||isNaN(parseFloat(opDraft.amount))){ showToast("Enter a name and amount","error"); return; }
+    try{ await apiPost("addOtherProceeds",{date:opDraft.date,name:opDraft.name,amount:opDraft.amount,person:opDraft.person}); setOpDraft({date:today(),name:"",amount:"",person:TXN_PAYERS[0]}); await loadNet(); showToast("Added"); }
+    catch(e){ showToast("Save failed","error"); }
+  }
+  async function updateOther(rowIndex,person){
+    setNetData(nd=>nd?{...nd,otherProceeds:(nd.otherProceeds||[]).map(o=>o.rowIndex===rowIndex?{...o,person}:o)}:nd);
+    try{ await apiPost("updateOtherProceeds",{rowIndex,person}); await loadNet(); }catch(e){ showToast("Save failed","error"); }
+  }
+  async function deleteOther(rowIndex){
+    try{ await apiPost("deleteOtherProceeds",{rowIndex}); await loadNet(); }catch(e){ showToast("Save failed","error"); }
   }
 
   function blankForm(){ return {date:today(),name:"",category:"Opex",subCategory:"",payer:TXN_PAYERS[0],amount:"",rowIndex:null}; }
@@ -2322,6 +2374,7 @@ function TransactionsAdmin({lang, t}) {
                     <div style={{fontWeight:800,fontSize:15,color:"#1a1a1a",marginBottom:8}}>{pp.name}</div>
                     <div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,color:"#64748b",padding:"2px 0"}}><span>Spent</span><span>{fmtRs(pp.spent)}</span></div>
                     <div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,color:"#64748b",padding:"2px 0"}}><span>Proceeds kept</span><span>{fmtRs(pp.proceeds)}</span></div>
+                    {(()=>{const ps=[];if((pp.proceedsMilk||0)>0)ps.push("milk "+fmtRs(pp.proceedsMilk));if((pp.proceedsCattle||0)>0)ps.push("cattle "+fmtRs(pp.proceedsCattle));if((pp.proceedsOther||0)>0)ps.push("other "+fmtRs(pp.proceedsOther));return ps.length?<div style={{fontSize:10,color:"#94a3b8",textAlign:"right",margin:"-1px 0 1px"}}>{ps.join(" · ")}</div>:null;})()}
                     <div style={{display:"flex",justifyContent:"space-between",borderTop:"1.5px solid #f1f5f9",marginTop:6,paddingTop:6}}>
                       <span style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>Net</span>
                       <span style={{fontWeight:800,fontSize:15,color:pp.net>=0?"#15803d":"#dc2626"}}>{fmtRs(pp.net)}</span>
@@ -2346,6 +2399,51 @@ function TransactionsAdmin({lang, t}) {
                     </select>
                   </div>
                 ))}
+              </Card>
+              <Card style={{marginTop:12}}>
+                <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:10}}>Assign cattle-sale proceeds</div>
+                {(netData.cattleSales||[]).length===0
+                  ? <div style={{color:"#aaa",fontSize:12.5,textAlign:"center",padding:"8px 0"}}>No cattle sales recorded.</div>
+                  : (netData.cattleSales||[]).map(cs=>(
+                  <div key={cs.code} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #f8fafc"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:13,color:"#1a1a1a"}}>{cs.code}{cs.soldDate?` · ${fmtDate(cs.soldDate)}`:""}</div>
+                      <div style={{fontSize:11,color:"#94a3b8"}}>{fmtRs(cs.price)} sale</div>
+                    </div>
+                    <select value={cs.person||""} onChange={e=>assignCattle(cs.code,e.target.value)} style={{...inp,width:"auto",padding:"7px 10px"}}>
+                      <option value="">\u2014 Unassigned</option>
+                      {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </Card>
+              <Card style={{marginTop:12}}>
+                <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:10}}>Other proceeds</div>
+                <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Any other income (e.g. manure, equipment sale). Add it and assign who kept it.</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                  <input placeholder="Name" value={opDraft.name} onChange={e=>setOpDraft(d=>({...d,name:e.target.value}))} style={inp}/>
+                  <input placeholder="Amount ₹" type="number" inputMode="decimal" value={opDraft.amount} onChange={e=>setOpDraft(d=>({...d,amount:e.target.value}))} style={inp}/>
+                  <input type="date" value={opDraft.date} max={today()} onChange={e=>setOpDraft(d=>({...d,date:e.target.value}))} style={inp}/>
+                  <select value={opDraft.person} onChange={e=>setOpDraft(d=>({...d,person:e.target.value}))} style={inp}>
+                    {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}
+                  </select>
+                </div>
+                <Btn onClick={addOther} style={{width:"100%",padding:"9px 0",fontSize:13}}>+ Add other proceeds</Btn>
+                {(netData.otherProceeds||[]).length>0&&<div style={{marginTop:10}}>
+                  {(netData.otherProceeds||[]).map(o=>(
+                    <div key={o.rowIndex} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #f8fafc"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:600,fontSize:13,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.name}</div>
+                        <div style={{fontSize:11,color:"#94a3b8"}}>{fmtRs(o.amount)}{o.date?` · ${fmtDate(o.date)}`:""}</div>
+                      </div>
+                      <select value={o.person||""} onChange={e=>updateOther(o.rowIndex,e.target.value)} style={{...inp,width:"auto",padding:"7px 10px"}}>
+                        <option value="">\u2014</option>
+                        {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}
+                      </select>
+                      <button onClick={()=>deleteOther(o.rowIndex)} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:7,padding:"5px 8px",fontSize:12,color:"#dc2626",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>✕</button>
+                    </div>
+                  ))}
+                </div>}
               </Card>
             </>
           )}
@@ -2556,7 +2654,7 @@ function BillsView({lang, t}) {
     </div>
   );
 }
-function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates}) {
+function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates, feedCategories=[]}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -2623,7 +2721,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
 
       {section==="customers"&&<CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers}/>}
       {section==="cattle"&&<CattleAdmin cattle={cattle} lang={lang} t={t} onChanged={reloadCattle}/>}
-      {section==="feed"&&<FeedAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t} onChanged={reloadCattle}/>}
+      {section==="feed"&&<FeedAdmin cattle={cattle} feedRates={feedRates} feedCategories={feedCategories} lang={lang} t={t} onChanged={reloadCattle}/>}
       {(section==="pnl"||section==="txns")&&!financeUnlocked&&<FinanceLock onUnlock={()=>setFinanceUnlocked(true)}/>}
       {section==="pnl"&&financeUnlocked&&<PnLAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t}/>}
       {section==="txns"&&financeUnlocked&&<TransactionsAdmin lang={lang} t={t}/>}
@@ -2789,6 +2887,7 @@ export default function App() {
   const [customers,setCustomers]=useState([]);
   const [cattle,setCattle]=useState([]);
   const [feedRates,setFeedRates]=useState(null);
+  const [feedCategories,setFeedCategories]=useState([]);
   const [custLoading,setCustLoading]=useState(true);
 
   // Load only what the chosen role needs, and only after login. The delivery
@@ -2799,7 +2898,7 @@ export default function App() {
     const needCustomers = role==="delivery" || role==="owner";
     const needCattle    = role==="supervisor" || role==="owner";
     const loadCattle=()=>apiGet("getCattle")
-      .then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); })
+      .then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); if(d.feedCategories) setFeedCategories(d.feedCategories); })
       .catch(()=>{});
     if(needCustomers){
       setCustLoading(true);
@@ -2819,7 +2918,7 @@ export default function App() {
     apiGet("getCustomers").then(d=>setCustomers(d.customers||[])).catch(()=>{});
   }
   function reloadCattle() {
-    apiGet("getCattle").then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); }).catch(()=>{});
+    apiGet("getCattle").then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); if(d.feedCategories) setFeedCategories(d.feedCategories); }).catch(()=>{});
   }
 
   function changeLang(l) {
@@ -2863,9 +2962,9 @@ export default function App() {
         {custLoading
           ? <div style={{textAlign:"center",padding:"60px 20px",color:"#aaa",fontSize:13}}>Loading…</div>
           : <>
-            {role==="supervisor"&&<SupervisorView lang={lang} buffaloCattle={buffaloCattle} cowCattle={cowCattle} cattle={cattle}/>}
+            {role==="supervisor"&&<SupervisorView lang={lang} buffaloCattle={buffaloCattle} cowCattle={cowCattle} cattle={cattle} feedCategories={feedCategories}/>}
             {role==="delivery"&&<DeliveryView lang={lang} morningCustomers={morningCustomers} eveningCustomers={eveningCustomers} customers={customers}/>}
-            {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers} cattle={cattle} reloadCattle={reloadCattle} feedRates={feedRates}/>}
+            {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers} cattle={cattle} reloadCattle={reloadCattle} feedRates={feedRates} feedCategories={feedCategories}/>}
           </>
         }
       </div>
