@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
+const _screenCache = {};  // in-memory cache so revisiting owner screens is instant (cleared on lock)
 
 // ─── ACCESS PINS ───────────────────────────────────────────────────────────
 // Change these to your preferred PINs. Numeric, 4 digits recommended.
@@ -17,7 +18,7 @@ const BUFFALO_CATTLE = ["B4","B5","B6","B7","B8","B9"]; // B1 currently dry
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","0.75","1","1.5","2","3","10","Nil"];
+const QTY_OPTIONS    = ["0.5","1","1.5","2","3","10","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -942,9 +943,11 @@ function PaymentTracker({mode="delivery", customers=[], lang, t, onBack}) {
   function showToast(msg,type="success"){setToast({msg,type});setTimeout(()=>setToast(null),2500);}
 
   useEffect(()=>{
+    const c=_screenCache.pay&&_screenCache.pay[month];
+    if(c){ setPayments(c); setLoading(false); return; }
     setLoading(true);
     apiGet("getPayments",{month})
-      .then(d=>setPayments(d&&d.payments?d.payments:{}))
+      .then(d=>{ const pm=d&&d.payments?d.payments:{}; setPayments(pm); (_screenCache.pay=_screenCache.pay||{})[month]=pm; })
       .catch(()=>setPayments({}))
       .finally(()=>setLoading(false));
   },[month]);
@@ -964,7 +967,7 @@ function PaymentTracker({mode="delivery", customers=[], lang, t, onBack}) {
       if(!ok){ setPayments(p=>({...p})); return; } // cancelled -> re-render resets the dropdown
     }
     setBusyKey(name);
-    setPayments(p=>({...p,[name]:{...(p[name]||{}),[field]:val}})); // optimistic
+    setPayments(p=>{ const np={...p,[name]:{...(p[name]||{}),[field]:val}}; (_screenCache.pay=_screenCache.pay||{})[month]=np; return np; }); // optimistic + cache
     try { await apiPost("setPayment",{month,customer:name,field,status:val}); showToast(val==="paid"?t.payPaid+" \u2713":t.payDue); }
     catch(e){ showToast(e.message||"Save failed","error"); }
     finally{ setBusyKey(null); }
@@ -1994,8 +1997,8 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
   function fv(x){ return (x===undefined||x===null)?"":x; }
   const inp={width:"100%",padding:"8px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,textAlign:"right",background:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
 
-  async function load(){ setLoading(true); setErr(null); try{ setData(await apiGet("getPnL")); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
-  useEffect(()=>{ load(); },[]);
+  async function load(){ setLoading(true); setErr(null); try{ const d=await apiGet("getPnL"); _screenCache.pnl=d; setData(d); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
+  useEffect(()=>{ if(_screenCache.pnl){ setData(_screenCache.pnl); setLoading(false); } else load(); },[]);
   async function saveOv(){
     setSaving(true);
     try{ await apiPost("saveOverheads",{overheads:ovDraft}); setOvOpen(false); await load(); showToast("Estimates saved"); }
@@ -2038,7 +2041,7 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
   return (
     <div>
       {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
-
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}><Btn variant="ghost" onClick={load} style={{padding:"6px 12px",fontSize:12}}>↻ Refresh</Btn></div>
       <TabBar tabs={[{key:"day",label:"Day"},{key:"monthly",label:"Monthly"},{key:"cattle",label:"By cattle"}]} active={view} onChange={setView}/>
 
       {view==="day"&&(
@@ -2220,10 +2223,10 @@ function TransactionsAdmin({lang, t}) {
   function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3000);}
   const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
 
-  async function load(){ setLoading(true); setErr(null); try{ const d=await apiGet("getTransactions"); setTxns(d.transactions||[]); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
-  useEffect(()=>{ load(); },[]);
-  async function loadNet(){ setNetLoading(true); try{ const d=await apiGet("getNetContributions"); setNetData(d||{people:[],months:[]}); }catch(e){}finally{ setNetLoading(false); } }
-  useEffect(()=>{ if(tab==="contribution" && !netData) loadNet(); },[tab]);
+  async function load(){ setLoading(true); setErr(null); try{ const d=await apiGet("getTransactions"); _screenCache.txns=d.transactions||[]; _screenCache.net=null; setTxns(d.transactions||[]); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
+  useEffect(()=>{ if(_screenCache.txns){ setTxns(_screenCache.txns); setLoading(false); } else load(); },[]);
+  async function loadNet(){ setNetLoading(true); try{ const d=await apiGet("getNetContributions"); _screenCache.net=d||{people:[],months:[]}; setNetData(d||{people:[],months:[]}); }catch(e){}finally{ setNetLoading(false); } }
+  useEffect(()=>{ if(tab==="contribution" && !netData){ if(_screenCache.net){ setNetData(_screenCache.net); } else loadNet(); } },[tab]);
   async function assignProceeds(mo,person){
     setNetData(nd=>nd?{...nd,months:(nd.months||[]).map(m=>m.month===mo?{...m,person}:m)}:nd);
     try{ await apiPost("setProceedsAssignment",{month:mo,person}); await loadNet(); }
@@ -2362,6 +2365,7 @@ function TransactionsAdmin({lang, t}) {
         </div>
       )}
 
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}><Btn variant="ghost" onClick={()=>{ load(); if(tab==="contribution") loadNet(); }} style={{padding:"6px 12px",fontSize:12}}>↻ Refresh</Btn></div>
       <TabBar tabs={[{key:"entries",label:"Entries"},{key:"summary",label:"Summary"},{key:"contribution",label:"Contribution"}]} active={tab} onChange={setTab}/>
       {tab==="contribution"&&(
         <div>
@@ -2664,8 +2668,8 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
   const [section,setSection]=useState(null);
   const [financeUnlocked,setFinanceUnlocked]=useState(false);
   const [snapIdx,setSnapIdx]=useState(0);
-  async function load(){setLoading(true);setError(null);try{setData(await apiGet("getDashboard"));}catch(e){setError(e.message);}finally{setLoading(false);}}
-  useEffect(()=>{ if(section==="operations" && !data) load(); },[section]);
+  async function load(){setLoading(true);setError(null);try{const d=await apiGet("getDashboard");_screenCache.dash=d;setData(d);}catch(e){setError(e.message);}finally{setLoading(false);}}
+  useEffect(()=>{ if(section==="operations" && !data){ if(_screenCache.dash){ setData(_screenCache.dash); } else load(); } },[section]);
 
   const {summary={},recentDays=[],monthlyTrend=[]}=data||{};
   const gap30=(summary.last30DaysTotal||summary.last30DaysProduce||0)-(summary.last30DaysDispatched||0);
@@ -2955,11 +2959,11 @@ export default function App() {
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <LangToggle lang={lang} setLang={changeLang}/>
           <span style={{background:r.color+"18",color:r.color,border:`1px solid ${r.color}33`,borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:600}}>{r.emoji} {r.label}</span>
-          <button onClick={()=>setRole(null)} title="Lock" style={{background:"none",border:"none",color:"#aaa",cursor:"pointer",fontSize:16,lineHeight:1,padding:"2px 4px"}} aria-label="Lock">🔒</button>
+          <button onClick={()=>{ Object.keys(_screenCache).forEach(k=>delete _screenCache[k]); setRole(null); }} title="Lock" style={{background:"none",border:"none",color:"#aaa",cursor:"pointer",fontSize:16,lineHeight:1,padding:"2px 4px"}} aria-label="Lock">🔒</button>
         </div>
       </div>
       <div style={{maxWidth:520,margin:"0 auto",padding:"18px 15px 48px"}}>
-        {custLoading
+        {custLoading && role==="delivery"
           ? <div style={{textAlign:"center",padding:"60px 20px",color:"#aaa",fontSize:13}}>Loading…</div>
           : <>
             {role==="supervisor"&&<SupervisorView lang={lang} buffaloCattle={buffaloCattle} cowCattle={cowCattle} cattle={cattle} feedCategories={feedCategories}/>}
