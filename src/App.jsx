@@ -2216,6 +2216,7 @@ function TransactionsAdmin({lang, t}) {
   const [fCat,setFCat]=useState("all");
   const [fSub,setFSub]=useState("all");
   const [fPayer,setFPayer]=useState("all");
+  const [sortBy,setSortBy]=useState("recorded");
   const [netData,setNetData]=useState(null);
   const [netLoading,setNetLoading]=useState(false);
   const [opDraft,setOpDraft]=useState({date:today(),name:"",amount:"",person:TXN_PAYERS[0]});
@@ -2340,7 +2341,10 @@ function TransactionsAdmin({lang, t}) {
     ))}</div>;
   }
 
-  const recent = all.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const recent = all.slice().sort((a,b)=>{
+    if(sortBy==="recorded"){ const c=(b.loggedAt||"").localeCompare(a.loggedAt||""); return c!==0?c:(b.date||"").localeCompare(a.date||""); }
+    return (b.date||"").localeCompare(a.date||"");
+  });
   const entriesFiltered = recent.filter(x=>matchCSP(x) && (fMonthE==="all" || (x.date||"").substring(0,7)===fMonthE));
   const entriesTotal = entriesFiltered.reduce((s,x)=>s+(x.amount||0),0);
   const catOpts=[{v:"all",l:"All"},{v:"Opex",l:"Opex"},{v:"Capex",l:"Capex"}];
@@ -2468,6 +2472,7 @@ function TransactionsAdmin({lang, t}) {
           {all.length>0&&(
             <Card style={{marginBottom:12}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <TxnFilterSelect label="Sort by" value={sortBy} onChange={setSortBy} options={[{v:"recorded",l:"Recently added"},{v:"txnDate",l:"Transaction date"}]}/>
                 <TxnFilterSelect label="Month" value={fMonthE} onChange={setFMonthE} options={monthOptsE}/>
                 <TxnFilterSelect label="Category" value={fCat} onChange={v=>{setFCat(v);setFSub("all");}} options={catOpts}/>
                 <TxnFilterSelect label="Sub-category" value={fSub} onChange={setFSub} options={subOpts}/>
@@ -2753,19 +2758,28 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
                 style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"6px 12px",fontSize:16,fontWeight:800,cursor:_si<=0?"default":"pointer",color:_si<=0?"#cbd5e1":"#2D7FB5",fontFamily:"inherit"}}>›</button>
             </div>
             {recentDays.length===0?<div style={{color:"#aaa",fontSize:12,textAlign:"center",padding:"10px 0"}}>{t.noDataToday}</div>:<>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <StatBox label={t.totalAvail} value={`${fmtN(_snTotal,1)} L`} color="#2d6a4f"/>
-              <StatBox label={t.dispatched} value={`${fmtN(_snDisp,1)} L`} color="#1A5C8A"/>
+            <div style={{marginBottom:8}}>
+              <StatBox label={t.dispatched} value={`${fmtN(_snDisp,1)} L`} note={`M ${fmtN(_snap.mDisp||0,1)} · E ${fmtN(_snap.eDisp||0,1)}`} color="#1A5C8A"/>
+            </div>
+            <div style={{marginBottom:8}}>
+              <StatBox label={t.revenue} value={fmtRs(_snRev)} note={`M ${fmtRs(_snap.mRev||0)} · E ${fmtRs(_snap.eRev||0)}`} color="#2D7FB5"/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              <StatBox label={t.totalAvail} value={`${fmtN(_snTotal,1)} L`} color="#2d6a4f"/>
               <StatBox label={t.gap} value={`${fmtN(Math.abs(_snGap),1)} L`}
                 sub={_snGap>0?t.surplus:_snGap<0?t.deficit:t.balanced}
                 color={_snGap>=0?"#2D7FB5":"#dc2626"}/>
-              <StatBox label={t.revenue} value={fmtRs(_snRev)} color="#2D7FB5"/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <StatBox label={t.produced} value={`${fmtN(_snProd,1)} L`} note={`M ${fmtN(_snap.mProd||0,1)} · E ${fmtN(_snap.eProd||0,1)}`} color="#2D7FB5"/>
-              <StatBox label={t.sourcedCol} value={`${fmtN(_snSourced,1)} L`} color="#92400e"/>
+              <div style={{background:"#2D7FB50a",border:"1px solid #2D7FB522",borderRadius:12,padding:"12px 14px",minWidth:0}}>
+                <div style={{fontSize:10,color:"#777",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:3}}>{t.produced}</div>
+                <div style={{fontSize:20,fontWeight:700,color:"#2D7FB5",lineHeight:1.1}}>{fmtN(_snProd,1)} L</div>
+                <div style={{fontSize:9.5,color:"#94a3b8",fontWeight:600,marginTop:5,lineHeight:1.7}}>
+                  🐃 M {fmtN(_snap.mBuf||0,1)} · E {fmtN(_snap.eBuf||0,1)}<br/>
+                  🐄 M {fmtN(_snap.mCow||0,1)} · E {fmtN(_snap.eCow||0,1)}
+                </div>
+              </div>
+              <StatBox label={t.sourcedCol} value={`${fmtN(_snSourced,1)} L`} note={`M ${fmtN(_snap.mSrc||0,1)} · E ${fmtN(_snap.eSrc||0,1)}`} color="#92400e"/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
               <StatBox label={t.buffalo} value={`${fmtN(_snap.buffalo||0,1)} L`} note={`M ${fmtN(_snap.mBuf||0,1)} · E ${fmtN(_snap.eBuf||0,1)}`} color="#92400e"/>
@@ -2799,7 +2813,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
 
           <Card>
             <div style={{fontWeight:700,fontSize:13,marginBottom:10,color:"#1a1a1a"}}>{t.settings}</div>
-            {[[t.bufRate,`₹${summary.rateB||70}/L`],[t.cowRate,`₹${summary.rateC||60}/L`],[t.activeCattle,`${summary.activeCattle||10} (${BUFFALO_CATTLE.length}B + ${COW_CATTLE.length}C)`]].map(([k,v])=>(
+            {[[t.bufRate,`₹${summary.rateB||70}/L`],[t.cowRate,`₹${summary.rateC||60}/L`],[t.activeCattle, cattle.length?`${cattle.length} (${cattle.filter(c=>c.type==="B").length}B + ${cattle.filter(c=>c.type==="C").length}C)`:`${summary.activeCattle||0}`]].map(([k,v])=>(
               <div key={k} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#555",paddingBottom:7,marginBottom:7,borderBottom:"1px solid #f8fafc"}}>
                 <span>{k}</span><span style={{fontWeight:600}}>{v}</span>
               </div>
