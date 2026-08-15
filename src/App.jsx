@@ -782,6 +782,22 @@ function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTL
   // track submitted slots so UI knows what's been saved
   const [submittedSlots,setSubmittedSlots]=useState({morning:false,evening:false});
 
+  // Prefill previous entries when a date is selected (mirrors the delivery view)
+  useEffect(()=>{
+    if(!date) return;
+    setSubmittedSlots({morning:false,evening:false}); setStatus(null);
+    setMRaw({});setERaw({});setMMeasB("");setMMeasC("");setEMeasB("");setEMeasC("");
+    setMPurchased("");setMPurchaseRate("");setMExtraQty("");setMExtraSold(false);setMExtraRate("");
+    setEPurchased("");setEPurchaseRate("");setEExtraQty("");setEExtraSold(false);setEExtraRate("");
+    const n2r=(net)=> (net>0? Math.round((net/CONVERSION+BUCKET_WEIGHT)*100)/100 : "");
+    const m2k=(l)=> (l>0? Math.round((l/CONVERSION)*100)/100 : "");
+    apiGet("getProductionByDate",{date}).then(d=>{
+      if(!d) return;
+      if(d.morning){ const mo=d.morning; const rw={}; Object.keys(mo.cattle||{}).forEach(k=>{ rw[k]=n2r(mo.cattle[k]); }); setMRaw(rw); setMMeasB(m2k(mo.measuredB||0)); setMMeasC(m2k(mo.measuredC||0)); setMPurchased(mo.purchased||""); setMPurchaseRate(mo.purchaseRate||""); setMExtraQty(mo.extraQty||""); setMExtraSold(!!mo.extraSold); setMExtraRate(mo.extraRate||""); }
+      if(d.evening){ const eo=d.evening; const rw={}; Object.keys(eo.cattle||{}).forEach(k=>{ rw[k]=n2r(eo.cattle[k]); }); setERaw(rw); setEMeasB(m2k(eo.measuredB||0)); setEMeasC(m2k(eo.measuredC||0)); setEPurchased(eo.purchased||""); setEPurchaseRate(eo.purchaseRate||""); setEExtraQty(eo.extraQty||""); setEExtraSold(!!eo.extraSold); setEExtraRate(eo.extraRate||""); }
+    }).catch(()=>{});
+  },[date]);
+
   async function handleSubmit() {
     if(!date){setErrMsg(t.date);setStatus("error");return;}
     const activeRaw = activeSlot==="morning"?mRaw:eRaw;
@@ -845,16 +861,15 @@ function SupervisorView({lang, buffaloCattle=BUFFALO_CATTLE, cowCattle=COW_CATTL
 function BottleSummary({customers,vals,t}) {
   function calcBottles(type) {
     const filtered=customers.filter(c=>c.type===type&&!(c.selfCollect||c.selfcollect));
-    let b075=0,b05=0,b1=0;
+    let b05=0,b1=0;
     filtered.forEach(c=>{
       const q=vals[c.name_en||c.name]; if(!q||q==="Nil") return;
-      const qty=parseFloat(q);
-      if(qty===0.75)                     { b075++; }
-      else if(qty===0.5)                 { b05++; }
-      else if(qty===1.5||qty===2.5)      { b05++; b1+=Math.floor(qty); }
-      else if(qty===1||qty===2||qty===3) { b1+=qty; }
+      const qty=parseFloat(q)||0;
+      if(qty<=0||qty>=5) return; // bulk / wholesale — not filled in bottles
+      b1+=Math.floor(qty);
+      if(Math.round((qty-Math.floor(qty))*100)===50) b05++;
     });
-    return {b075,b05,b1};
+    return {b05,b1};
   }
   const b=calcBottles("B"); const c=calcBottles("C");
   const hasAny=customers.some(c=>vals[c.name_en||c.name]&&vals[c.name_en||c.name]!=="Nil");
@@ -864,7 +879,7 @@ function BottleSummary({customers,vals,t}) {
     return (
       <div style={{flex:1,background:bg,border:`1px solid ${border}`,borderRadius:10,padding:"10px 12px"}}>
         <div style={{fontSize:11,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:8}}>{label}</div>
-        {[["0.75 L",counts.b075],["0.5 L",counts.b05],["1 L",counts.b1]].map(([sz,n])=>(
+        {[["0.5 L",counts.b05],["1 L",counts.b1]].map(([sz,n])=>(
           <div key={sz} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <span style={{fontSize:12,color:"#555"}}>{sz} {t.bottle}</span>
             <span style={{fontSize:18,fontWeight:700,color,minWidth:28,textAlign:"right"}}>{n}</span>
@@ -884,7 +899,7 @@ function BottleSummary({customers,vals,t}) {
   );
 }
 
-function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[]}) {
+function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[],qtyOptions=null}) {
   const isB=customer.type==="B";
   const color=isB?"#92400e":"#2D7FB5";
   const bg=isB?"#fffbeb":"#EBF5FD";
@@ -918,7 +933,7 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[]}) {
       <select value={value||""} onChange={e=>onChange(e.target.value)}
         style={{padding:"6px 8px",border:`1.5px solid ${value&&value!=="Nil"?color:"#e2e8f0"}`,borderRadius:8,fontSize:13,fontWeight:600,background:value&&value!=="Nil"?bg:"#fafafa",color:value&&value!=="Nil"?color:"#888",outline:"none",width:80,flexShrink:0,fontFamily:"inherit"}}>
         <option value="">—</option>
-        {QTY_OPTIONS.map(q=><option key={q} value={q}>{q==="Nil"?t.nilOption:q+" L"}</option>)}
+        {[...(qtyOptions&&qtyOptions.length?qtyOptions:QTY_OPTIONS.filter(x=>x!=="Nil")),"Nil"].map(q=><option key={q} value={q}>{q==="Nil"?t.nilOption:q+" L"}</option>)}
       </select>
     </div>
   );
@@ -1073,7 +1088,7 @@ function PaymentTracker({mode="delivery", customers=[], lang, t, onBack}) {
   );
 }
 
-function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers=[]}) {
+function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers=[], qtyOptions=null}) {
   const t=TR[lang];
   const [screen,setScreen]=useState("delivery"); // "delivery" | "payments"
   const [date,setDate]=useState(today());
@@ -1160,7 +1175,7 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
           {slot==="morning"?`☀️ ${t.morningCustomers}`:`🌙 ${t.eveningCustomers}`} ({slotCustomers.length})
         </div>
         {slotCustomers.map(c=>(
-          <CustomerRow key={c.name_en||c.name} customer={c} value={vals[c.name_en||c.name]||""} onChange={v=>setVals(p=>({...p,[c.name_en||c.name]:v}))} prevValue={prevVals?prevVals[c.name_en||c.name]:null} lang={lang} t={t} customers={customers}/>
+          <CustomerRow key={c.name_en||c.name} customer={c} value={vals[c.name_en||c.name]||""} onChange={v=>setVals(p=>({...p,[c.name_en||c.name]:v}))} prevValue={prevVals?prevVals[c.name_en||c.name]:null} lang={lang} t={t} customers={customers} qtyOptions={qtyOptions}/>
         ))}
 
         {/* Totals below the list */}
@@ -1181,6 +1196,22 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
           </div>
         )}
 
+        {slotTotal>0&&(()=>{
+          const retail=(type)=>slotCustomers.filter(c=>c.type===type&&!(c.selfCollect||c.selfcollect)).reduce((s,c)=>{const q=vals[c.name_en||c.name];if(!q||q==="Nil")return s;const nq=parseFloat(q)||0;return s+(nq>0&&nq<5?nq:0);},0);
+          const rb=retail("B"), rc=retail("C");
+          return (
+            <div style={{marginTop:12,paddingTop:12,borderTop:"1.5px dashed #9ACFF0",display:"flex",gap:8}}>
+              <div style={{flex:1,background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
+                <div style={{fontSize:10,color:"#92400e",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:2}}>🐃 {t.bufMilk}</div>
+                <div style={{fontSize:18,fontWeight:700,color:"#92400e"}}>{fmtN(rb,2)} L</div>
+              </div>
+              <div style={{flex:1,background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
+                <div style={{fontSize:10,color:"#2D7FB5",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:2}}>🐄 {t.cowMilk}</div>
+                <div style={{fontSize:18,fontWeight:700,color:"#2D7FB5"}}>{fmtN(rc,2)} L</div>
+              </div>
+            </div>
+          );
+        })()}
         <BottleSummary customers={slotCustomers} vals={vals} t={t}/>
       </Card>
 
@@ -1194,7 +1225,11 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
 
 // ─── OWNER DASHBOARD ───────────────────────────────────────────────────────
 // ─── CUSTOMERS ADMIN ───────────────────────────────────────────────────────
-function CustomersAdmin({customers, lang, t, onChanged}) {
+function CustomersAdmin({customers, lang, t, onChanged, qtyOptions=[]}) {
+  const [qOpen,setQOpen]=useState(false);
+  const [qDraft,setQDraft]=useState(null);
+  const [qNew,setQNew]=useState("");
+  const [qSaving,setQSaving]=useState(false);
   const [form,setForm]=useState(null); // null=list, object=edit form
   const [saving,setSaving]=useState(false);
   const [toast,setToast]=useState(null);
@@ -1413,6 +1448,32 @@ function CustomersAdmin({customers, lang, t, onChanged}) {
       <div onClick={()=>setShowPayments(true)} style={{display:"inline-flex",alignItems:"center",gap:6,color:"#2D7FB5",fontSize:13,fontWeight:700,cursor:"pointer",textDecoration:"underline",marginBottom:14}}>
         💰 {t.payLink} →
       </div>
+      <Card style={{marginBottom:14}}>
+        <div onClick={()=>{ if(!qOpen) setQDraft([...(qtyOptions||[])]); setQOpen(!qOpen); }} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>🥛 Delivery quantities</div>
+          <div style={{fontSize:15,color:"#94a3b8"}}>{qOpen?"▲":"▼"}</div>
+        </div>
+        {qOpen&&qDraft&&(
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:11,color:"#94a3b8",marginBottom:10}}>Quantities the delivery person can pick per customer. Anything 5 L or more is treated as bulk/wholesale (not counted in bottles).</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:12}}>
+              {qDraft.map(q=>(
+                <span key={q} style={{display:"inline-flex",alignItems:"center",gap:6,background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:20,padding:"5px 10px",fontSize:13,fontWeight:600,color:"#1A5C8A"}}>
+                  {q} L
+                  <button onClick={()=>setQDraft(d=>d.filter(x=>x!==q))} style={{background:"none",border:"none",color:"#dc2626",cursor:"pointer",fontSize:14,lineHeight:1,fontFamily:"inherit"}}>✕</button>
+                </span>
+              ))}
+              {qDraft.length===0&&<span style={{fontSize:12,color:"#aaa"}}>No quantities yet — add at least one.</span>}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <input type="number" min="0" step="0.25" value={qNew} onChange={e=>setQNew(e.target.value)} placeholder="e.g. 0.25"
+                style={{flex:1,padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+              <Btn variant="ghost" onClick={()=>{ const v=parseFloat(qNew); if(isNaN(v)||v<=0) return; const sv=String(v); setQDraft(d=>d.includes(sv)?d:[...d,sv].sort((a,b)=>parseFloat(a)-parseFloat(b))); setQNew(""); }} style={{padding:"9px 16px"}}>+ Add</Btn>
+            </div>
+            <Btn onClick={async()=>{ setQSaving(true); try{ await apiPost("saveQtyOptions",{options:qDraft}); setQOpen(false); onChanged&&onChanged(); }catch(e){} finally{ setQSaving(false); } }} disabled={qSaving} style={{width:"100%",marginTop:10}}>{qSaving?"Saving…":"Save quantities"}</Btn>
+          </div>
+        )}
+      </Card>
       <Section title="☀️ Morning" list={morning}/>
       <Section title="🌙 Evening" list={evening}/>
       <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"10px 14px",fontSize:12,color:"#92400e",marginTop:4}}>
@@ -2663,7 +2724,7 @@ function BillsView({lang, t}) {
     </div>
   );
 }
-function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates, feedCategories=[]}) {
+function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates, feedCategories=[], qtyOptions=[]}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -2728,7 +2789,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
         {section==="operations"&&<Btn variant="ghost" onClick={load} style={{padding:"7px 13px",fontSize:12}}>{t.refresh}</Btn>}
       </div>
 
-      {section==="customers"&&<CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers}/>}
+      {section==="customers"&&<CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers} qtyOptions={qtyOptions}/>}
       {section==="cattle"&&<CattleAdmin cattle={cattle} lang={lang} t={t} onChanged={reloadCattle}/>}
       {section==="feed"&&<FeedAdmin cattle={cattle} feedRates={feedRates} feedCategories={feedCategories} lang={lang} t={t} onChanged={reloadCattle}/>}
       {(section==="pnl"||section==="txns")&&!financeUnlocked&&<FinanceLock onUnlock={()=>setFinanceUnlocked(true)}/>}
@@ -2906,6 +2967,7 @@ export default function App() {
   const [cattle,setCattle]=useState([]);
   const [feedRates,setFeedRates]=useState(null);
   const [feedCategories,setFeedCategories]=useState([]);
+  const [qtyOptions,setQtyOptions]=useState(["0.5","1","1.5","2","3","10"]);
   const [custLoading,setCustLoading]=useState(true);
 
   // Load only what the chosen role needs, and only after login. The delivery
@@ -2924,7 +2986,7 @@ export default function App() {
       // pull the heavier cattle data, so the two never queue against each other
       // server-side and the owner/delivery view appears quickly.
       apiGet("getCustomers")
-        .then(d=>{ setCustomers(d.customers||[]); setCustLoading(false); if(needCattle) loadCattle(); })
+        .then(d=>{ setCustomers(d.customers||[]); if(d.qtyOptions) setQtyOptions(d.qtyOptions); setCustLoading(false); if(needCattle) loadCattle(); })
         .catch(()=>{ setCustLoading(false); if(needCattle) loadCattle(); });
     } else {
       setCustLoading(false);
@@ -2933,7 +2995,7 @@ export default function App() {
   },[role]);
 
   function reloadCustomers() {
-    apiGet("getCustomers").then(d=>setCustomers(d.customers||[])).catch(()=>{});
+    apiGet("getCustomers").then(d=>{ setCustomers(d.customers||[]); if(d.qtyOptions) setQtyOptions(d.qtyOptions); }).catch(()=>{});
   }
   function reloadCattle() {
     apiGet("getCattle").then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); if(d.feedCategories) setFeedCategories(d.feedCategories); }).catch(()=>{});
@@ -2981,8 +3043,8 @@ export default function App() {
           ? <div style={{textAlign:"center",padding:"60px 20px",color:"#aaa",fontSize:13}}>Loading…</div>
           : <>
             {role==="supervisor"&&<SupervisorView lang={lang} buffaloCattle={buffaloCattle} cowCattle={cowCattle} cattle={cattle} feedCategories={feedCategories}/>}
-            {role==="delivery"&&<DeliveryView lang={lang} morningCustomers={morningCustomers} eveningCustomers={eveningCustomers} customers={customers}/>}
-            {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers} cattle={cattle} reloadCattle={reloadCattle} feedRates={feedRates} feedCategories={feedCategories}/>}
+            {role==="delivery"&&<DeliveryView lang={lang} morningCustomers={morningCustomers} eveningCustomers={eveningCustomers} customers={customers} qtyOptions={qtyOptions}/>}
+            {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers} cattle={cattle} reloadCattle={reloadCattle} feedRates={feedRates} feedCategories={feedCategories} qtyOptions={qtyOptions}/>}
           </>
         }
       </div>
