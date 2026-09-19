@@ -1088,9 +1088,12 @@ function PaymentTracker({mode="delivery", customers=[], lang, t, onBack}) {
   );
 }
 
-function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers=[], qtyOptions=null}) {
+function DeliveryView({lang}) {
   const t=TR[lang];
   const [screen,setScreen]=useState("delivery"); // "delivery" | "payments"
+  const [customers,setCustomers]=useState([]);
+  const [qtyOptions,setQtyOptions]=useState(null);
+  const [listLoading,setListLoading]=useState(true);
   const [date,setDate]=useState(today());
   const [slot,setSlot]=useState("morning");
   const [mVals,setMVals]=useState({});
@@ -1105,17 +1108,21 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
     if(!date) return;
     setSubmittedSlots({morning:false,evening:false}); setStatus(null);
     setMVals({}); setEVals({});
-    // Prefill with whatever is ALREADY saved for this date, so a late change to
-    // one customer never blanks the others — everyone's entries stay visible.
-    apiGet("getDispatchByDate",{date}).then(d=>{
-      setMVals(d&&d.morning?d.morning:{});
-      setEVals(d&&d.evening?d.evening:{});
-    }).catch(()=>{});
-    const prev=new Date(date+"T00:00:00"); prev.setDate(prev.getDate()-1);
-    const prevDateStr=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,"0")}-${String(prev.getDate()).padStart(2,"0")}`;
-    apiGet("getDispatchByDate",{date:prevDateStr}).then(d=>setPrevData(d)).catch(()=>setPrevData(null));
+    setListLoading(true);
+    // ONE round-trip: customer list, quantities, this day's + yesterday's entries.
+    apiGet("getDeliveryData",{date}).then(d=>{
+      if(d){
+        if(d.customers) setCustomers(d.customers);
+        if(d.qtyOptions) setQtyOptions(d.qtyOptions);
+        setMVals(d.today&&d.today.morning?d.today.morning:{});
+        setEVals(d.today&&d.today.evening?d.today.evening:{});
+        setPrevData(d.prev||null);
+      }
+    }).catch(()=>{}).finally(()=>setListLoading(false));
   },[date]);
 
+  const morningCustomers=customers.filter(c=>c.active&&c.slot==="morning");
+  const eveningCustomers=customers.filter(c=>c.active&&c.slot==="evening");
   const slotCustomers=slot==="morning"?morningCustomers:eveningCustomers;
   const vals=slot==="morning"?mVals:eVals;
   const setVals=slot==="morning"?setMVals:setEVals;
@@ -1174,7 +1181,9 @@ function DeliveryView({lang, morningCustomers=[], eveningCustomers=[], customers
         <div style={{fontWeight:700,fontSize:13,color:"#555",marginBottom:12}}>
           {slot==="morning"?`☀️ ${t.morningCustomers}`:`🌙 ${t.eveningCustomers}`} ({slotCustomers.length})
         </div>
-        {slotCustomers.map(c=>(
+        {listLoading && customers.length===0
+          ? <div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"24px 0"}}>{t.loading||"Loading…"}</div>
+          : slotCustomers.map(c=>(
           <CustomerRow key={c.name_en||c.name} customer={c} value={vals[c.name_en||c.name]||""} onChange={v=>setVals(p=>({...p,[c.name_en||c.name]:v}))} prevValue={prevVals?prevVals[c.name_en||c.name]:null} lang={lang} t={t} customers={customers} qtyOptions={qtyOptions}/>
         ))}
 
@@ -2975,7 +2984,7 @@ export default function App() {
   // list. This is the main reason the app opens faster on slower phones.
   useEffect(()=>{
     if(!role) return;
-    const needCustomers = role==="delivery" || role==="owner";
+    const needCustomers = role==="owner"; // delivery loads its own data in one bundled call
     const needCattle    = role==="supervisor" || role==="owner";
     const loadCattle=()=>apiGet("getCattle")
       .then(d=>{ setCattle(d.cattle||[]); if(d.feedRates) setFeedRates(d.feedRates); if(d.feedCategories) setFeedCategories(d.feedCategories); })
@@ -3039,11 +3048,9 @@ export default function App() {
         </div>
       </div>
       <div style={{maxWidth:520,margin:"0 auto",padding:"18px 15px 48px"}}>
-        {custLoading && role==="delivery"
-          ? <div style={{textAlign:"center",padding:"60px 20px",color:"#aaa",fontSize:13}}>Loading…</div>
-          : <>
+        {<>
             {role==="supervisor"&&<SupervisorView lang={lang} buffaloCattle={buffaloCattle} cowCattle={cowCattle} cattle={cattle} feedCategories={feedCategories}/>}
-            {role==="delivery"&&<DeliveryView lang={lang} morningCustomers={morningCustomers} eveningCustomers={eveningCustomers} customers={customers} qtyOptions={qtyOptions}/>}
+            {role==="delivery"&&<DeliveryView lang={lang}/>}
             {role==="owner"&&<OwnerDashboard lang={lang} customers={customers} reloadCustomers={reloadCustomers} cattle={cattle} reloadCattle={reloadCattle} feedRates={feedRates} feedCategories={feedCategories} qtyOptions={qtyOptions}/>}
           </>
         }
