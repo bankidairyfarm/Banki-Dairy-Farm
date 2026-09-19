@@ -9,7 +9,7 @@ const _screenCache = {};  // in-memory cache so revisiting owner screens is inst
 // To change a PIN: edit the number in quotes below, save, commit to GitHub.
 const FINANCE_PIN = "8851";
 const PINS = {
-  supervisor: "8934",
+  supervisor: "7055",
   delivery:   "1234",
   owner:      "8934",
 };
