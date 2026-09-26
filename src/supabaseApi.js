@@ -112,7 +112,7 @@ async function loadDb(force){
   };
   _cache=db; _cacheAt=Date.now(); return db;
 }
-function invalidate(){ _cache=null; }
+function invalidate(){ _cache=null; _lite=null; _liteCattle=null; }
 
 // ── settings-derived config ──
 function rates(db){ const s=db.settings;
@@ -247,21 +247,76 @@ async function cattleIdByCode(code){ const {data}=await supabase.from("cattle").
 async function setSetting(key,value){ const {error}=await supabase.from("settings").upsert({key,value:String(value)},{onConflict:"key"}); if(error)throw new Error(error.message); }
 
 // ============================ apiGet ============================
+// ── fast, targeted reads (fetch only what a screen needs) ──
+let _lite=null,_liteAt=0,_liteCattle=null,_liteCattleAt=0;
+function qtyOptionsFrom(settings){ const raw=(settings.qty_options||"").trim(); if(!raw)return ["0.5","1","1.5","2","3","10"]; const a=raw.split(",").map(x=>x.trim()).filter(Boolean); return a.length?a:["0.5","1","1.5","2","3","10"]; }
+async function liteCustomers(force){
+  if(!force && _lite && Date.now()-_liteAt<60000) return _lite;
+  const [cRes,sRes]=await Promise.all([
+    supabase.from("customers").select("*").order("sort_order",{ascending:true}),
+    supabase.from("settings").select("*") ]);
+  if(cRes.error) throw new Error(cRes.error.message);
+  const settings={}; (sRes.data||[]).forEach(r=>settings[r.key]=r.value);
+  const custById={}; (cRes.data||[]).forEach(c=>custById[c.id]=c);
+  const customers=(cRes.data||[]).map(c=>({rowIndex:c.id,name_en:c.name_en,name_hi:c.name_hi||"",name_ur:c.name_ur||"",slot:c.slot,type:c.type,phone:c.phone||"",selfCollect:!!c.self_collect,active:c.active!==false,rate:(c.rate==null?null:num(c.rate)),sort_order:num(c.sort_order)}));
+  _lite={customers,settings,custById}; _liteAt=Date.now(); return _lite;
+}
+async function liteCattleMap(force){
+  if(!force && _liteCattle && Date.now()-_liteCattleAt<60000) return _liteCattle;
+  const {data}=await supabase.from("cattle").select("id,code");
+  const byId={}; (data||[]).forEach(c=>byId[c.id]=c.code); _liteCattle=byId; _liteCattleAt=Date.now(); return byId;
+}
+async function dispatchRows(date){ const {data,error}=await supabase.from("dispatch").select("customer_id,litres,nil").eq("date",date); if(error)throw new Error(error.message); return data||[]; }
+function shapeDispRows(rows,custById){ const res={morning:{},evening:{}};
+  rows.forEach(row=>{ const c=custById[row.customer_id]; if(!c)return; const slot=c.slot==="evening"?"evening":"morning";
+    if(row.nil) res[slot][c.name_en]="Nil"; else if(num(row.litres)>0) res[slot][c.name_en]=String(num(row.litres)); });
+  return res; }
+async function fastDispatchByDate(date){ const lc=await liteCustomers(); return shapeDispRows(await dispatchRows(date), lc.custById); }
+async function fastDeliveryData(date){ const lc=await liteCustomers();
+  const [t,p]=await Promise.all([ dispatchRows(date), date?dispatchRows(prevIso(date)):Promise.resolve([]) ]);
+  return {customers:lc.customers, qtyOptions:qtyOptionsFrom(lc.settings), today:shapeDispRows(t,lc.custById), prev:shapeDispRows(p,lc.custById)}; }
+async function fastProductionByDate(date){ const codeById=await liteCattleMap();
+  const [pr,pd]=await Promise.all([ supabase.from("production").select("cattle_id,slot,litres").eq("date",date), supabase.from("production_day").select("*").eq("date",date) ]);
+  const blank=()=>({cattle:{},measuredB:"",measuredC:"",purchased:"",purchaseRate:"",extraQty:"",extraSold:false,extraRate:""});
+  const out={morning:blank(),evening:blank()};
+  (pr.data||[]).forEach(p=>{ const code=codeById[p.cattle_id]; if(code&&num(p.litres)>0)out[p.slot].cattle[code]=num(p.litres); });
+  (pd.data||[]).forEach(r=>{ const g=out[r.slot]; const n=v=>(v==null||v==="")?"":(isNaN(Number(v))?"":Number(v));
+    g.measuredB=n(r.measured_b);g.measuredC=n(r.measured_c);g.purchased=n(r.purchased);g.purchaseRate=n(r.purchase_rate);g.extraQty=n(r.extra);g.extraRate=n(r.extra_rate);g.extraSold=!!r.extra_sold; });
+  return out; }
+async function fastCustomers(){ const lc=await liteCustomers(); return {customers:lc.customers, qtyOptions:qtyOptionsFrom(lc.settings)}; }
+async function fastTransactions(){ const rows=await fetchAll("transactions");
+  return {transactions:rows.map(t=>({rowIndex:t.id,date:t.date||"",name:t.name||"",category:t.category||"",subCategory:t.subcategory||"",payer:t.payer||"",amount:num(t.amount),loggedAt:t.logged_at||""}))}; }
+async function fastHistory(){ const {data}=await supabase.from("revenue_history").select("*"); const o={}; (data||[]).forEach(h=>o[h.month]={revenue:num(h.revenue),produced:num(h.produced),sourced:num(h.sourced),sold:num(h.sold)}); return {history:o}; }
+async function fastCattle(){
+  const [cRes,fRes,catRes,sRes,prod]=await Promise.all([
+    supabase.from("cattle").select("*"), supabase.from("cattle_feed").select("*"),
+    supabase.from("feed_categories").select("*"), supabase.from("settings").select("*"),
+    fetchAll("production") ]);
+  const cattle=cRes.data||[]; const catById={}; cattle.forEach(c=>catById[c.id]=c);
+  const feedByCattle={}; (fRes.data||[]).forEach(f=>(feedByCattle[f.cattle_id]||(feedByCattle[f.cattle_id]=[])).push(f));
+  const settings={}; (sRes.data||[]).forEach(r=>settings[r.key]=r.value);
+  const db={ settings, _raw:{cattle, feedCats:(catRes.data||[]), feedByCattle},
+    cattle: cattle.map(c=>({id:c.id,code:c.code,type:c.type,sold:!!c.sold,sold_date:c.sold_date,sold_price:c.sold_price,date_in:c.date_in,lastCalving:c.last_calving})),
+    production: prod.map(p=>({date:p.date,slot:p.slot,litres:num(p.litres),type:catById[p.cattle_id]?catById[p.cattle_id].type:"B",code:catById[p.cattle_id]?catById[p.cattle_id].code:null})) };
+  return getCattle(db);
+}
+
 export async function apiGet(action, params={}) {
-  const db = await loadDb();
   switch(action){
-    case "getDashboard":       return calcDashboard(db, isoOf(new Date()));
-    case "getPnL":             return calcPnL(db);
-    case "getNetContributions":return calcNet(db);
-    case "getTransactions":    return {transactions: db.transactions};
-    case "getHistory":         return {history: (()=>{const o={};db.history.forEach(h=>o[h.month]={revenue:h.revenue,produced:h.produced,sourced:h.sourced,sold:h.sold});return o;})()};
-    case "getCustomers":       return {customers: db.customers, qtyOptions: qtyOptions(db)};
-    case "getDispatchByDate":  return shapeDispatchByDate(db, params.date);
-    case "getProductionByDate":return shapeProductionByDate(db, params.date);
-    case "getDeliveryData":    return {customers:db.customers, qtyOptions:qtyOptions(db), today:shapeDispatchByDate(db,params.date), prev:params.date?shapeDispatchByDate(db,prevIso(params.date)):{morning:{},evening:{}}};
-    case "getCattle":          return getCattle(db);
-    case "getPayments":        return getPayments(db, params.month);
-    case "getBillsDoc":        return await getBillsDoc(db, params.month);
+    // Heavy analytics (owner screens) — need most tables.
+    case "getDashboard":        return calcDashboard(await loadDb(), isoOf(new Date()));
+    case "getPnL":              return calcPnL(await loadDb());
+    case "getNetContributions": return calcNet(await loadDb());
+    case "getBillsDoc":         return await getBillsDoc(await loadDb(), params.month);
+    // Fast targeted reads.
+    case "getDeliveryData":     return await fastDeliveryData(params.date);
+    case "getDispatchByDate":   return await fastDispatchByDate(params.date);
+    case "getProductionByDate": return await fastProductionByDate(params.date);
+    case "getCustomers":        return await fastCustomers();
+    case "getCattle":           return await fastCattle();
+    case "getTransactions":     return await fastTransactions();
+    case "getHistory":          return await fastHistory();
+    case "getPayments":         return await _getPayments(params.month);
     default: throw new Error("Unknown action: "+action);
   }
 }
