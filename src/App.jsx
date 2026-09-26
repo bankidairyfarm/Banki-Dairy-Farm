@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { apiGet as sbApiGet, apiPost as sbApiPost } from "./supabaseApi";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
+// Backend switch. true = Supabase (new). false = Google Apps Script (legacy).
+// Flip to false to instantly roll back to the old backend.
+const USE_SUPABASE = true;
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
 const _screenCache = {};  // in-memory cache so revisiting owner screens is instant (cleared on lock)
 
@@ -289,7 +293,16 @@ function fmtRs(n) { if(n==null||isNaN(n)) return "—"; return "₹"+Number(n).t
 function toNet(kgWithBucket) { return Math.max(0,((parseFloat(kgWithBucket)||0)-BUCKET_WEIGHT)*CONVERSION); }
 
 // ─── API ───────────────────────────────────────────────────────────────────
+// Dispatchers — route to Supabase (new) or Apps Script (legacy) via USE_SUPABASE.
 async function apiGet(action,params={}) {
+  return USE_SUPABASE ? sbApiGet(action,params) : legacyApiGet(action,params);
+}
+async function apiPost(action,data={}) {
+  return USE_SUPABASE ? sbApiPost(action,data) : legacyApiPost(action,data);
+}
+
+// ─── LEGACY (Google Apps Script) — kept for instant rollback ─────────────────
+async function legacyApiGet(action,params={}) {
   const p=new URLSearchParams({action,...params});
   const res=await fetch(`${SCRIPT_URL}?${p}`);
   const j=await res.json();
@@ -297,7 +310,7 @@ async function apiGet(action,params={}) {
   return j;
 }
 // Use GET with encoded payload — avoids no-cors stripping issues with Apps Script
-async function apiPost(action,data={}) {
+async function legacyApiPost(action,data={}) {
   const payload = encodeURIComponent(JSON.stringify({action,...data}));
   try {
     const res = await fetch(`${SCRIPT_URL}?action=${action}&payload=${payload}`);
