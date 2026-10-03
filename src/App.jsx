@@ -22,7 +22,7 @@ const BUFFALO_CATTLE = ["B4","B5","B6","B7","B8","B9"]; // B1 currently dry
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","1","1.5","2","3","10","Nil"];
+const QTY_OPTIONS    = ["0.5","1","1.5","2","3","4","10","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -59,6 +59,7 @@ const TR = {
     delTitle: "Log Milk Dispatched", delSub: "Record delivery for each customer",
     morningCustomers: "Morning Customers", eveningCustomers: "Evening Customers",
     yesterday: "Yesterday", absent: "absent", self: "Self",
+    fillYesterday: "Copy yesterday's quantities", filledMsg: "Filled from yesterday — change only what's different",
     bottlesToFill: "🍶 Bottles to Fill",
     bufMilk: "Buffalo Milk", cowMilk: "Cow Milk", bottle: "bottle",
     submitDel: "Submit Dispatch Log",
@@ -135,6 +136,7 @@ const TR = {
     delTitle: "भेजा गया दूध दर्ज करें", delSub: "हर ग्राहक की डिलीवरी दर्ज करें",
     morningCustomers: "सुबह के ग्राहक", eveningCustomers: "शाम के ग्राहक",
     yesterday: "कल", absent: "अनुपस्थित", self: "खुद",
+    fillYesterday: "कल की मात्रा भरें", filledMsg: "कल से भर दिया — केवल बदलाव करें",
     bottlesToFill: "🍶 भरनी हैं बोतलें",
     bufMilk: "भैंस का दूध", cowMilk: "गाय का दूध", bottle: "बोतल",
     submitDel: "डिलीवरी दर्ज करें",
@@ -210,6 +212,7 @@ const TR = {
     delTitle: "بھیجا گیا دودھ درج کریں", delSub: "ہر گاہک کی ڈیلیوری درج کریں",
     morningCustomers: "صبح کے گاہک", eveningCustomers: "شام کے گاہک",
     yesterday: "کل", absent: "غیر حاضر", self: "خود",
+    fillYesterday: "کل کی مقدار بھریں", filledMsg: "کل سے بھر دیا — صرف تبدیلیاں کریں",
     bottlesToFill: "🍶 بھرنی ہیں بوتلیں",
     bufMilk: "بھینس کا دودھ", cowMilk: "گائے کا دودھ", bottle: "بوتل",
     submitDel: "ڈیلیوری درج کریں",
@@ -1140,6 +1143,18 @@ function DeliveryView({lang}) {
   const vals=slot==="morning"?mVals:eVals;
   const setVals=slot==="morning"?setMVals:setEVals;
   const prevVals=prevData?(slot==="morning"?prevData.morning:prevData.evening):null;
+  const hasPrev=!!(prevVals&&Object.keys(prevVals).length>0);
+
+  // Pre-fill every customer in this slot with yesterday's quantity, so the
+  // delivery person only edits the exceptions.
+  function fillFromYesterday(){
+    if(!prevVals) return;
+    setVals(prev=>{ const next={...prev};
+      slotCustomers.forEach(c=>{ const k=c.name_en||c.name; const pv=prevVals[k];
+        if(pv!=null&&pv!=="") next[k]=pv; });
+      return next; });
+    setStatus("filled");
+  }
 
   function totalLtrs(vs){return Object.values(vs).reduce((s,v)=>s+(v&&v!=="Nil"?parseFloat(v)||0:0),0);}
   const mTotal=totalLtrs(mVals); const eTotal=totalLtrs(eVals);
@@ -1179,6 +1194,7 @@ function DeliveryView({lang}) {
         </Toast>
       )}
       {status==="error"&&<Toast type="error" onDismiss={()=>setStatus(null)}>⚠️ {errMsg}</Toast>}
+      {status==="filled"&&<Toast type="success" onDismiss={()=>setStatus(null)}>✅ {t.filledMsg}</Toast>}
 
       <Card style={{marginBottom:14}}>
         <div style={{marginBottom:0}}>
@@ -1194,6 +1210,11 @@ function DeliveryView({lang}) {
         <div style={{fontWeight:700,fontSize:13,color:"#555",marginBottom:12}}>
           {slot==="morning"?`☀️ ${t.morningCustomers}`:`🌙 ${t.eveningCustomers}`} ({slotCustomers.length})
         </div>
+        {hasPrev && !listLoading && (
+          <Btn variant="ghost" onClick={fillFromYesterday} style={{width:"100%",marginBottom:12,fontSize:13,padding:"11px 12px",borderStyle:"dashed"}}>
+            📋 {t.fillYesterday}
+          </Btn>
+        )}
         {listLoading && customers.length===0
           ? <div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"24px 0"}}>{t.loading||"Loading…"}</div>
           : slotCustomers.map(c=>(
