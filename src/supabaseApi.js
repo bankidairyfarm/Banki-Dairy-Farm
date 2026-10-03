@@ -326,12 +326,16 @@ function getCattle(db){ const fr=loadFeedRates(db);
   // milk stats from production (per code)
   const byCode={}; db.production.forEach(p=>{ if(!p.code)return; (byCode[p.code]||(byCode[p.code]={}));
     byCode[p.code][p.date]=(byCode[p.code][p.date]||0)+p.litres; });
+  // 7 most recent CALENDAR milking days across the whole herd (matches the old app).
+  // A cattle not milked within that window reads 0 — no stale "last" value lingers.
+  const _allDates=[...new Set(db.production.filter(p=>/^\d{4}-\d{2}-\d{2}$/.test(p.date)).map(p=>p.date))].sort((a,b)=>b.localeCompare(a));
+  const last7Global=_allDates.slice(0,7);
   const full=db._raw.cattle.reduce((m,c)=>{m[c.code]=c;return m;},{});
   const cattle=herd.map(c=>{ const raw=full[c.code]||{}; const feedRows=db._raw.feedByCattle[c.id]||[];
     const feed={}; FEED_BUILTIN_KEYS.forEach(k=>feed[k]=0); feedRows.forEach(f=>feed[f.feed_key]=num(f.qty));
-    const dm=byCode[c.code]||{}; const dates=Object.keys(dm).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort((a,b)=>b.localeCompare(a));
-    const last7=dates.slice(0,7); let sum=0; const daily=last7.map((d,i)=>({date:d,litres:dm[d]})); last7.forEach(d=>sum+=dm[d]);
-    const avg7=last7.length?sum/last7.length:0, milkLast=last7.length?dm[last7[0]]:0;
+    const dm=byCode[c.code]||{};
+    let sum=0; const daily=last7Global.map(d=>({date:d,litres:dm[d]||0})); last7Global.forEach(d=>sum+=(dm[d]||0));
+    const avg7=last7Global.length?sum/last7Global.length:0, milkLast=last7Global.length?(dm[last7Global[0]]||0):0;
     let lactSum=0,peak=0; if(c.lastCalving){ Object.keys(dm).forEach(d=>{ if(d>=c.lastCalving){lactSum+=dm[d]; if(dm[d]>peak)peak=dm[d];} }); }
     return { rowIndex:c.id, code:c.code, type:c.type,
       status:raw.status||"Lactating", pregnant:!!raw.pregnant, dateIn:raw.date_in||"",
