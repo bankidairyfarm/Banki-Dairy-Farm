@@ -403,8 +403,9 @@ async function handleWrite(action, b){
 }
 
 async function logProduction(b){ const rows=[]; const dayRows=[];
+  const codeById=await liteCattleMap(); const idByCode={}; Object.keys(codeById).forEach(id=>{ idByCode[codeById[id]]=Number(id); });
   for(const slot of ["morning","evening"]){ const s=b[slot]||{}; const list=JSON.parse(s.rows||"[]"); if(list.length===0)continue;
-    for(const r of list){ const cid=await cattleIdByCode(r.cattle); if(cid) rows.push({date:b.date,cattle_id:cid,slot,litres:num(r.netLtrs)}); }
+    for(const r of list){ const cid=idByCode[r.cattle]; if(cid) rows.push({date:b.date,cattle_id:cid,slot,litres:num(r.netLtrs)}); }
     const dr={date:b.date,slot}; let touched=false;
     if(s.measuredB!=null&&s.measuredB!=="") {dr.measured_b=measToLtrs(s.measuredB);touched=true;}
     if(s.measuredC!=null&&s.measuredC!=="") {dr.measured_c=measToLtrs(s.measuredC);touched=true;}
@@ -417,9 +418,10 @@ async function logProduction(b){ const rows=[]; const dayRows=[];
   if(dayRows.length){ const {error}=await supabase.from("production_day").upsert(dayRows,{onConflict:"date,slot"}); if(error)throw new Error(error.message); }
   return {success:true}; }
 
-async function logDispatch(b){ const up=[], del=[];
+async function logDispatch(b){ const up=[];
+  const lc=await liteCustomers(); const idByName={}; lc.customers.forEach(c=>{ idByName[c.name_en]=c.rowIndex; });
   for(const slot of ["morning","evening"]){ const s=b[slot]||{}; const entries=JSON.parse(s.entries||"[]"); if(entries.length===0)continue;
-    for(const e of entries){ const cid=await custIdByName(e.name); if(!cid)continue;
+    for(const e of entries){ const cid=idByName[e.name]; if(!cid)continue;
       if(e.qty&&e.qty!=="Nil"){ up.push({date:b.date,customer_id:cid,litres:num(e.qty),nil:false}); }
       else { up.push({date:b.date,customer_id:cid,litres:0,nil:true}); } } }
   if(up.length){ const {error}=await supabase.from("dispatch").upsert(up,{onConflict:"date,customer_id"}); if(error)throw new Error(error.message); }
