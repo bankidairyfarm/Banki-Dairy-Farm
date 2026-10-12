@@ -378,12 +378,26 @@ function getCattle(db){ const fr=loadFeedRates(db);
       sold:false, soldDate:raw.sold_date||"", soldPrice:raw.sold_price??"", active:true, feed,
       milkAvg7:avg7, milkLast, milkDaily7:daily.reverse(), lactToDate:lactSum, peakYield:peak };
   });
+  cattle.sort((x,y)=>codeCmp(x.code,y.code));   // stable ascending order (B1..B10, C1..C7)
   return {cattle, feedRates:fr, feedCategories:cats}; }
+// Natural cattle-code order: letter group first, then the number (so B2 < B10 < C1).
+function codeCmp(a,b){ a=String(a||""); b=String(b||"");
+  const ma=a.match(/^([A-Za-z]*)(\d*)/), mb=b.match(/^([A-Za-z]*)(\d*)/);
+  const la=(ma[1]||"").toUpperCase(), lb=(mb[1]||"").toUpperCase();
+  if(la!==lb) return la<lb?-1:1;
+  const na=parseInt(ma[2]||"0",10), nb=parseInt(mb[2]||"0",10);
+  if(na!==nb) return na-nb;
+  return a<b?-1:(a>b?1:0); }
 function getPayments(db, month){ // fetch from raw via a targeted load is cheap; reuse cache miss otherwise
   return _getPayments(month); }
-async function _getPayments(month){ const {data,error}=await supabase.from("payments").select("month,customer_name,delivery_status,owner_status");
+async function _getPayments(month){
+  const lc=await liteCustomers(); const nameById={}; lc.customers.forEach(c=>{ nameById[c.rowIndex]=c.name_en; });
+  const {data,error}=await supabase.from("payments").select("month,customer_id,customer_name,delivery_status,owner_status");
   if(error) throw new Error(error.message); const payments={};
-  (data||[]).forEach(r=>{ const cust=(r.customer_name||"").trim(); if(!cust)return; if(month&&r.month!==month)return;
+  (data||[]).forEach(r=>{ if(month&&r.month!==month)return;
+    // key by the customer's CURRENT name (rename-safe), falling back to the stored name
+    const cust=(r.customer_id!=null && nameById[r.customer_id]) ? nameById[r.customer_id] : (r.customer_name||"").trim();
+    if(!cust)return;
     payments[cust]={delivery:(r.delivery_status||"").toLowerCase().trim(),owner:(r.owner_status||"").toLowerCase().trim()}; });
   return {month:month||"", payments}; }
 async function getBillsDoc(db, month){ const ctx=calcBills(db,month); ctx.logo=BILL_LOGO_OR_EMPTY();
@@ -513,11 +527,15 @@ async function setPayment(b){ const month=(b.month||"").trim(),cust=(b.customer|
   if(field!=="delivery"&&field!=="owner")throw new Error("Invalid payment field.");
   if(status!=="paid"&&status!=="due"&&status!=="")throw new Error("Invalid payment status.");
   const cid=await custIdByName(cust);
-  const {data:ex}=await supabase.from("payments").select("id").eq("month",month).eq("customer_name",cust).limit(1);
+  // Find the existing row by customer id FIRST (rename-safe), then by name.
+  let exId=null;
+  if(cid!=null){ const {data}=await supabase.from("payments").select("id").eq("month",month).eq("customer_id",cid).limit(1); if(data&&data[0]) exId=data[0].id; }
+  if(exId==null){ const {data}=await supabase.from("payments").select("id").eq("month",month).eq("customer_name",cust).limit(1); if(data&&data[0]) exId=data[0].id; }
   const stamp=new Date().toISOString();
   const patch=field==="delivery"?{delivery_status:status,delivery_updated_at:stamp}:{owner_status:status,owner_updated_at:stamp};
-  if(ex&&ex[0]){ await supabase.from("payments").update(patch).eq("id",ex[0].id); }
-  else { await supabase.from("payments").insert({month,customer_id:cid,customer_name:cust,...patch}); }
+  patch.customer_name=cust; if(cid!=null) patch.customer_id=cid;   // keep the row's name/id fresh
+  if(exId!=null){ const {error}=await supabase.from("payments").update(patch).eq("id",exId); if(error) throw new Error(error.message); }
+  else { const {error}=await supabase.from("payments").insert({month,...patch}); if(error) throw new Error(error.message); }
   return {success:true}; }
 
 export default { apiGet, apiPost };
