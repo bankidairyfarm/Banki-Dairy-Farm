@@ -14,7 +14,32 @@
 const SUPABASE_URL = "https://upfirefzywvjqitnkwnb.supabase.co";      // base URL (no /rest/v1)
 const SUPABASE_KEY = "sb_publishable_tqPRM5fUI9SgGcFDvmsyMw_Pvgo_z0u";
 const _REST = SUPABASE_URL.replace(/\/+$/,"") + "/rest/v1";
-const _AUTH = { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY };
+const _AUTHBASE = SUPABASE_URL.replace(/\/+$/,"") + "/auth/v1";
+
+// ── Simple shared-account auth ──────────────────────────────────────────────
+// One shared farm login. The email below is NOT a secret; the password lives
+// only in the operator's head and is entered once per device, then remembered.
+// This is what makes the public key useless to outsiders once the database
+// rules require a logged-in user.
+const AUTH_EMAIL = "operator@bankidairyfarm.app";
+const _SESS_KEY = "bdf_sess";
+let _sess; // undefined = not loaded yet, null = none, object = a session
+function _loadSess(){ if(_sess!==undefined) return _sess; try{ const r=localStorage.getItem(_SESS_KEY); _sess=r?JSON.parse(r):null; }catch(e){ _sess=null; } return _sess; }
+function _saveSess(s){ _sess=s||null; try{ if(s) localStorage.setItem(_SESS_KEY,JSON.stringify(s)); else localStorage.removeItem(_SESS_KEY); }catch(e){} }
+async function _refresh(){ const s=_loadSess(); if(!s||!s.refresh_token) return null;
+  try{ const r=await fetch(_AUTHBASE+"/token?grant_type=refresh_token",{method:"POST",headers:{apikey:SUPABASE_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:s.refresh_token})});
+    if(!r.ok){ _saveSess(null); return null; } const j=await r.json();
+    _saveSess({access_token:j.access_token,refresh_token:j.refresh_token,expires_at:Date.now()+((j.expires_in||3600)*1000)}); return _sess.access_token;
+  }catch(e){ return null; } }
+async function _accessToken(){ const s=_loadSess(); if(!s||!s.access_token) return null; if(Date.now()<((s.expires_at||0)-60000)) return s.access_token; return await _refresh(); }
+export async function signIn(password){
+  const r=await fetch(_AUTHBASE+"/token?grant_type=password",{method:"POST",headers:{apikey:SUPABASE_KEY,"Content-Type":"application/json"},body:JSON.stringify({email:AUTH_EMAIL,password})});
+  if(!r.ok) throw new Error("wrong_password");
+  const j=await r.json(); if(!j.access_token) throw new Error("wrong_password");
+  _saveSess({access_token:j.access_token,refresh_token:j.refresh_token,expires_at:Date.now()+((j.expires_in||3600)*1000)}); return true;
+}
+export function signOut(){ _saveSess(null); }
+export async function isAuthed(){ return !!(await _accessToken()); }
 
 async function _exec(s){
   const params = [];
@@ -24,15 +49,19 @@ async function _exec(s){
   if (s.limit != null) params.push("limit=" + s.limit);
   if (s.onConflict) params.push("on_conflict=" + s.onConflict);
   const url = _REST + "/" + s.table + (params.length ? "?" + params.join("&") : "");
-  const headers = { ..._AUTH };
-  if (s.body != null) headers["Content-Type"] = "application/json";
-  if (s.prefer.length) headers["Prefer"] = s.prefer.join(",");
-  if (s.range) headers["Range"] = s.range[0] + "-" + s.range[1];
-  const opt = { method: s.method, headers };
-  if (s.body != null) opt.body = JSON.stringify(s.body);
+  const send = async (bearer) => {
+    const headers = { apikey: SUPABASE_KEY, Authorization: "Bearer " + (bearer || SUPABASE_KEY) };
+    if (s.body != null) headers["Content-Type"] = "application/json";
+    if (s.prefer.length) headers["Prefer"] = s.prefer.join(",");
+    if (s.range) headers["Range"] = s.range[0] + "-" + s.range[1];
+    const opt = { method: s.method, headers };
+    if (s.body != null) opt.body = JSON.stringify(s.body);
+    return fetch(url, opt);
+  };
   let r;
-  try { r = await fetch(url, opt); }
+  try { r = await send(await _accessToken()); }
   catch (e) { return { data: null, error: { message: e.message } }; }
+  if (r.status === 401) { const nt = await _refresh(); if (nt) { try { r = await send(nt); } catch (e) { return { data:null, error:{message:e.message} }; } } }
   if (!r.ok) { let t = ""; try { t = await r.text(); } catch (_) {} return { data: null, error: { message: r.status + " " + t } }; }
   let data = null;
   if (s.method === "GET") { try { data = await r.json(); } catch (_) { data = []; } }
