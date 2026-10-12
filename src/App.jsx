@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { apiGet as sbApiGet, apiPost as sbApiPost } from "./supabaseApi";
+import { apiGet as sbApiGet, apiPost as sbApiPost, signIn as sbSignIn, isAuthed as sbIsAuthed } from "./supabaseApi";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 // Backend switch. true = Supabase (new). false = Google Apps Script (legacy).
@@ -22,7 +22,7 @@ const BUFFALO_CATTLE = ["B4","B5","B6","B7","B8","B9"]; // B1 currently dry
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
 const CONVERSION     = 0.97;
-const QTY_OPTIONS    = ["0.5","1","1.5","2","3","4","10","Nil"];
+const QTY_OPTIONS    = ["0.5","1","1.5","2","3","10","Nil"];
 
 // ─── TRANSLATIONS ──────────────────────────────────────────────────────────
 const LANGS = { en:"EN", hi:"हिं", ur:"اردو" };
@@ -60,6 +60,7 @@ const TR = {
     morningCustomers: "Morning Customers", eveningCustomers: "Evening Customers",
     yesterday: "Yesterday", absent: "absent", self: "Self",
     fillYesterday: "Copy yesterday's quantities", filledMsg: "Filled from yesterday — change only what's different",
+    farmLoginSub: "Enter the farm password to set up this device", farmPassword: "Farm password", farmLoginBtn: "Unlock this device", farmLoginNote: "You only need to do this once on this phone.", loginWrong: "Wrong password — please try again",
     bottlesToFill: "🍶 Bottles to Fill",
     bufMilk: "Buffalo Milk", cowMilk: "Cow Milk", bottle: "bottle",
     submitDel: "Submit Dispatch Log",
@@ -137,6 +138,7 @@ const TR = {
     morningCustomers: "सुबह के ग्राहक", eveningCustomers: "शाम के ग्राहक",
     yesterday: "कल", absent: "अनुपस्थित", self: "खुद",
     fillYesterday: "कल की मात्रा भरें", filledMsg: "कल से भर दिया — केवल बदलाव करें",
+    farmLoginSub: "इस डिवाइस को सेट करने के लिए फ़ार्म पासवर्ड डालें", farmPassword: "फ़ार्म पासवर्ड", farmLoginBtn: "यह डिवाइस अनलॉक करें", farmLoginNote: "यह इस फ़ोन पर केवल एक बार करना है।", loginWrong: "ग़लत पासवर्ड — फिर कोशिश करें",
     bottlesToFill: "🍶 भरनी हैं बोतलें",
     bufMilk: "भैंस का दूध", cowMilk: "गाय का दूध", bottle: "बोतल",
     submitDel: "डिलीवरी दर्ज करें",
@@ -213,6 +215,7 @@ const TR = {
     morningCustomers: "صبح کے گاہک", eveningCustomers: "شام کے گاہک",
     yesterday: "کل", absent: "غیر حاضر", self: "خود",
     fillYesterday: "کل کی مقدار بھریں", filledMsg: "کل سے بھر دیا — صرف تبدیلیاں کریں",
+    farmLoginSub: "اس ڈیوائس کو سیٹ کرنے کے لیے فارم پاس ورڈ درج کریں", farmPassword: "فارم پاس ورڈ", farmLoginBtn: "یہ ڈیوائس ان لاک کریں", farmLoginNote: "یہ اس فون پر صرف ایک بار کرنا ہے۔", loginWrong: "غلط پاس ورڈ — دوبارہ کوشش کریں",
     bottlesToFill: "🍶 بھرنی ہیں بوتلیں",
     bufMilk: "بھینس کا دودھ", cowMilk: "گائے کا دودھ", bottle: "بوتل",
     submitDel: "ڈیلیوری درج کریں",
@@ -3000,8 +3003,42 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
 }
 
 // ─── APP SHELL ─────────────────────────────────────────────────────────────
+// One-time "farm password" gate. Unlocks the database on this device; remembered
+// afterwards, so the delivery/supervisor only ever see their PIN screen.
+function FarmLogin({onDone,lang,setLang}){
+  const t=TR[lang];
+  const [pw,setPw]=useState(""); const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
+  async function submit(){ if(!pw||busy) return; setBusy(true); setErr("");
+    try{ await sbSignIn(pw); onDone(); }
+    catch(e){ setErr(t.loginWrong); setBusy(false); } }
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f4f7f6",padding:16}}>
+      <div style={{width:"100%",maxWidth:360,background:"#fff",border:"1px solid #e2ebe6",borderRadius:16,padding:"28px 24px",textAlign:"center",boxShadow:"0 2px 16px rgba(0,0,0,0.05)"}}>
+        <div style={{fontSize:42}}>🐃</div>
+        <div style={{fontSize:20,fontWeight:700,marginTop:6,color:"#1a1a1a"}}>{t.appName}</div>
+        <div style={{color:"#888",fontSize:13,margin:"6px 0 20px"}}>{t.farmLoginSub}</div>
+        <input type="password" value={pw} autoFocus
+          onChange={e=>setPw(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") submit(); }}
+          placeholder={t.farmPassword}
+          style={{width:"100%",padding:"13px 14px",border:"1.5px solid #e2e8f0",borderRadius:10,fontSize:16,boxSizing:"border-box",outline:"none",fontFamily:"inherit"}}/>
+        {err&&<div style={{color:"#b42318",fontSize:13,marginTop:10}}>{err}</div>}
+        <button onClick={submit} disabled={busy||!pw}
+          style={{width:"100%",marginTop:14,padding:"13px",border:"none",borderRadius:10,background:"#2d6a4f",color:"#fff",fontSize:16,fontWeight:600,cursor:(busy||!pw)?"default":"pointer",opacity:(busy||!pw)?0.6:1}}>
+          {busy?"…":t.farmLoginBtn}
+        </button>
+        <div style={{color:"#aaa",fontSize:11,marginTop:16}}>{t.farmLoginNote}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [role,setRole]=useState(null);
+  // Database login gate (Supabase). Legacy backend needs no login.
+  const [authed,setAuthed]=useState(USE_SUPABASE?null:true);
+  useEffect(()=>{ if(!USE_SUPABASE) return; let on=true;
+    sbIsAuthed().then(ok=>{ if(on) setAuthed(!!ok); }).catch(()=>{ if(on) setAuthed(false); });
+    return ()=>{ on=false; }; },[]);
   const [lang,setLang]=useState(()=>{
     try { return localStorage.getItem("dairyLang")||"en"; } catch(e){ return "en"; }
   });
@@ -3056,6 +3093,8 @@ export default function App() {
     owner:     {label:t.roleOwner,     emoji:"👑",  color:"#2D7FB5"},
   };
 
+  if(authed===null) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f4f7f6",color:"#bbb",fontSize:14}}>…</div>;
+  if(!authed) return <FarmLogin onDone={()=>setAuthed(true)} lang={lang} setLang={changeLang}/>;
   if(!role) return <LoginScreen onLogin={setRole} lang={lang} setLang={changeLang}/>;
 
   const morningCustomers = customers.filter(c=>c.active&&c.slot==="morning");
