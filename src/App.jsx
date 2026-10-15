@@ -2770,6 +2770,208 @@ function BillsView({lang, t}) {
     </div>
   );
 }
+// ─── ACTION TRACKER (owner project board) ──────────────────────────────────
+// The live action list across dairy functions. Current list only (no daily
+// history). Every change saves to the database immediately so both phones stay
+// in sync; the "Saved" button is a status + manual refresh.
+const AT_OWNERS = {"":"—","D":"Danish","V":"Vipul"};
+const AT_PALETTE = ["#7cb342","#2D7FB5","#f4883e","#8d6e63","#00897b","#c9a227","#7c3aed","#dc2626","#0e7490","#2d6a4f"];
+function ActionTracker(){
+  const [loading,setLoading]=useState(true);
+  const [err,setErr]=useState(null);
+  const [cats,setCats]=useState([]);
+  const [tasks,setTasks]=useState([]);
+  const [filter,setFilter]=useState("all");
+  const [hideDone,setHideDone]=useState(false);
+  const [collapsed,setCollapsed]=useState({});
+  const [editId,setEditId]=useState(null);
+  const [editText,setEditText]=useState("");
+  const [draftCat,setDraftCat]=useState(null);
+  const [draftText,setDraftText]=useState("");
+  const [editCatId,setEditCatId]=useState(null);
+  const [editCatText,setEditCatText]=useState("");
+  const [addingCat,setAddingCat]=useState(false);
+  const [newCatText,setNewCatText]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+  function showToast(msg,type="success"){setToast({msg,type});setTimeout(()=>setToast(null),2500);}
+
+  async function load(){ try{ const d=await apiGet("getActionTracker"); setCats(d.categories||[]); setTasks(d.tasks||[]); setErr(null);}catch(e){ setErr(e.message);}finally{ setLoading(false);} }
+  useEffect(()=>{ load(); },[]);
+  function markSaving(p){ setSaving(true); Promise.resolve(p).then(()=>setSaving(false)).catch(()=>{ setSaving(false); showToast("Couldn't save — refreshing","error"); load(); }); }
+
+  const byOrder=(a,b)=>(a.sort_order-b.sort_order)||(a.rowIndex-b.rowIndex);
+  const pend=tasks.filter(t=>!t.done).length, done=tasks.filter(t=>t.done).length;
+
+  function toggleTask(it){ const d=!it.done; setTasks(ts=>ts.map(x=>x.rowIndex===it.rowIndex?{...x,done:d,doneAt:d?"now":""}:x)); markSaving(apiPost("updateTask",{rowIndex:it.rowIndex,done:d})); }
+  function startEdit(it){ setEditId(it.rowIndex); setEditText(it.title); }
+  function commitEdit(it){ const v=editText.trim(); setEditId(null);
+    if(v===it.title) return;
+    if(!v){ setTasks(ts=>ts.filter(x=>x.rowIndex!==it.rowIndex)); markSaving(apiPost("deleteTask",{rowIndex:it.rowIndex})); return; }
+    setTasks(ts=>ts.map(x=>x.rowIndex===it.rowIndex?{...x,title:v}:x)); markSaving(apiPost("updateTask",{rowIndex:it.rowIndex,title:v})); }
+  function delTask(it){ setTasks(ts=>ts.filter(x=>x.rowIndex!==it.rowIndex)); markSaving(apiPost("deleteTask",{rowIndex:it.rowIndex})); }
+  function moveTask(it,dir){ const ct=tasks.filter(x=>x.categoryId===it.categoryId).sort(byOrder);
+    const i=ct.findIndex(x=>x.rowIndex===it.rowIndex), j=i+dir; if(i<0||j<0||j>=ct.length)return;
+    const other=ct[j];
+    setTasks(ts=>ts.map(x=> x.rowIndex===it.rowIndex?{...x,sort_order:other.sort_order} : x.rowIndex===other.rowIndex?{...x,sort_order:it.sort_order} : x));
+    markSaving(apiPost("moveTask",{rowIndex:it.rowIndex,category_id:it.categoryId,dir})); }
+
+  async function commitAdd(catId,keepOpen){ const v=draftText.trim(); setDraftText("");
+    if(!keepOpen) setDraftCat(null);
+    if(!v) return;
+    setSaving(true);
+    try{ const r=await apiPost("addTask",{category_id:catId,title:v});
+      setTasks(ts=>[...ts,{rowIndex:r.rowIndex,categoryId:catId,title:v,done:false,doneAt:"",sort_order:r.sort_order||0}]);
+    }catch(e){ showToast("Couldn't add — refreshing","error"); load(); }
+    finally{ setSaving(false); } }
+
+  function setOwner(cat,owner){ setCats(cs=>cs.map(c=>c.rowIndex===cat.rowIndex?{...c,owner}:c)); markSaving(apiPost("updateTaskCategory",{rowIndex:cat.rowIndex,owner})); }
+  function startRename(cat){ setEditCatId(cat.rowIndex); setEditCatText(cat.name); }
+  function commitRename(cat){ const v=editCatText.trim(); setEditCatId(null); if(!v||v===cat.name)return;
+    setCats(cs=>cs.map(c=>c.rowIndex===cat.rowIndex?{...c,name:v}:c)); markSaving(apiPost("updateTaskCategory",{rowIndex:cat.rowIndex,name:v})); }
+  function delCategory(cat){ setCats(cs=>cs.filter(c=>c.rowIndex!==cat.rowIndex)); setEditCatId(null); if(filter===cat.rowIndex)setFilter("all"); markSaving(apiPost("deleteTaskCategory",{rowIndex:cat.rowIndex})); }
+  async function commitAddCat(){ const v=newCatText.trim(); setNewCatText(""); setAddingCat(false); if(!v)return;
+    setSaving(true);
+    try{ const color=AT_PALETTE[cats.length%AT_PALETTE.length];
+      const r=await apiPost("addTaskCategory",{name:v,emoji:"📋",color,owner:""});
+      setCats(cs=>[...cs,{rowIndex:r.rowIndex,name:v,emoji:"📋",color,owner:"",sort_order:r.sort_order||(cs.length+1)}]);
+    }catch(e){ showToast("Couldn't add — refreshing","error"); load(); }
+    finally{ setSaving(false); } }
+
+  const todayStr=new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
+  const inpS={font:"inherit",fontSize:14,width:"100%",border:"1.5px solid #2D7FB5",borderRadius:7,padding:"6px 9px",background:"#f8fafc",color:"#1a1a1a",outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+
+  if(loading) return <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>Loading…</div></div>;
+  if(err) return <div><Alert type="error">Couldn't load the tracker: {err}</Alert><Btn onClick={()=>{setLoading(true);load();}} variant="ghost" style={{width:"100%"}}>Retry</Btn></div>;
+
+  const shownCats = filter==="all" ? [...cats].sort(byOrder) : cats.filter(c=>c.rowIndex===filter);
+  const chip=(key,label,color,on)=>(
+    <button key={key} onClick={()=>setFilter(key)} style={{flex:"0 0 auto",border:"1px solid "+(on?"#2d6a4f":"#e3ebe6"),background:on?"#2d6a4f":"#fff",color:on?"#fff":"#6b7f76",borderRadius:999,padding:"7px 12px",fontSize:12.5,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:6,fontFamily:"inherit"}}>
+      {color&&<span style={{width:8,height:8,borderRadius:"50%",background:color,display:"inline-block"}}/>}{label}
+    </button>
+  );
+
+  return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+      <div style={{fontSize:12.5,color:"#888",marginTop:-6,marginBottom:12}}>{todayStr}</div>
+
+      <div style={{display:"flex",gap:8,marginBottom:12}}>
+        <div style={{flex:1,background:"#fff",border:"1px solid #e3ebe6",borderRadius:12,padding:"9px 12px",textAlign:"center"}}>
+          <div style={{fontSize:20,fontWeight:800,color:"#b45309",lineHeight:1.1}}>{pend}</div>
+          <div style={{fontSize:10.5,textTransform:"uppercase",letterSpacing:".6px",color:"#888",fontWeight:700}}>Pending</div>
+        </div>
+        <div style={{flex:1,background:"#fff",border:"1px solid #e3ebe6",borderRadius:12,padding:"9px 12px",textAlign:"center"}}>
+          <div style={{fontSize:20,fontWeight:800,color:"#15803d",lineHeight:1.1}}>{done}</div>
+          <div style={{fontSize:10.5,textTransform:"uppercase",letterSpacing:".6px",color:"#888",fontWeight:700}}>Done</div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:7,overflowX:"auto",padding:"2px 0 10px"}}>
+        {chip("all","All",null,filter==="all")}
+        {[...cats].sort(byOrder).map(c=>chip(c.rowIndex,c.name,c.color,filter===c.rowIndex))}
+      </div>
+
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:14}}>
+        <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:12.5,color:"#6b7f76",cursor:"pointer",userSelect:"none"}}>
+          <input type="checkbox" checked={hideDone} onChange={e=>setHideDone(e.target.checked)} style={{width:16,height:16}}/> Hide completed
+        </label>
+        <button onClick={()=>{ load(); showToast("Up to date ✓"); }} style={{background:saving?"#2d6a4f":"#fff",color:saving?"#fff":"#6b7f76",border:"1px solid "+(saving?"#2d6a4f":"#e3ebe6"),borderRadius:10,padding:"8px 15px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+          {saving?"Saving…":"Saved ✓"}
+        </button>
+      </div>
+
+      {shownCats.map(cat=>{
+        const cTasks=tasks.filter(t=>t.categoryId===cat.rowIndex).sort(byOrder);
+        const vis=hideDone?cTasks.filter(t=>!t.done):cTasks;
+        const openN=cTasks.filter(t=>!t.done).length;
+        const isOpen=!collapsed[cat.rowIndex];
+        return (
+          <section key={cat.rowIndex} style={{background:"#fff",border:"1px solid #e3ebe6",borderRadius:14,marginBottom:12,overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 13px"}}>
+              <div style={{width:30,height:30,borderRadius:9,display:"grid",placeItems:"center",fontSize:15,flex:"0 0 auto",background:cat.color+"22"}}>{cat.emoji}</div>
+              <div style={{flex:1,minWidth:0}}>
+                {editCatId===cat.rowIndex ? (
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <input autoFocus value={editCatText} onChange={e=>setEditCatText(e.target.value)} onBlur={()=>commitRename(cat)}
+                      onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();e.target.blur();}}} placeholder="Category name" style={{...inpS,fontWeight:700,maxWidth:220}}/>
+                    {cTasks.length===0 && <button onMouseDown={e=>{e.preventDefault();delCategory(cat);}} style={{fontSize:11,color:"#c0392b",background:"none",border:"none",cursor:"pointer",whiteSpace:"nowrap"}}>Delete</button>}
+                  </div>
+                ) : (
+                  <>
+                    <div onClick={()=>setCollapsed(c=>({...c,[cat.rowIndex]:!c[cat.rowIndex]}))} style={{fontWeight:700,fontSize:14.5,color:"#1a1a1a",cursor:"pointer"}}>{cat.name}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginTop:3}}>
+                      <select value={cat.owner||""} onChange={e=>setOwner(cat,e.target.value)} style={{fontSize:11,border:"1px solid #e3ebe6",background:"#f6faf8",color:"#6b7f76",borderRadius:999,padding:"2px 6px",fontFamily:"inherit",cursor:"pointer"}}>
+                        {Object.keys(AT_OWNERS).map(k=><option key={k} value={k}>Owner: {AT_OWNERS[k]}</option>)}
+                      </select>
+                      <span style={{fontSize:11,color:"#888",fontWeight:600}}>· {openN} open</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:2,flex:"0 0 auto"}}>
+                <button onClick={()=>startRename(cat)} title="Rename" style={{background:"none",border:"none",color:"#9fb2a9",fontSize:14,cursor:"pointer",padding:5}}>✎</button>
+                <button onClick={()=>setCollapsed(c=>({...c,[cat.rowIndex]:!c[cat.rowIndex]}))} style={{background:"none",border:"none",color:"#9fb2a9",fontSize:13,cursor:"pointer",padding:5}}>{isOpen?"▾":"▸"}</button>
+              </div>
+            </div>
+
+            {isOpen && (
+              <div style={{borderTop:"1px solid #e3ebe6"}}>
+                {vis.map(it=>{
+                  const posN=cTasks.length;
+                  const pos=cTasks.findIndex(x=>x.rowIndex===it.rowIndex);
+                  return (
+                    <div key={it.rowIndex} style={{display:"flex",alignItems:"center",gap:9,padding:"10px 13px",borderBottom:"1px solid #f1f5f3",background:it.done?"#f6faf8":"transparent"}}>
+                      <button onClick={()=>toggleTask(it)} aria-label="toggle done" style={{flex:"0 0 auto",width:22,height:22,borderRadius:7,border:"2px solid "+(it.done?"#15803d":"#9fb2a9"),background:it.done?"#15803d":"transparent",cursor:"pointer",display:"grid",placeItems:"center",padding:0,color:"#fff",fontSize:13,fontWeight:800,lineHeight:1}}>{it.done?"✓":""}</button>
+                      <div style={{flex:1,minWidth:0}}>
+                        {editId===it.rowIndex ? (
+                          <input autoFocus value={editText} onChange={e=>setEditText(e.target.value)} onBlur={()=>commitEdit(it)}
+                            onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();e.target.blur();}}} placeholder="Type the action…" style={inpS}/>
+                        ) : (
+                          <>
+                            <div onClick={()=>startEdit(it)} style={{fontSize:13.5,wordBreak:"break-word",cursor:"text",textDecoration:it.done?"line-through":"none",color:it.done?"#888":"#1a1a1a"}}>{it.title}</div>
+                            {it.done&&<div style={{fontSize:10,color:"#15803d",fontWeight:600,marginTop:2}}>✓ done</div>}
+                          </>
+                        )}
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:2,flex:"0 0 auto"}}>
+                        <button onClick={()=>moveTask(it,-1)} disabled={pos===0} style={{width:26,height:19,border:"1px solid #e3ebe6",background:"#fff",color:"#6b7f76",borderRadius:6,fontSize:9,cursor:pos===0?"default":"pointer",lineHeight:1,padding:0,opacity:pos===0?0.3:1}}>▲</button>
+                        <button onClick={()=>moveTask(it,1)} disabled={pos===posN-1} style={{width:26,height:19,border:"1px solid #e3ebe6",background:"#fff",color:"#6b7f76",borderRadius:6,fontSize:9,cursor:pos===posN-1?"default":"pointer",lineHeight:1,padding:0,opacity:pos===posN-1?0.3:1}}>▼</button>
+                      </div>
+                      <button onClick={()=>delTask(it)} title="Delete" style={{flex:"0 0 auto",background:"none",border:"none",color:"#9fb2a9",fontSize:17,cursor:"pointer",padding:"2px 6px",lineHeight:1}}>×</button>
+                    </div>
+                  );
+                })}
+                {draftCat===cat.rowIndex ? (
+                  <div style={{display:"flex",alignItems:"center",gap:9,padding:"10px 13px",background:"#f6faf8"}}>
+                    <input autoFocus value={draftText} onChange={e=>setDraftText(e.target.value)} onBlur={()=>commitAdd(cat.rowIndex,false)}
+                      onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();commitAdd(cat.rowIndex,true);}}} placeholder="Type the action, press Enter…" style={inpS}/>
+                  </div>
+                ) : (
+                  <div onClick={()=>{setDraftCat(cat.rowIndex);setDraftText("");}} style={{display:"flex",alignItems:"center",gap:7,padding:"10px 13px",color:"#2d6a4f",fontSize:13,fontWeight:600,cursor:"pointer",background:"#f6faf8"}}>
+                    <span style={{fontSize:16,lineHeight:1}}>+</span> Add action
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        );
+      })}
+
+      {filter==="all" && (addingCat ? (
+        <input autoFocus value={newCatText} onChange={e=>setNewCatText(e.target.value)} onBlur={commitAddCat}
+          onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();e.target.blur();}}} placeholder="New category name…"
+          style={{...inpS,padding:"12px",fontWeight:600}}/>
+      ) : (
+        <button onClick={()=>{setAddingCat(true);setNewCatText("");}} style={{width:"100%",border:"1.5px dashed #e3ebe6",background:"transparent",color:"#6b7f76",borderRadius:12,padding:12,fontSize:13.5,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>+ Add category</button>
+      ))}
+
+      <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:11.5,color:"#1A5C8A",marginTop:14}}>
+        💡 Tap an action to edit it, the circle to mark it done, and ▲▼ to reorder by priority. Every change saves automatically and shows on both phones. Tap "Saved" to pull the latest.
+      </div>
+    </div>
+  );
+}
 function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadCattle, feedRates, feedCategories=[], qtyOptions=[]}) {
   const t=TR[lang];
   const [data,setData]=useState(null);
@@ -2803,6 +3005,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
         <div style={{color:"#888",fontSize:12,marginTop:2}}>{t.ownSub}</div>
       </div>
       {[
+        {key:"tracker",title:"Action Tracker",desc:"Daily action list across all functions",emoji:"✅",color:"#2d6a4f"},
         {key:"operations",title:"Operations",desc:"Overview, daily log & monthly summary",emoji:"📊",color:"#2D7FB5"},
         {key:"txns",title:"Transactions",desc:"Log spends & monthly / lifetime summary",emoji:"💰",color:"#1A5C8A"},
         {key:"pnl",title:"Profit & Loss",desc:"Daily & monthly P&L including all costs",emoji:"📈",color:"#15803d"},
@@ -2824,7 +3027,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
     </div>
   );
 
-  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":section==="actions"?"Action Items":section==="bills"?"Bills":"Customers";
+  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":section==="actions"?"Action Items":section==="tracker"?"Action Tracker":section==="bills"?"Bills":"Customers";
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
@@ -2842,6 +3045,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       {section==="pnl"&&financeUnlocked&&<PnLAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t}/>}
       {section==="txns"&&financeUnlocked&&<TransactionsAdmin lang={lang} t={t}/>}
       {section==="actions"&&<ActionItemsView cattle={cattle}/>}
+      {section==="tracker"&&<ActionTracker/>}
       {section==="bills"&&<BillsView lang={lang} t={t}/>}
 
       {section==="operations"&&(loading
