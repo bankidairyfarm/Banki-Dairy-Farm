@@ -64,14 +64,15 @@ async function _exec(s){
   if (r.status === 401) { const nt = await _refresh(); if (nt) { try { r = await send(nt); } catch (e) { return { data:null, error:{message:e.message} }; } } }
   if (!r.ok) { let t = ""; try { t = await r.text(); } catch (_) {} return { data: null, error: { message: r.status + " " + t } }; }
   let data = null;
-  if (s.method === "GET") { try { data = await r.json(); } catch (_) { data = []; } }
+  const wantsBody = s.method === "GET" || s.prefer.some(p => p.indexOf("return=representation") >= 0);
+  if (wantsBody) { try { data = await r.json(); } catch (_) { data = s.method === "GET" ? [] : null; } }
   return { data, error: null };
 }
 function _from(table){
   const s = { table, method:"GET", select:"*", filters:[], order:null, range:null, limit:null, body:null, onConflict:null, prefer:[] };
   const b = {
     select(cols="*"){ s.select=cols; return b; },
-    insert(rows){ s.method="POST"; s.body=Array.isArray(rows)?rows:[rows]; s.prefer.push("return=minimal"); return b; },
+    insert(rows,opts){ s.method="POST"; s.body=Array.isArray(rows)?rows:[rows]; s.prefer.push((opts&&opts.returning)?"return=representation":"return=minimal"); return b; },
     upsert(rows,opts){ s.method="POST"; s.body=Array.isArray(rows)?rows:[rows]; if(opts&&opts.onConflict)s.onConflict=opts.onConflict; s.prefer.push("resolution=merge-duplicates","return=minimal"); return b; },
     update(patch){ s.method="PATCH"; s.body=patch; s.prefer.push("return=minimal"); return b; },
     delete(){ s.method="DELETE"; s.prefer.push("return=minimal"); return b; },
@@ -330,8 +331,21 @@ async function fastCattle(){
   return getCattle(db);
 }
 
+// ── Action Tracker (owner project board) ──
+async function fastActionTracker(){
+  const [cRes,tRes]=await Promise.all([
+    supabase.from("task_categories").select("*").order("sort_order",{ascending:true}),
+    supabase.from("tasks").select("*").order("sort_order",{ascending:true}) ]);
+  if(cRes.error) throw new Error(cRes.error.message);
+  if(tRes.error) throw new Error(tRes.error.message);
+  const categories=(cRes.data||[]).map(c=>({rowIndex:c.id,name:c.name||"",emoji:c.emoji||"📋",color:c.color||"#9e9e9e",owner:c.owner||"",sort_order:num(c.sort_order)}));
+  const tasks=(tRes.data||[]).map(t=>({rowIndex:t.id,categoryId:t.category_id,title:t.title||"",done:!!t.done,doneAt:t.done_at||"",sort_order:num(t.sort_order)}));
+  return {categories,tasks};
+}
+
 export async function apiGet(action, params={}) {
   switch(action){
+    case "getActionTracker":    return await fastActionTracker();
     // Heavy analytics (owner screens) — need most tables.
     case "getDashboard":        return calcDashboard(await loadDb(), isoOf(new Date()));
     case "getPnL":              return calcPnL(await loadDb());
@@ -436,6 +450,14 @@ async function handleWrite(action, b){
     case "deleteTransaction":{ if(!b.rowIndex)throw new Error("Missing rowIndex"); await S.from("transactions").delete().eq("id",b.rowIndex); return {success:true}; }
     case "saveOverheads": { const o=b.overheads||{}; for(const k of Object.keys(o)){ if(o[k]===""||o[k]==null)continue; const v=parseFloat(o[k]); if(isNaN(v))continue; await setSetting("cost_"+k+"_monthly",v);} return {success:true}; }
     case "setPayment":    return await setPayment(b);
+    // ── Action Tracker ──
+    case "addTaskCategory":    return await addTaskCategory(b);
+    case "updateTaskCategory": return await updateTaskCategory(b);
+    case "deleteTaskCategory": { if(!b.rowIndex)throw new Error("Missing rowIndex"); const {error}=await S.from("task_categories").delete().eq("id",b.rowIndex); if(error)throw new Error(error.message); return {success:true}; }
+    case "addTask":            return await addTask(b);
+    case "updateTask":         return await updateTask(b);
+    case "deleteTask":         { if(!b.rowIndex)throw new Error("Missing rowIndex"); const {error}=await S.from("tasks").delete().eq("id",b.rowIndex); if(error)throw new Error(error.message); return {success:true}; }
+    case "moveTask":           return await moveTask(b);
     case "setProceedsAssignment":{ if(!/^\d{4}-\d{2}$/.test(String(b.month||"")))throw new Error("Pick a valid month (YYYY-MM)."); await setSetting("proceeds_"+b.month,(b.person||"").trim()); return {success:true}; }
     case "setCattleProceeds":{ if(!b.code)throw new Error("Cattle code required."); await setSetting("proceeds_cattle_"+String(b.code).trim(),(b.person||"").trim()); return {success:true}; }
     case "addOtherProceeds":{ const name=(b.name||"").trim(); const amt=parseFloat(String(b.amount).replace(/[^0-9.\-]/g,""))||0; if(!name)throw new Error("Enter a name for the proceeds."); if(!amt)throw new Error("Enter an amount."); await S.from("other_proceeds").insert({date:(b.date||"").trim()||null,name,amount:amt,person:(b.person||"").trim(),logged_at:new Date().toISOString()}); return {success:true}; }
@@ -537,5 +559,63 @@ async function setPayment(b){ const month=(b.month||"").trim(),cust=(b.customer|
   if(exId!=null){ const {error}=await supabase.from("payments").update(patch).eq("id",exId); if(error) throw new Error(error.message); }
   else { const {error}=await supabase.from("payments").insert({month,...patch}); if(error) throw new Error(error.message); }
   return {success:true}; }
+
+// ── Action Tracker writes ──────────────────────────────────────────────────
+async function addTaskCategory(b){
+  const {data}=await supabase.from("task_categories").select("sort_order");
+  const max=(data||[]).reduce((m,r)=>Math.max(m,num(r.sort_order)),0);
+  const row={name:(b.name||"").trim(),emoji:b.emoji||"📋",color:b.color||"#9e9e9e",owner:b.owner||"",sort_order:max+1};
+  const {data:ins,error}=await supabase.from("task_categories").insert(row,{returning:true});
+  if(error)throw new Error(error.message);
+  const r=ins&&ins[0]; return {success:true,rowIndex:r?r.id:null,sort_order:r?num(r.sort_order):max+1};
+}
+async function updateTaskCategory(b){
+  if(!b.rowIndex)throw new Error("Missing rowIndex");
+  const patch={};
+  if(b.name!==undefined)patch.name=(b.name||"").trim();
+  if(b.emoji!==undefined)patch.emoji=b.emoji||"📋";
+  if(b.color!==undefined)patch.color=b.color||"#9e9e9e";
+  if(b.owner!==undefined)patch.owner=b.owner||"";
+  if(b.sort_order!==undefined)patch.sort_order=num(b.sort_order);
+  if(!Object.keys(patch).length)return {success:true};
+  const {error}=await supabase.from("task_categories").update(patch).eq("id",b.rowIndex);
+  if(error)throw new Error(error.message); return {success:true};
+}
+async function addTask(b){
+  if(!b.category_id)throw new Error("Missing category.");
+  const {data}=await supabase.from("tasks").select("sort_order").eq("category_id",b.category_id);
+  const max=(data||[]).reduce((m,r)=>Math.max(m,num(r.sort_order)),0);
+  const row={category_id:b.category_id,title:(b.title||"").trim(),done:false,sort_order:max+1};
+  const {data:ins,error}=await supabase.from("tasks").insert(row,{returning:true});
+  if(error)throw new Error(error.message);
+  const r=ins&&ins[0]; return {success:true,rowIndex:r?r.id:null,sort_order:r?num(r.sort_order):max+1};
+}
+async function updateTask(b){
+  if(!b.rowIndex)throw new Error("Missing rowIndex");
+  const patch={};
+  if(b.title!==undefined)patch.title=(b.title||"").trim();
+  if(b.done!==undefined){ patch.done=!!b.done; patch.done_at=b.done?new Date().toISOString():null; }
+  if(b.sort_order!==undefined)patch.sort_order=num(b.sort_order);
+  if(b.category_id!==undefined)patch.category_id=b.category_id;
+  if(!Object.keys(patch).length)return {success:true};
+  const {error}=await supabase.from("tasks").update(patch).eq("id",b.rowIndex);
+  if(error)throw new Error(error.message); return {success:true};
+}
+// Reorder within a category by swapping sort_order with the neighbour (dir -1 up / +1 down).
+async function moveTask(b){
+  if(!b.rowIndex||!b.category_id)throw new Error("Missing task.");
+  const dir=num(b.dir); if(!dir)return {success:true};
+  const {data,error}=await supabase.from("tasks").select("id,sort_order").eq("category_id",b.category_id).order("sort_order",{ascending:true});
+  if(error)throw new Error(error.message);
+  const list=data||[]; const idx=list.findIndex(x=>Number(x.id)===Number(b.rowIndex)); if(idx<0)return {success:true};
+  const nIdx=idx+(dir<0?-1:1); if(nIdx<0||nIdx>=list.length)return {success:true};
+  const a=list[idx],c=list[nIdx];
+  const aOrder=num(a.sort_order), cOrder=num(c.sort_order);   // capture before any update
+  let e1=await supabase.from("tasks").update({sort_order:cOrder}).eq("id",a.id);
+  if(e1.error)throw new Error(e1.error.message);
+  let e2=await supabase.from("tasks").update({sort_order:aOrder}).eq("id",c.id);
+  if(e2.error)throw new Error(e2.error.message);
+  return {success:true};
+}
 
 export default { apiGet, apiPost };
