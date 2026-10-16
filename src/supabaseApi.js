@@ -583,7 +583,9 @@ async function updateTaskCategory(b){
 }
 async function addTask(b){
   if(!b.category_id)throw new Error("Missing category.");
-  const {data}=await supabase.from("tasks").select("sort_order").eq("category_id",b.category_id);
+  // sort_order is GLOBAL across all tasks (so the "All" view can rank across
+  // categories). A new task goes to the bottom of the overall list.
+  const {data}=await supabase.from("tasks").select("sort_order");
   const max=(data||[]).reduce((m,r)=>Math.max(m,num(r.sort_order)),0);
   const row={category_id:b.category_id,title:(b.title||"").trim(),done:false,sort_order:max+1};
   const {data:ins,error}=await supabase.from("tasks").insert(row,{returning:true});
@@ -601,19 +603,14 @@ async function updateTask(b){
   const {error}=await supabase.from("tasks").update(patch).eq("id",b.rowIndex);
   if(error)throw new Error(error.message); return {success:true};
 }
-// Reorder within a category by swapping sort_order with the neighbour (dir -1 up / +1 down).
+// Reorder by swapping the sort_order of two tasks. The caller (which knows the
+// currently displayed order — flat "All" list or a single category) passes both
+// rows and their current sort_order, so this works for either view.
 async function moveTask(b){
-  if(!b.rowIndex||!b.category_id)throw new Error("Missing task.");
-  const dir=num(b.dir); if(!dir)return {success:true};
-  const {data,error}=await supabase.from("tasks").select("id,sort_order").eq("category_id",b.category_id).order("sort_order",{ascending:true});
-  if(error)throw new Error(error.message);
-  const list=data||[]; const idx=list.findIndex(x=>Number(x.id)===Number(b.rowIndex)); if(idx<0)return {success:true};
-  const nIdx=idx+(dir<0?-1:1); if(nIdx<0||nIdx>=list.length)return {success:true};
-  const a=list[idx],c=list[nIdx];
-  const aOrder=num(a.sort_order), cOrder=num(c.sort_order);   // capture before any update
-  let e1=await supabase.from("tasks").update({sort_order:cOrder}).eq("id",a.id);
+  if(!b.aId||!b.bId)throw new Error("Missing task.");
+  let e1=await supabase.from("tasks").update({sort_order:num(b.bOrder)}).eq("id",b.aId);
   if(e1.error)throw new Error(e1.error.message);
-  let e2=await supabase.from("tasks").update({sort_order:aOrder}).eq("id",c.id);
+  let e2=await supabase.from("tasks").update({sort_order:num(b.aOrder)}).eq("id",b.bId);
   if(e2.error)throw new Error(e2.error.message);
   return {success:true};
 }
