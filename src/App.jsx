@@ -18,6 +18,29 @@ const PINS = {
   owner:      "8934",
 };
 
+// ─── THEME (light / dark) ────────────────────────────────────────────────────
+// Whole-app dark mode via one CSS filter on <html>, toggled from the login
+// screen and remembered on the device. Images/logos are re-inverted so they
+// still look normal. Nothing else in the app has to change for this to work.
+function applyTheme(mode){ try{ const el=document.documentElement;
+  if(mode==="dark") el.classList.add("bdf-dark"); else el.classList.remove("bdf-dark");
+  localStorage.setItem("bdf_theme",mode); }catch(e){} }
+if(typeof document!=="undefined"){
+  try{ if(localStorage.getItem("bdf_theme")==="dark") document.documentElement.classList.add("bdf-dark"); }catch(e){}
+  if(!document.getElementById("bdf-theme-style")){
+    const s=document.createElement("style"); s.id="bdf-theme-style";
+    s.textContent='html.bdf-dark{filter:invert(0.92) hue-rotate(180deg);background:#0e1512}html.bdf-dark img,html.bdf-dark svg,html.bdf-dark video,html.bdf-dark .bdf-noinvert{filter:invert(1) hue-rotate(180deg)}';
+    (document.head||document.documentElement).appendChild(s);
+  }
+}
+function ThemeToggle({style={}}){
+  const [m,setM]=useState(()=>{ try{ return localStorage.getItem("bdf_theme")==="dark"?"dark":"light"; }catch(e){ return "light"; } });
+  function flip(){ const n=m==="dark"?"light":"dark"; setM(n); applyTheme(n); }
+  return <button onClick={flip} title="Light / dark" aria-label="Toggle light or dark"
+    style={{background:"#fff",border:"1px solid #d9e2dd",color:"#6b7f76",borderRadius:9,padding:"6px 10px",fontSize:14,cursor:"pointer",lineHeight:1,fontFamily:"inherit",...style}}>
+    {m==="dark"?"☀️":"🌙"}</button>;
+}
+
 const BUFFALO_CATTLE = ["B4","B5","B6","B7","B8","B9"]; // B1 currently dry
 const COW_CATTLE     = ["C1","C2","C3"];
 const BUCKET_WEIGHT  = 1.18;
@@ -506,9 +529,10 @@ function LoginScreen({onLogin,lang,setLang}) {
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#EBF5FD 0%,#f8fafc 60%)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{width:"100%",maxWidth:320}}>
 
-        {/* Lang toggle */}
-        <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
+        {/* Lang + theme toggle */}
+        <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:10,marginBottom:24}}>
           <LangToggle lang={lang} setLang={setLang}/>
+          <ThemeToggle/>
         </div>
 
         {/* Logo + name */}
@@ -2792,6 +2816,9 @@ function ActionTracker(){
   const [editCatText,setEditCatText]=useState("");
   const [addingCat,setAddingCat]=useState(false);
   const [newCatText,setNewCatText]=useState("");
+  const [allAddOpen,setAllAddOpen]=useState(false);
+  const [allAddCat,setAllAddCat]=useState(null);
+  const [allAddText,setAllAddText]=useState("");
   const [saving,setSaving]=useState(false);
   const [toast,setToast]=useState(null);
   function showToast(msg,type="success"){setToast({msg,type});setTimeout(()=>setToast(null),2500);}
@@ -2810,11 +2837,13 @@ function ActionTracker(){
     if(!v){ setTasks(ts=>ts.filter(x=>x.rowIndex!==it.rowIndex)); markSaving(apiPost("deleteTask",{rowIndex:it.rowIndex})); return; }
     setTasks(ts=>ts.map(x=>x.rowIndex===it.rowIndex?{...x,title:v}:x)); markSaving(apiPost("updateTask",{rowIndex:it.rowIndex,title:v})); }
   function delTask(it){ setTasks(ts=>ts.filter(x=>x.rowIndex!==it.rowIndex)); markSaving(apiPost("deleteTask",{rowIndex:it.rowIndex})); }
-  function moveTask(it,dir){ const ct=tasks.filter(x=>x.categoryId===it.categoryId).sort(byOrder);
-    const i=ct.findIndex(x=>x.rowIndex===it.rowIndex), j=i+dir; if(i<0||j<0||j>=ct.length)return;
-    const other=ct[j];
+  // Reorder within whatever list is on screen (flat "All" list, or one category).
+  // `list` is that ordered, visible list; we swap sort_order with the neighbour.
+  function moveTask(it,dir,list){ const i=list.findIndex(x=>x.rowIndex===it.rowIndex), j=i+dir;
+    if(i<0||j<0||j>=list.length)return;
+    const other=list[j];
     setTasks(ts=>ts.map(x=> x.rowIndex===it.rowIndex?{...x,sort_order:other.sort_order} : x.rowIndex===other.rowIndex?{...x,sort_order:it.sort_order} : x));
-    markSaving(apiPost("moveTask",{rowIndex:it.rowIndex,category_id:it.categoryId,dir})); }
+    markSaving(apiPost("moveTask",{aId:it.rowIndex,aOrder:it.sort_order,bId:other.rowIndex,bOrder:other.sort_order})); }
 
   async function commitAdd(catId,keepOpen){ const v=draftText.trim(); setDraftText("");
     if(!keepOpen) setDraftCat(null);
@@ -2837,6 +2866,15 @@ function ActionTracker(){
       setCats(cs=>[...cs,{rowIndex:r.rowIndex,name:v,emoji:"📋",color,owner:"",sort_order:r.sort_order||(cs.length+1)}]);
     }catch(e){ showToast("Couldn't add — refreshing","error"); load(); }
     finally{ setSaving(false); } }
+  // Add from the flat "All" view — needs a category chosen from the dropdown.
+  async function commitAllAdd(keepOpen){ const v=allAddText.trim(); const catId=allAddCat; setAllAddText("");
+    if(!keepOpen) setAllAddOpen(false);
+    if(!v||!catId) return;
+    setSaving(true);
+    try{ const r=await apiPost("addTask",{category_id:catId,title:v});
+      setTasks(ts=>[...ts,{rowIndex:r.rowIndex,categoryId:catId,title:v,done:false,doneAt:"",sort_order:r.sort_order||0}]);
+    }catch(e){ showToast("Couldn't add — refreshing","error"); load(); }
+    finally{ setSaving(false); } }
 
   const todayStr=new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
   const inpS={font:"inherit",fontSize:14,width:"100%",border:"1.5px solid #2D7FB5",borderRadius:7,padding:"6px 9px",background:"#f8fafc",color:"#1a1a1a",outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
@@ -2844,12 +2882,40 @@ function ActionTracker(){
   if(loading) return <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>Loading…</div></div>;
   if(err) return <div><Alert type="error">Couldn't load the tracker: {err}</Alert><Btn onClick={()=>{setLoading(true);load();}} variant="ghost" style={{width:"100%"}}>Retry</Btn></div>;
 
+  const catById={}; cats.forEach(c=>{catById[c.rowIndex]=c;});
   const shownCats = filter==="all" ? [...cats].sort(byOrder) : cats.filter(c=>c.rowIndex===filter);
   const chip=(key,label,color,on)=>(
     <button key={key} onClick={()=>setFilter(key)} style={{flex:"0 0 auto",border:"1px solid "+(on?"#2d6a4f":"#e3ebe6"),background:on?"#2d6a4f":"#fff",color:on?"#fff":"#6b7f76",borderRadius:999,padding:"7px 12px",fontSize:12.5,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:6,fontFamily:"inherit"}}>
       {color&&<span style={{width:8,height:8,borderRadius:"50%",background:color,display:"inline-block"}}/>}{label}
     </button>
   );
+  // One task row. `list` is the ordered visible list it lives in (for ▲▼).
+  // `cat` is passed in the flat "All" view to show a colour tag + border.
+  const renderRow=(it,list,cat)=>{
+    const i=list.findIndex(x=>x.rowIndex===it.rowIndex), atTop=i<=0, atBot=i>=list.length-1;
+    return (
+      <div key={it.rowIndex} style={{display:"flex",alignItems:"center",gap:9,padding:"10px 13px",borderBottom:"1px solid #f1f5f3",background:it.done?"#f6faf8":"transparent",borderLeft:cat?("4px solid "+cat.color):"none"}}>
+        <button onClick={()=>toggleTask(it)} aria-label="toggle done" style={{flex:"0 0 auto",width:22,height:22,borderRadius:7,border:"2px solid "+(it.done?"#15803d":"#9fb2a9"),background:it.done?"#15803d":"transparent",cursor:"pointer",display:"grid",placeItems:"center",padding:0,color:"#fff",fontSize:13,fontWeight:800,lineHeight:1}}>{it.done?"✓":""}</button>
+        <div style={{flex:1,minWidth:0}}>
+          {editId===it.rowIndex ? (
+            <input autoFocus value={editText} onChange={e=>setEditText(e.target.value)} onBlur={()=>commitEdit(it)}
+              onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();e.target.blur();}}} placeholder="Type the action…" style={inpS}/>
+          ) : (
+            <>
+              <div onClick={()=>startEdit(it)} style={{fontSize:13.5,wordBreak:"break-word",cursor:"text",textDecoration:it.done?"line-through":"none",color:it.done?"#888":"#1a1a1a"}}>{it.title}</div>
+              {cat && <div style={{fontSize:10.5,color:cat.color,fontWeight:700,marginTop:3,display:"inline-flex",alignItems:"center",gap:4}}><span style={{width:7,height:7,borderRadius:"50%",background:cat.color,display:"inline-block"}}/>{cat.name}{it.done?" · done ✓":""}</div>}
+              {!cat && it.done && <div style={{fontSize:10,color:"#15803d",fontWeight:600,marginTop:2}}>✓ done</div>}
+            </>
+          )}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:2,flex:"0 0 auto"}}>
+          <button onClick={()=>moveTask(it,-1,list)} disabled={atTop} style={{width:26,height:19,border:"1px solid #e3ebe6",background:"#fff",color:"#6b7f76",borderRadius:6,fontSize:9,cursor:atTop?"default":"pointer",lineHeight:1,padding:0,opacity:atTop?0.3:1}}>▲</button>
+          <button onClick={()=>moveTask(it,1,list)} disabled={atBot} style={{width:26,height:19,border:"1px solid #e3ebe6",background:"#fff",color:"#6b7f76",borderRadius:6,fontSize:9,cursor:atBot?"default":"pointer",lineHeight:1,padding:0,opacity:atBot?0.3:1}}>▼</button>
+        </div>
+        <button onClick={()=>delTask(it)} title="Delete" style={{flex:"0 0 auto",background:"none",border:"none",color:"#9fb2a9",fontSize:17,cursor:"pointer",padding:"2px 6px",lineHeight:1}}>×</button>
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -2881,7 +2947,29 @@ function ActionTracker(){
         </button>
       </div>
 
-      {shownCats.map(cat=>{
+      {filter==="all" ? (()=>{
+        const flatAll=[...tasks].sort(byOrder);
+        const vis=hideDone?flatAll.filter(t=>!t.done):flatAll;
+        return (
+          <section style={{background:"#fff",border:"1px solid #e3ebe6",borderRadius:14,marginBottom:12,overflow:"hidden"}}>
+            {vis.length===0 && <div style={{padding:"18px 14px",fontSize:12.5,color:"#94a3b8",textAlign:"center"}}>No actions yet — add one below.</div>}
+            {vis.map(it=>renderRow(it,vis,catById[it.categoryId]))}
+            {allAddOpen ? (
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 13px",background:"#f6faf8"}}>
+                <select value={allAddCat||""} onChange={e=>setAllAddCat(Number(e.target.value))} style={{fontSize:12,border:"1px solid #e3ebe6",background:"#fff",color:"#1a1a1a",borderRadius:7,padding:"7px 6px",fontFamily:"inherit",flex:"0 0 auto",maxWidth:132}}>
+                  {[...cats].sort(byOrder).map(c=><option key={c.rowIndex} value={c.rowIndex}>{c.name}</option>)}
+                </select>
+                <input autoFocus value={allAddText} onChange={e=>setAllAddText(e.target.value)} onBlur={()=>commitAllAdd(false)}
+                  onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();commitAllAdd(true);}}} placeholder="Type the action, press Enter…" style={inpS}/>
+              </div>
+            ) : (
+              <div onClick={()=>{ if(!cats.length){showToast("Add a category first","error");return;} setAllAddCat(prev=>prev||[...cats].sort(byOrder)[0].rowIndex); setAllAddText(""); setAllAddOpen(true); }} style={{display:"flex",alignItems:"center",gap:7,padding:"10px 13px",color:"#2d6a4f",fontSize:13,fontWeight:600,cursor:"pointer",background:"#f6faf8"}}>
+                <span style={{fontSize:16,lineHeight:1}}>+</span> Add action
+              </div>
+            )}
+          </section>
+        );
+      })() : shownCats.map(cat=>{
         const cTasks=tasks.filter(t=>t.categoryId===cat.rowIndex).sort(byOrder);
         const vis=hideDone?cTasks.filter(t=>!t.done):cTasks;
         const openN=cTasks.filter(t=>!t.done).length;
@@ -2917,31 +3005,7 @@ function ActionTracker(){
 
             {isOpen && (
               <div style={{borderTop:"1px solid #e3ebe6"}}>
-                {vis.map(it=>{
-                  const posN=cTasks.length;
-                  const pos=cTasks.findIndex(x=>x.rowIndex===it.rowIndex);
-                  return (
-                    <div key={it.rowIndex} style={{display:"flex",alignItems:"center",gap:9,padding:"10px 13px",borderBottom:"1px solid #f1f5f3",background:it.done?"#f6faf8":"transparent"}}>
-                      <button onClick={()=>toggleTask(it)} aria-label="toggle done" style={{flex:"0 0 auto",width:22,height:22,borderRadius:7,border:"2px solid "+(it.done?"#15803d":"#9fb2a9"),background:it.done?"#15803d":"transparent",cursor:"pointer",display:"grid",placeItems:"center",padding:0,color:"#fff",fontSize:13,fontWeight:800,lineHeight:1}}>{it.done?"✓":""}</button>
-                      <div style={{flex:1,minWidth:0}}>
-                        {editId===it.rowIndex ? (
-                          <input autoFocus value={editText} onChange={e=>setEditText(e.target.value)} onBlur={()=>commitEdit(it)}
-                            onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();e.target.blur();}}} placeholder="Type the action…" style={inpS}/>
-                        ) : (
-                          <>
-                            <div onClick={()=>startEdit(it)} style={{fontSize:13.5,wordBreak:"break-word",cursor:"text",textDecoration:it.done?"line-through":"none",color:it.done?"#888":"#1a1a1a"}}>{it.title}</div>
-                            {it.done&&<div style={{fontSize:10,color:"#15803d",fontWeight:600,marginTop:2}}>✓ done</div>}
-                          </>
-                        )}
-                      </div>
-                      <div style={{display:"flex",flexDirection:"column",gap:2,flex:"0 0 auto"}}>
-                        <button onClick={()=>moveTask(it,-1)} disabled={pos===0} style={{width:26,height:19,border:"1px solid #e3ebe6",background:"#fff",color:"#6b7f76",borderRadius:6,fontSize:9,cursor:pos===0?"default":"pointer",lineHeight:1,padding:0,opacity:pos===0?0.3:1}}>▲</button>
-                        <button onClick={()=>moveTask(it,1)} disabled={pos===posN-1} style={{width:26,height:19,border:"1px solid #e3ebe6",background:"#fff",color:"#6b7f76",borderRadius:6,fontSize:9,cursor:pos===posN-1?"default":"pointer",lineHeight:1,padding:0,opacity:pos===posN-1?0.3:1}}>▼</button>
-                      </div>
-                      <button onClick={()=>delTask(it)} title="Delete" style={{flex:"0 0 auto",background:"none",border:"none",color:"#9fb2a9",fontSize:17,cursor:"pointer",padding:"2px 6px",lineHeight:1}}>×</button>
-                    </div>
-                  );
-                })}
+                {vis.map(it=>renderRow(it,vis,null))}
                 {draftCat===cat.rowIndex ? (
                   <div style={{display:"flex",alignItems:"center",gap:9,padding:"10px 13px",background:"#f6faf8"}}>
                     <input autoFocus value={draftText} onChange={e=>setDraftText(e.target.value)} onBlur={()=>commitAdd(cat.rowIndex,false)}
@@ -2967,7 +3031,7 @@ function ActionTracker(){
       ))}
 
       <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:11.5,color:"#1A5C8A",marginTop:14}}>
-        💡 Tap an action to edit it, the circle to mark it done, and ▲▼ to reorder by priority. Every change saves automatically and shows on both phones. Tap "Saved" to pull the latest.
+        💡 The <b>All</b> tab shows every action in one list — reorder with ▲▼ to rank priority across all categories (the colour tag shows which category each belongs to). Pick a category chip to focus on just that group. Tap an action to edit, the circle to mark done. Everything saves automatically and shows on both phones; tap "Saved" to pull the latest.
       </div>
     </div>
   );
@@ -3013,7 +3077,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
         {key:"cattle",title:"Cattle",desc:"Herd details, milk/day, add or sell cattle",emoji:"🐄",color:"#92400e"},
         {key:"customers",title:"Customers",desc:"Delivery customers & their list positions",emoji:"🧾",color:"#1A5C8A"},
         {key:"bills",title:"Bills",desc:"Generate & download monthly customer bills",emoji:"🖨️",color:"#7c3aed"},
-        {key:"actions",title:"Action Items",desc:"AI, vaccination & deworming due",emoji:"🔔",color:"#dc2626"}
+        {key:"actions",title:"Health Alerts",desc:"AI, vaccination & deworming due",emoji:"🔔",color:"#dc2626"}
       ].map(s=>(
         <div key={s.key} onClick={()=>setSection(s.key)} style={{cursor:"pointer",background:"#fff",borderRadius:14,boxShadow:"0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04)",padding:"18px 20px",marginBottom:12,display:"flex",alignItems:"center",gap:14,borderLeft:"4px solid "+s.color}}>
           <div style={{fontSize:30}}>{s.emoji}</div>
@@ -3027,7 +3091,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
     </div>
   );
 
-  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":section==="actions"?"Action Items":section==="tracker"?"Action Tracker":section==="bills"?"Bills":"Customers";
+  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":section==="actions"?"Health Alerts":section==="tracker"?"Action Tracker":section==="bills"?"Bills":"Customers";
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
@@ -3216,7 +3280,8 @@ function FarmLogin({onDone,lang,setLang}){
     try{ await sbSignIn(pw); onDone(); }
     catch(e){ setErr(t.loginWrong); setBusy(false); } }
   return (
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f4f7f6",padding:16}}>
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f4f7f6",padding:16,position:"relative"}}>
+      <div style={{position:"absolute",top:16,right:16}}><ThemeToggle/></div>
       <div style={{width:"100%",maxWidth:360,background:"#fff",border:"1px solid #e2ebe6",borderRadius:16,padding:"28px 24px",textAlign:"center",boxShadow:"0 2px 16px rgba(0,0,0,0.05)"}}>
         <div style={{fontSize:42}}>🐃</div>
         <div style={{fontSize:20,fontWeight:700,marginTop:6,color:"#1a1a1a"}}>{t.appName}</div>
