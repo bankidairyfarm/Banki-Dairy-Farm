@@ -434,6 +434,68 @@ async function saveWorker(b){ const name=(b.name||"").trim(); if(!name) throw ne
     if(error) throw new Error(error.message); }
   return {success:true,rowIndex:id}; }
 
+// ── Milk purchase reconciliation ────────────────────────────────────────────
+// Compares milk the supervisor logged as bought (production_day: litres x rate)
+// with what is recorded in Transactions (Opex › Milking Supplies entries whose
+// name mentions milk), month by month. Rates above MILK_RATE_MAX were almost
+// surely typed as the day's total, so they are flagged with a suggested ₹/L.
+const MILK_RATE_MIN = 20, MILK_RATE_MAX = 100;
+function isMilkPurchaseTxn(t){
+  if(String(t.category||"").trim().toLowerCase()!=="opex") return false;
+  if(String(t.subcategory||"").trim().toLowerCase()!=="milking supplies") return false;
+  const n=String(t.name||"");
+  return /\b(milk|doodh|dudh)\b|दूध|دودھ/i.test(n) && !/bottle|\bcaps?\b|bucket|crate|\bcans?\b|\bjars?\b/i.test(n); }
+function classifyRate(litres,rate){
+  const r=num(rate); if(!(r>0)) return {status:"missing",suggest:null};
+  if(r>MILK_RATE_MAX){ const sg=Math.round(r/litres*100)/100; return (sg>=MILK_RATE_MIN&&sg<=MILK_RATE_MAX)?{status:"total",suggest:sg}:{status:"check",suggest:null}; }
+  if(r<MILK_RATE_MIN) return {status:"check",suggest:null};
+  return {status:"ok",suggest:null}; }
+function calcMilkRecon(pd,txns,settings,todayIso){
+  const cur=ymOf(todayIso);
+  const rows=pd.filter(r=>num(r.purchased)>0&&/^\d{4}-\d{2}-\d{2}$/.test(String(r.date||""))).map(r=>{
+    const L=num(r.purchased), has=!(r.purchase_rate==null||r.purchase_rate==="");
+    return {date:r.date,slot:r.slot,litres:L,rate:has?num(r.purchase_rate):null,...classifyRate(L,r.purchase_rate)}; })
+    .sort((a,b)=>a.date.localeCompare(b.date)||(a.slot==="morning"?-1:1));
+  const rec=txns.filter(isMilkPurchaseTxn).filter(t=>/^\d{4}-\d{2}/.test(String(t.date||"")))
+    .map(t=>({rowIndex:t.id,date:t.date,name:t.name||"",amount:num(t.amount),payer:t.payer||""}))
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  if(!rows.length) return {currentMonth:cur,firstMonth:null,months:[],totals:null,earlier:{amount:rec.reduce((x,t)=>x+t.amount,0),count:rec.length}};
+  const first=ymOf(rows[0].date); const set={};
+  rows.forEach(r=>{ set[ymOf(r.date)]=1; }); rec.forEach(t=>{ const m=ymOf(t.date); if(m>=first) set[m]=1; });
+  const months=Object.keys(set).sort().map(m=>{
+    const mr=rows.filter(r=>ymOf(r.date)===m), mt=rec.filter(t=>ymOf(t.date)===m);
+    let litres=0,cost=0,okL=0; mr.forEach(r=>{ litres+=r.litres; if(r.status==="ok"){ cost+=r.litres*r.rate; okL+=r.litres; } });
+    const issues=mr.filter(r=>r.status!=="ok"), recorded=mt.reduce((x,t)=>x+t.amount,0);
+    cost=Math.round(cost*100)/100;
+    return {month:m,litres:Math.round(litres*100)/100,cost,pricedLitres:Math.round(okL*100)/100,avgRate:okL>0?Math.round(cost/okL*100)/100:null,
+      issues,recorded,entries:mt,gap:issues.length?null:Math.round(cost-recorded),proceedsPerson:(settings["proceeds_"+m]||"").trim()}; });
+  const done=months.filter(m=>m.gap!=null);
+  const totals={litres:months.reduce((x,m)=>x+m.litres,0),cost:done.reduce((x,m)=>x+m.cost,0),recorded:done.reduce((x,m)=>x+m.recorded,0),
+    unrecorded:done.reduce((x,m)=>x+Math.max(0,m.gap),0),openMonths:months.length-done.length,issueCount:months.reduce((x,m)=>x+m.issues.length,0)};
+  const earlierTx=rec.filter(t=>ymOf(t.date)<first);
+  return {currentMonth:cur,firstMonth:first,months:months.reverse(),totals,earlier:{amount:earlierTx.reduce((x,t)=>x+t.amount,0),count:earlierTx.length}};
+}
+async function fastMilkRecon(){
+  const [pd,txRes,sRes]=await Promise.all([
+    fetchAll("production_day","date,slot,purchased,purchase_rate"),
+    supabase.from("transactions").select("id,date,name,category,subcategory,payer,amount").eq("subcategory","Milking Supplies"),
+    supabase.from("settings").select("*") ]);
+  if(txRes.error) throw new Error(txRes.error.message);
+  const settings={}; (sRes.data||[]).forEach(r=>settings[r.key]=r.value);
+  return calcMilkRecon(pd, txRes.data||[], settings, isoOf(new Date()));
+}
+async function setPurchaseRates(b){
+  const list=Array.isArray(b.rows)?b.rows:[]; const up=[];
+  list.forEach(r=>{ const v=parseFloat(r.rate);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(r.date||""))||(r.slot!=="morning"&&r.slot!=="evening")) return;
+    if(isNaN(v)||v<=0||v>1000) throw new Error("Rate for "+r.date+" "+r.slot+" must be a number above 0.");
+    up.push({date:r.date,slot:r.slot,purchase_rate:Math.round(v*100)/100}); });
+  if(!up.length) return {success:true,updated:0};
+  const {error}=await supabase.from("production_day").upsert(up,{onConflict:"date,slot"});
+  if(error) throw new Error(error.message);
+  return {success:true,updated:up.length};
+}
+
 // ── Action Tracker (owner project board) ──
 async function fastActionTracker(){
   const [cRes,tRes]=await Promise.all([
@@ -451,6 +513,7 @@ export async function apiGet(action, params={}) {
     case "getActionTracker":    return await fastActionTracker();
     case "getLabour":           return await fastLabour();
     case "getWorkers":          return await fastWorkers();
+    case "getMilkPurchases":    return await fastMilkRecon();
     // Heavy analytics (owner screens) — need most tables.
     case "getDashboard":        return calcDashboard(await loadDb(), isoOf(new Date()));
     case "getPnL":              return calcPnL(await loadDb());
@@ -555,6 +618,7 @@ async function handleWrite(action, b){
     case "deleteTransaction":{ if(!b.rowIndex)throw new Error("Missing rowIndex"); await S.from("transactions").delete().eq("id",b.rowIndex); return {success:true}; }
     case "saveOverheads": { const o=b.overheads||{}; for(const k of Object.keys(o)){ if(o[k]===""||o[k]==null)continue; const v=parseFloat(o[k]); if(isNaN(v))continue; await setSetting("cost_"+k+"_monthly",v);} return {success:true}; }
     case "setPayment":    return await setPayment(b);
+    case "setPurchaseRates":   return await setPurchaseRates(b);
     // ── Delivery navigation ──
     case "setCustomerLocation":{ if(!b.rowIndex)throw new Error("Missing rowIndex"); const f=locFields(b); if(!Object.keys(f).length)return {success:true}; const {error}=await S.from("customers").update(f).eq("id",b.rowIndex); if(error)throw new Error(error.message); return {success:true}; }
     case "saveWaMessage":      { await setSetting("wa_delivery_msg",String(b.message||"").trim()); return {success:true}; }
