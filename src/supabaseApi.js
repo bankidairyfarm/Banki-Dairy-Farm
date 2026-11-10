@@ -89,6 +89,10 @@ const supabase = { from: _from };
 // Farm logo for printed bills (from the original Code.gs).
 const BILL_LOGO = "data:image/jpeg;base64,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";
 
+// Loan: a funding source (payer) and a non-expense category for repayments.
+const LOAN_PAYER = "Loan";
+function isLoanRepay(cat){ return String(cat||"").trim().toLowerCase()==="loan repayment"; }
+
 const FEED_BUILTIN_KEYS = ["chokar","arhar","bhoosa","barseem","jaggery","mineral"];
 const CONV = 0.97, BUCKET = 1.18;
 const num = v => { if (v==null||v==="") return 0; const n=parseFloat(v); return isNaN(n)?0:n; };
@@ -123,7 +127,7 @@ async function loadDb(force){
     _raw:{customers,cattle,cattleFeed,feedCats,productionDay,history,other,catById,custById,feedByCattle},
     customers: customers.map(c=>({rowIndex:c.id,name_en:c.name_en,name_hi:c.name_hi||"",name_ur:c.name_ur||"",
       slot:c.slot,type:c.type,phone:c.phone||"",selfCollect:!!c.self_collect,active:c.active!==false,
-      rate:(c.rate==null?null:num(c.rate)),sort_order:num(c.sort_order)})),
+      rate:(c.rate==null?null:num(c.rate)),sort_order:num(c.sort_order),...custLoc(c)})),
     cattle: cattle.map(c=>({id:c.id,code:c.code,type:c.type,sold:!!c.sold,sold_date:c.sold_date,
       sold_price:c.sold_price,date_in:c.date_in,lastCalving:c.last_calving})),
     production: production.map(p=>({date:p.date,slot:p.slot,litres:num(p.litres),
@@ -193,7 +197,7 @@ function calcPnL(db){ const {rateB,rateC}=rates(db); const overheads={};
   const liveMonth={},lm=m=>{if(!liveMonth[m])liveMonth[m]={revenue:0,produced:0,sold:0};return liveMonth[m];};
   dates.forEach(d=>{const o=lm(d.substring(0,7));o.revenue+=liveRev(d);const x=dispByDate[d]||{B:0,C:0};o.sold+=x.B+x.C;});
   Object.keys(prodTot).forEach(d=>{if(/^\d{4}-\d{2}-\d{2}$/.test(d))lm(d.substring(0,7)).produced+=prodTot[d];});
-  const hist=loadHistory(db); const txn={byMonth:{}}; db.transactions.forEach(t=>{const d=t.date;if(!d)return;const mo=d.substring(0,7);const cat=(t.category||"").trim();const sub=(t.subCategory||"").trim()||"Other";const a=t.amount;if(!txn.byMonth[mo])txn.byMonth[mo]={opexTotal:0,opexBySub:{},capexTotal:0};if(cat.toLowerCase()==="capex")txn.byMonth[mo].capexTotal+=a;else{txn.byMonth[mo].opexTotal+=a;txn.byMonth[mo].opexBySub[sub]=(txn.byMonth[mo].opexBySub[sub]||0)+a;}});
+  const hist=loadHistory(db); const txn={byMonth:{}}; db.transactions.forEach(t=>{const d=t.date;if(!d)return;const mo=d.substring(0,7);const cat=(t.category||"").trim();if(isLoanRepay(cat))return;const sub=(t.subCategory||"").trim()||"Other";const a=t.amount;if(!txn.byMonth[mo])txn.byMonth[mo]={opexTotal:0,opexBySub:{},capexTotal:0};if(cat.toLowerCase()==="capex")txn.byMonth[mo].capexTotal+=a;else{txn.byMonth[mo].opexTotal+=a;txn.byMonth[mo].opexBySub[sub]=(txn.byMonth[mo].opexBySub[sub]||0)+a;}});
   const iv=db.cattle.map(c=>({start:c.date_in||"",end:c.sold_date||""}));
   const avg=(m)=>{const [y,mo]=m.split("-").map(Number);const ms=Date.UTC(y,mo-1,1),me=Date.UTC(y,mo,1),dim=(me-ms)/864e5;let s=0;iv.forEach(x=>{const a=x.start?Date.parse(x.start+"T00:00:00Z"):-8.64e15;const e=x.end?Date.parse(x.end+"T00:00:00Z")+864e5:8.64e15;const lo=Math.max(a,ms),hi=Math.min(e,me);if(hi>lo)s+=(hi-lo)/864e5;});return Math.round(s/dim*100)/100;};
   const ms={},ml=[]; Object.keys(hist).concat(Object.keys(liveMonth)).concat(Object.keys(txn.byMonth)).forEach(m=>{if(!ms[m]&&/^\d{4}-\d{2}$/.test(m)){ms[m]=1;ml.push(m);}}); ml.sort((a,b)=>b.localeCompare(a));
@@ -229,7 +233,13 @@ function monthlyRevenue(db){ const {rateB,rateC}=rates(db),{TYPE,RATE}=custMaps(
 
 function calcNet(db){ const revMap=monthlyRevenue(db),monthAssign={},cattleAssign={};
   Object.keys(db.settings).forEach(k=>{let m=k.match(/^proceeds_(\d{4}-\d{2})$/);if(m){monthAssign[m[1]]=(db.settings[k]||"").trim();return;}m=k.match(/^proceeds_cattle_(.+)$/);if(m)cattleAssign[m[1]]=(db.settings[k]||"").trim();});
-  const spent={}; db.transactions.forEach(t=>{const p=(t.payer||"").trim();if(!p)return;spent[p]=(spent[p]||0)+t.amount;});
+  const spent={}; let loanUsed=0,loanRepaid=0;
+  db.transactions.forEach(t=>{const p=(t.payer||"").trim();
+    if(isLoanRepay(t.category)){ loanRepaid+=t.amount; }
+    if(!p)return;
+    if(p.toLowerCase()===LOAN_PAYER.toLowerCase()){ if(!isLoanRepay(t.category))loanUsed+=t.amount; return; }
+    spent[p]=(spent[p]||0)+t.amount;});
+  const loanAmt=parseFloat(db.settings.loan_amount); const loan={amount:isNaN(loanAmt)?0:loanAmt,used:loanUsed,repaid:loanRepaid};
   const km={},kc={},ko={};
   const months=Object.keys(revMap).sort((a,b)=>b.localeCompare(a)).map(m=>{const person=monthAssign[m]||"";if(person)km[person]=(km[person]||0)+(revMap[m]||0);return {month:m,revenue:revMap[m]||0,person};});
   const sold=db.cattle.filter(c=>c.sold&&num(c.sold_price)>0).map(c=>({code:c.code,soldDate:c.sold_date||"",price:num(c.sold_price)}));
@@ -237,7 +247,7 @@ function calcNet(db){ const revMap=monthlyRevenue(db),monthAssign={},cattleAssig
   const otherProceeds=db.other_proceeds.map(o=>{if(o.person)ko[o.person]=(ko[o.person]||0)+o.amount;return o;});
   const names={};[spent,km,kc,ko].forEach(o=>Object.keys(o).forEach(n=>names[n]=1));
   const people=Object.keys(names).map(n=>{const sp=spent[n]||0,a=km[n]||0,b=kc[n]||0,c=ko[n]||0;return {name:n,spent:sp,proceedsMilk:a,proceedsCattle:b,proceedsOther:c,proceeds:a+b+c,net:sp-(a+b+c)};}).sort((a,b)=>b.net-a.net);
-  return {people,months,cattleSales,otherProceeds}; }
+  return {people,months,cattleSales,otherProceeds,loan}; }
 
 function calcBills(db,month){ const [year,mon]=String(month||"").split("-").map(Number);
   if(!year||!mon||mon<1||mon>12) throw new Error("Pick a valid month (YYYY-MM).");
@@ -271,6 +281,16 @@ function shapeProductionByDate(db,date){ const blank=()=>({cattle:{},measuredB:"
 function shapePayments(db,month){ // needs its own fetch (id->name via customer)
   return null; }
 
+// ── customer location (delivery navigation) ──
+function custLoc(c){ const la=parseFloat(c.lat), ln=parseFloat(c.lng); const ok=!isNaN(la)&&!isNaN(ln);
+  return {lat:ok?la:null,lng:ok?ln:null,mapsLink:c.maps_link||"",address:c.address||""}; }
+function locFields(b){ const f={};   // only the fields the caller actually sent
+  if(b.lat!==undefined||b.lng!==undefined){ const la=parseFloat(b.lat), ln=parseFloat(b.lng); const ok=!isNaN(la)&&!isNaN(ln)&&Math.abs(la)<=90&&Math.abs(ln)<=180;
+    f.lat=ok?Math.round(la*1e6)/1e6:null; f.lng=ok?Math.round(ln*1e6)/1e6:null; }
+  if(b.mapsLink!==undefined) f.maps_link=String(b.mapsLink||"").trim();
+  if(b.address!==undefined)  f.address=String(b.address||"").trim();
+  return f; }
+
 // ── id lookups for writes ──
 async function custIdByName(name){ const {data}=await supabase.from("customers").select("id").eq("name_en",name).limit(1); return data&&data[0]?data[0].id:null; }
 async function cattleIdByCode(code){ const {data}=await supabase.from("cattle").select("id").eq("code",code).limit(1); return data&&data[0]?data[0].id:null; }
@@ -288,7 +308,7 @@ async function liteCustomers(force){
   if(cRes.error) throw new Error(cRes.error.message);
   const settings={}; (sRes.data||[]).forEach(r=>settings[r.key]=r.value);
   const custById={}; (cRes.data||[]).forEach(c=>custById[c.id]=c);
-  const customers=(cRes.data||[]).map(c=>({rowIndex:c.id,name_en:c.name_en,name_hi:c.name_hi||"",name_ur:c.name_ur||"",slot:c.slot,type:c.type,phone:c.phone||"",selfCollect:!!c.self_collect,active:c.active!==false,rate:(c.rate==null?null:num(c.rate)),sort_order:num(c.sort_order)}));
+  const customers=(cRes.data||[]).map(c=>({rowIndex:c.id,name_en:c.name_en,name_hi:c.name_hi||"",name_ur:c.name_ur||"",slot:c.slot,type:c.type,phone:c.phone||"",selfCollect:!!c.self_collect,active:c.active!==false,rate:(c.rate==null?null:num(c.rate)),sort_order:num(c.sort_order),...custLoc(c)}));
   _lite={customers,settings,custById}; _liteAt=Date.now(); return _lite;
 }
 async function liteCattleMap(force){
@@ -304,7 +324,7 @@ function shapeDispRows(rows,custById){ const res={morning:{},evening:{}};
 async function fastDispatchByDate(date){ const lc=await liteCustomers(); return shapeDispRows(await dispatchRows(date), lc.custById); }
 async function fastDeliveryData(date){ const lc=await liteCustomers();
   const [t,p]=await Promise.all([ dispatchRows(date), date?dispatchRows(prevIso(date)):Promise.resolve([]) ]);
-  return {customers:lc.customers, qtyOptions:qtyOptionsFrom(lc.settings), today:shapeDispRows(t,lc.custById), prev:shapeDispRows(p,lc.custById)}; }
+  return {customers:lc.customers, qtyOptions:qtyOptionsFrom(lc.settings), waMessage:lc.settings.wa_delivery_msg||"", today:shapeDispRows(t,lc.custById), prev:shapeDispRows(p,lc.custById)}; }
 async function fastProductionByDate(date){ const codeById=await liteCattleMap();
   const [pr,pd]=await Promise.all([ supabase.from("production").select("cattle_id,slot,litres").eq("date",date), supabase.from("production_day").select("*").eq("date",date) ]);
   const blank=()=>({cattle:{},measuredB:"",measuredC:"",purchased:"",purchaseRate:"",extraQty:"",extraSold:false,extraRate:""});
@@ -313,9 +333,9 @@ async function fastProductionByDate(date){ const codeById=await liteCattleMap();
   (pd.data||[]).forEach(r=>{ const g=out[r.slot]; const n=v=>(v==null||v==="")?"":(isNaN(Number(v))?"":Number(v));
     g.measuredB=n(r.measured_b);g.measuredC=n(r.measured_c);g.purchased=n(r.purchased);g.purchaseRate=n(r.purchase_rate);g.extraQty=n(r.extra);g.extraRate=n(r.extra_rate);g.extraSold=!!r.extra_sold; });
   return out; }
-async function fastCustomers(){ const lc=await liteCustomers(); return {customers:lc.customers, qtyOptions:qtyOptionsFrom(lc.settings)}; }
+async function fastCustomers(){ const lc=await liteCustomers(); return {customers:lc.customers, qtyOptions:qtyOptionsFrom(lc.settings), waMessage:lc.settings.wa_delivery_msg||""}; }
 async function fastTransactions(){ const rows=await fetchAll("transactions");
-  return {transactions:rows.map(t=>({rowIndex:t.id,date:t.date||"",name:t.name||"",category:t.category||"",subCategory:t.subcategory||"",payer:t.payer||"",amount:num(t.amount),loggedAt:t.logged_at||""}))}; }
+  return {transactions:rows.map(t=>({rowIndex:t.id,date:t.date||"",name:t.name||"",category:t.category||"",subCategory:t.subcategory||"",payer:t.payer||"",amount:num(t.amount),loggedAt:t.logged_at||"",workerId:(t.worker_id==null?null:t.worker_id),noWorker:!!t.no_worker}))}; }
 async function fastHistory(){ const {data}=await supabase.from("revenue_history").select("*"); const o={}; (data||[]).forEach(h=>o[h.month]={revenue:num(h.revenue),produced:num(h.produced),sourced:num(h.sourced),sold:num(h.sold)}); return {history:o}; }
 async function fastCattle(){
   const [cRes,fRes,catRes,sRes,prod]=await Promise.all([
@@ -330,6 +350,89 @@ async function fastCattle(){
     production: prod.map(p=>({date:p.date,slot:p.slot,litres:num(p.litres),type:catById[p.cattle_id]?catById[p.cattle_id].type:"B",code:catById[p.cattle_id]?catById[p.cattle_id].code:null})) };
   return getCattle(db);
 }
+
+// ── Labour (workers, salaries, dues) ────────────────────────────────────────
+// Every Opex › Salaries transaction counts as salary paid. It is linked to a
+// worker either explicitly (transactions.worker_id) or automatically when the
+// worker's name (or an alias) appears as a word in the transaction name.
+// Dues run from each worker's start: salary accrued month by month minus
+// everything paid, so the balance updates as soon as a new entry is logged.
+function txnWorkerFields(row,b){ if(b.workerId!==undefined||b.noWorker!==undefined){ row.worker_id=b.workerId||null; row.no_worker=!!b.noWorker; } }
+function ymOf(iso){ return String(iso||"").substring(0,7); }
+function ymNext(ym){ const p=ym.split("-").map(Number); return p[1]===12?(p[0]+1)+"-01":p[0]+"-"+String(p[1]+1).padStart(2,"0"); }
+function ymRange(a,b){ const out=[]; let c=a,g=0; while(c<=b&&g++<600){ out.push(c); c=ymNext(c); } return out; }
+function daysInYm(ym){ const p=ym.split("-").map(Number); return new Date(p[0],p[1],0).getDate(); }
+function normWords(x){ return " "+String(x||"").toLowerCase().replace(/[^a-z0-9ऀ-ॿ؀-ۿ]+/g," ").trim()+" "; }
+function workerKeys(w){ return [w.name].concat(String(w.aliases||"").split(",")).map(k=>normWords(k)).filter(k=>k.trim().length>=2); }
+function calcLabour(workers,salRows,txns,todayIso){
+  const cur=ymOf(todayIso); const pay={}; workers.forEach(w=>{ pay[w.id]=[]; });
+  const keys={}; workers.forEach(w=>{ keys[w.id]=workerKeys(w); });
+  const unassigned=[];
+  txns.forEach(t=>{
+    if(String(t.subcategory||"").trim().toLowerCase()!=="salaries") return;
+    if(String(t.category||"").trim().toLowerCase()!=="opex") return;
+    const row={rowIndex:t.id,date:t.date||"",name:t.name||"",amount:num(t.amount),payer:t.payer||""};
+    if(t.worker_id!=null&&pay[t.worker_id]){ pay[t.worker_id].push({...row,auto:false}); return; }
+    if(t.no_worker){ unassigned.push({...row,general:true,candidates:[]}); return; }
+    const text=normWords(row.name);
+    const c=workers.filter(w=>keys[w.id].some(k=>text.indexOf(k)>=0));
+    if(c.length===1) pay[c[0].id].push({...row,auto:true});
+    else unassigned.push({...row,general:false,candidates:c.map(w=>w.id)});
+  });
+  const out=workers.map(w=>{
+    const hist=salRows.filter(s=>s.worker_id===w.id).map(s=>({rowIndex:s.id,fromMonth:s.from_month,amount:num(s.amount)})).sort((a,b)=>a.fromMonth.localeCompare(b.fromMonth));
+    const salaryFor=ym=>{ if(!hist.length) return 0; let v=hist[0].amount; hist.forEach(h=>{ if(h.fromMonth<=ym) v=h.amount; }); return v; };
+    const pays=pay[w.id].slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    const dated=pays.filter(p=>/^\d{4}-\d{2}/.test(p.date));
+    const firstPay=dated.length?dated[0].date:"", lastPay=dated.length?dated[dated.length-1].date:"";
+    const startYm=w.start_date?ymOf(w.start_date):(firstPay?ymOf(firstPay):cur);
+    const endYm=w.end_date?ymOf(w.end_date):null;
+    let firstYm=startYm; if(firstPay&&ymOf(firstPay)<firstYm) firstYm=ymOf(firstPay);
+    let lastYm=endYm||cur; if(lastPay&&ymOf(lastPay)>lastYm) lastYm=ymOf(lastPay); if(lastYm<firstYm) lastYm=firstYm;
+    const accrual=ym=>{ if(ym<startYm) return 0; if(endYm&&ym>endYm) return 0;
+      const base=salaryFor(ym), dim=daysInYm(ym);
+      let from=1,to=dim;
+      if(w.start_date&&ym===startYm) from=Math.min(dim,Math.max(1,+String(w.start_date).substring(8,10)||1));
+      if(w.end_date&&ym===endYm)     to=Math.min(dim,Math.max(1,+String(w.end_date).substring(8,10)||dim));
+      const days=Math.max(0,to-from+1); return Math.round(base*days/dim); };
+    const paidBy={}; let undated=0; pays.forEach(p=>{ if(/^\d{4}-\d{2}/.test(p.date)) paidBy[ymOf(p.date)]=(paidBy[ymOf(p.date)]||0)+p.amount; else undated+=p.amount; });
+    const adj=num(w.adjustment); let running=adj-undated, acc=0, paid=undated;
+    const months=ymRange(firstYm,lastYm).map(ym=>{ const s=accrual(ym), p=paidBy[ym]||0; acc+=s; paid+=p; running+=s-p; return {month:ym,salary:s,paid:p,running}; });
+    const tm=months.find(m=>m.month===cur)||{salary:0,paid:0};
+    return { rowIndex:w.id, name:w.name||"", aliases:w.aliases||"", role:w.role||"", startDate:w.start_date||"", endDate:w.end_date||"",
+      active:!w.end_date||ymOf(w.end_date)>=cur, adjustment:adj, adjustmentNote:w.adjustment_note||"",
+      salaryHistory:hist, currentSalary:salaryFor(cur), months, totalAccrued:acc, totalPaid:paid, balance:running,
+      thisMonth:{salary:tm.salary,paid:tm.paid,due:Math.max(0,tm.salary-tm.paid)}, firstPaymentDate:firstPay, payments:pays.slice().reverse() };
+  });
+  unassigned.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  return { currentMonth:cur, workers:out, unassigned };
+}
+async function fetchSalaryTxns(){ const out=[]; let from=0; const PAGE=1000;
+  for(;;){ const {data,error}=await supabase.from("transactions").select("*").eq("subcategory","Salaries").range(from,from+PAGE-1);
+    if(error) throw new Error(error.message); out.push(...data); if(data.length<PAGE) break; from+=PAGE; }
+  return out; }
+async function fastLabour(){
+  const [wRes,sRes,txns]=await Promise.all([ supabase.from("workers").select("*").order("id",{ascending:true}), supabase.from("worker_salaries").select("*"), fetchSalaryTxns() ]);
+  if(wRes.error) throw new Error(wRes.error.message);
+  if(sRes.error) throw new Error(sRes.error.message);
+  return calcLabour(wRes.data||[], sRes.data||[], txns, isoOf(new Date()));
+}
+async function fastWorkers(){ const {data,error}=await supabase.from("workers").select("id,name,end_date").order("id",{ascending:true});
+  if(error) throw new Error(error.message);
+  return {workers:(data||[]).map(w=>({rowIndex:w.id,name:w.name||"",left:!!w.end_date}))}; }
+async function saveWorker(b){ const name=(b.name||"").trim(); if(!name) throw new Error("Enter the worker's name.");
+  const adj=parseFloat(b.adjustment);
+  const fields={name,aliases:(b.aliases||"").trim(),role:(b.role||"").trim(),start_date:b.startDate||null,end_date:b.endDate||null,active:!b.endDate,
+    adjustment:isNaN(adj)?0:adj,adjustment_note:(b.adjustmentNote||"").trim()};
+  let id=b.rowIndex||null;
+  if(id){ const {error}=await supabase.from("workers").update(fields).eq("id",id); if(error) throw new Error(error.message); }
+  else { const {data,error}=await supabase.from("workers").insert(fields,{returning:true}); if(error) throw new Error(error.message); id=data&&data[0]?data[0].id:null; }
+  const sal=parseFloat(b.salary);
+  if(id&&b.salary!==""&&b.salary!=null&&!isNaN(sal)){
+    const fm=/^\d{4}-\d{2}$/.test(String(b.salaryFrom||""))?b.salaryFrom:(b.startDate?ymOf(b.startDate):ymOf(isoOf(new Date())));
+    const {error}=await supabase.from("worker_salaries").upsert({worker_id:id,from_month:fm,amount:sal},{onConflict:"worker_id,from_month"});
+    if(error) throw new Error(error.message); }
+  return {success:true,rowIndex:id}; }
 
 // ── Action Tracker (owner project board) ──
 async function fastActionTracker(){
@@ -346,6 +449,8 @@ async function fastActionTracker(){
 export async function apiGet(action, params={}) {
   switch(action){
     case "getActionTracker":    return await fastActionTracker();
+    case "getLabour":           return await fastLabour();
+    case "getWorkers":          return await fastWorkers();
     // Heavy analytics (owner screens) — need most tables.
     case "getDashboard":        return calcDashboard(await loadDb(), isoOf(new Date()));
     case "getPnL":              return calcPnL(await loadDb());
@@ -445,11 +550,20 @@ async function handleWrite(action, b){
     case "saveFeedRates": return await saveFeedRates(b);
     case "addFeedCategory":return await addFeedCategory(b);
     case "saveQtyOptions":return await saveQtyOptions(b);
-    case "addTransaction":{ await S.from("transactions").insert({date:b.date||null,name:b.name||"",category:b.category||"",subcategory:b.subCategory||"",payer:b.payer||"",amount:(b.amount===""||b.amount==null)?null:num(b.amount),logged_at:new Date().toISOString()}); return {success:true}; }
-    case "updateTransaction":{ if(!b.rowIndex)throw new Error("Missing rowIndex"); await S.from("transactions").update({date:b.date||null,name:b.name||"",category:b.category||"",subcategory:b.subCategory||"",payer:b.payer||"",amount:(b.amount===""||b.amount==null)?null:num(b.amount)}).eq("id",b.rowIndex); return {success:true}; }
+    case "addTransaction":{ const row={date:b.date||null,name:b.name||"",category:b.category||"",subcategory:b.subCategory||"",payer:b.payer||"",amount:(b.amount===""||b.amount==null)?null:num(b.amount),logged_at:new Date().toISOString()}; txnWorkerFields(row,b); const {error}=await S.from("transactions").insert(row); if(error)throw new Error(error.message); return {success:true}; }
+    case "updateTransaction":{ if(!b.rowIndex)throw new Error("Missing rowIndex"); const row={date:b.date||null,name:b.name||"",category:b.category||"",subcategory:b.subCategory||"",payer:b.payer||"",amount:(b.amount===""||b.amount==null)?null:num(b.amount)}; txnWorkerFields(row,b); const {error}=await S.from("transactions").update(row).eq("id",b.rowIndex); if(error)throw new Error(error.message); return {success:true}; }
     case "deleteTransaction":{ if(!b.rowIndex)throw new Error("Missing rowIndex"); await S.from("transactions").delete().eq("id",b.rowIndex); return {success:true}; }
     case "saveOverheads": { const o=b.overheads||{}; for(const k of Object.keys(o)){ if(o[k]===""||o[k]==null)continue; const v=parseFloat(o[k]); if(isNaN(v))continue; await setSetting("cost_"+k+"_monthly",v);} return {success:true}; }
     case "setPayment":    return await setPayment(b);
+    // ── Delivery navigation ──
+    case "setCustomerLocation":{ if(!b.rowIndex)throw new Error("Missing rowIndex"); const f=locFields(b); if(!Object.keys(f).length)return {success:true}; const {error}=await S.from("customers").update(f).eq("id",b.rowIndex); if(error)throw new Error(error.message); return {success:true}; }
+    case "saveWaMessage":      { await setSetting("wa_delivery_msg",String(b.message||"").trim()); return {success:true}; }
+    // ── Loan + Labour ──
+    case "setLoanAmount":      { const v=parseFloat(String(b.amount).replace(/[^0-9.]/g,"")); await setSetting("loan_amount", isNaN(v)?0:v); return {success:true}; }
+    case "saveWorker":         return await saveWorker(b);
+    case "deleteWorker":       { if(!b.rowIndex)throw new Error("Missing rowIndex"); const {error}=await S.from("workers").delete().eq("id",b.rowIndex); if(error)throw new Error(error.message); return {success:true}; }
+    case "deleteWorkerSalary": { if(!b.rowIndex)throw new Error("Missing rowIndex"); const {error}=await S.from("worker_salaries").delete().eq("id",b.rowIndex); if(error)throw new Error(error.message); return {success:true}; }
+    case "setTxnWorker":       { if(!b.rowIndex)throw new Error("Missing rowIndex"); const {error}=await S.from("transactions").update({worker_id:b.workerId||null,no_worker:!!b.noWorker}).eq("id",b.rowIndex); if(error)throw new Error(error.message); return {success:true}; }
     // ── Action Tracker ──
     case "addTaskCategory":    return await addTaskCategory(b);
     case "updateTaskCategory": return await updateTaskCategory(b);
@@ -493,7 +607,7 @@ async function logDispatch(b){ const up=[];
   return {success:true}; }
 
 async function saveCustomer(b){ const rate=(b.rate===""||b.rate==null||isNaN(parseFloat(b.rate)))?null:parseFloat(b.rate);
-  const fields={name_en:b.name_en,name_hi:b.name_hi||"",name_ur:b.name_ur||"",slot:b.slot,type:b.type,phone:b.phone||"",self_collect:!!b.selfCollect,rate};
+  const fields={name_en:b.name_en,name_hi:b.name_hi||"",name_ur:b.name_ur||"",slot:b.slot,type:b.type,phone:b.phone||"",self_collect:!!b.selfCollect,rate,...locFields(b)};
   // delivery-order position
   const {data:all}=await supabase.from("customers").select("id,sort_order").order("sort_order",{ascending:true});
   let sort_order=null;
