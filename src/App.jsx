@@ -5,7 +5,7 @@ import { apiGet as sbApiGet, apiPost as sbApiPost, signIn as sbSignIn, isAuthed 
 // Backend switch. true = Supabase (new). false = Google Apps Script (legacy).
 // Flip to false to instantly roll back to the old backend.
 const USE_SUPABASE = true;
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0Y0qDrOhIVALmFtnAp-pgRSnM47A5Fk5GsZlj708_hzh9NCi6VFGlx-PCXmYCgITH/exec";
+const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
 const _screenCache = {};  // in-memory cache so revisiting owner screens is instant (cleared on lock)
 
 // ─── ACCESS PINS ───────────────────────────────────────────────────────────
@@ -74,6 +74,7 @@ const TR = {
     matches: "✓ Matches", mismatch: "⚠️ Mismatch",
     outsideMilk: "Outside Milk",
     purchased: "Purchased", extraMilk: "Sold Milk",
+    purchTotal: "Total", rateTooHigh: "This looks like the total amount. Enter the rate per litre (₹/L).",
     qty: "Qty (L)", rate: "Rate (₹/L)", sold: "Sold", sellingRate: "Selling rate (₹/L)",
     calcTotals: "Calculated Totals",
     total: "Total", submitProd: "Submit Production Log", saving: "Saving…",
@@ -82,7 +83,7 @@ const TR = {
     delTitle: "Log Milk Dispatched", delSub: "Record delivery for each customer",
     morningCustomers: "Morning Customers", eveningCustomers: "Evening Customers",
     yesterday: "Yesterday", absent: "absent", self: "Self",
-    navigate: "Navigate", saveLocation: "Save this location", locating: "Finding location…", locSaved: "Location saved", locWeak: "GPS signal is weak. Step outside and try again.", locDenied: "Allow location access for this site, then try again.", locFail: "Could not get the location. Try again.", waDelivered: "WhatsApp: milk delivered",
+    navigate: "Navigate", saveLocation: "Save this location", locating: "Finding location…", locSaved: "Location saved", locWeak: "GPS signal is weak. Step outside and try again.", locDenied: "Location is blocked for this app. In Chrome, tap the icon to the left of the web address → Permissions → Location → Allow. Also make sure the phone's Location is switched on.", locFail: "Could not get the location. Make sure the phone's Location is on, then try again.", waDelivered: "WhatsApp: milk arrived", tapHint: "Tap a customer's name for directions or WhatsApp.",
     fillYesterday: "Copy yesterday's quantities", filledMsg: "Filled from yesterday — change only what's different",
     farmLoginSub: "Enter the farm password to set up this device", farmPassword: "Farm password", farmLoginBtn: "Unlock this device", farmLoginNote: "You only need to do this once on this phone.", loginWrong: "Wrong password — please try again",
     bottlesToFill: "🍶 Bottles to Fill",
@@ -154,6 +155,7 @@ const TR = {
     matches: "✓ सही", mismatch: "⚠️ अंतर है",
     outsideMilk: "बाहरी दूध",
     purchased: "खरीदा गया", extraMilk: "बेचा गया दूध",
+    purchTotal: "कुल", rateTooHigh: "यह कुल रकम लगती है। प्रति लीटर दर (₹/लीटर) लिखें।",
     qty: "मात्रा (लीटर)", rate: "दर (₹/लीटर)", sold: "बेचा", sellingRate: "बिक्री दर (₹/लीटर)",
     calcTotals: "गणना किया गया कुल",
     total: "कुल", submitProd: "उत्पादन दर्ज करें", saving: "सहेजा जा रहा है…",
@@ -161,7 +163,7 @@ const TR = {
     delTitle: "भेजा गया दूध दर्ज करें", delSub: "हर ग्राहक की डिलीवरी दर्ज करें",
     morningCustomers: "सुबह के ग्राहक", eveningCustomers: "शाम के ग्राहक",
     yesterday: "कल", absent: "अनुपस्थित", self: "खुद",
-    navigate: "रास्ता दिखाएँ", saveLocation: "यह जगह सेव करें", locating: "जगह पता की जा रही है…", locSaved: "जगह सेव हो गई", locWeak: "GPS कमज़ोर है। खुली जगह पर दोबारा कोशिश करें।", locDenied: "इस साइट को लोकेशन की अनुमति दें, फिर दोबारा कोशिश करें।", locFail: "जगह पता नहीं चली। दोबारा कोशिश करें।", waDelivered: "व्हाट्सऐप: दूध पहुँच गया",
+    navigate: "रास्ता दिखाएँ", saveLocation: "यह जगह सेव करें", locating: "जगह पता की जा रही है…", locSaved: "जगह सेव हो गई", locWeak: "GPS कमज़ोर है। खुली जगह पर दोबारा कोशिश करें।", locDenied: "इस ऐप के लिए लोकेशन बंद है। Chrome में वेब पते के बाईं ओर वाले आइकन पर टैप करें → Permissions → Location → Allow। फ़ोन की Location भी चालू रखें।", locFail: "जगह पता नहीं चली। फ़ोन की Location चालू करके दोबारा कोशिश करें।", waDelivered: "व्हाट्सऐप: दूध पहुँच गया", tapHint: "रास्ते या व्हाट्सऐप के लिए ग्राहक के नाम पर टैप करें।",
     fillYesterday: "कल की मात्रा भरें", filledMsg: "कल से भर दिया — केवल बदलाव करें",
     farmLoginSub: "इस डिवाइस को सेट करने के लिए फ़ार्म पासवर्ड डालें", farmPassword: "फ़ार्म पासवर्ड", farmLoginBtn: "यह डिवाइस अनलॉक करें", farmLoginNote: "यह इस फ़ोन पर केवल एक बार करना है।", loginWrong: "ग़लत पासवर्ड — फिर कोशिश करें",
     bottlesToFill: "🍶 भरनी हैं बोतलें",
@@ -232,6 +234,7 @@ const TR = {
     matches: "✓ درست", mismatch: "⚠️ فرق ہے",
     outsideMilk: "باہری دودھ",
     purchased: "خریدا گیا", extraMilk: "بیچا گیا دودھ",
+    purchTotal: "کل", rateTooHigh: "یہ کل رقم لگتی ہے۔ فی لیٹر ریٹ (₹/لیٹر) لکھیں۔",
     qty: "مقدار (لیٹر)", rate: "ریٹ (₹/لیٹر)", sold: "بیچا", sellingRate: "فروخت ریٹ (₹/لیٹر)",
     calcTotals: "حساب کردہ کل",
     total: "کل", submitProd: "پیداوار درج کریں", saving: "محفوظ ہو رہا ہے…",
@@ -239,7 +242,7 @@ const TR = {
     delTitle: "بھیجا گیا دودھ درج کریں", delSub: "ہر گاہک کی ڈیلیوری درج کریں",
     morningCustomers: "صبح کے گاہک", eveningCustomers: "شام کے گاہک",
     yesterday: "کل", absent: "غیر حاضر", self: "خود",
-    navigate: "راستہ دکھائیں", saveLocation: "یہ جگہ محفوظ کریں", locating: "جگہ معلوم ہو رہی ہے…", locSaved: "جگہ محفوظ ہو گئی", locWeak: "GPS کمزور ہے۔ کھلی جگہ پر دوبارہ کوشش کریں۔", locDenied: "اس سائٹ کو لوکیشن کی اجازت دیں، پھر دوبارہ کوشش کریں۔", locFail: "جگہ معلوم نہیں ہو سکی۔ دوبارہ کوشش کریں۔", waDelivered: "واٹس ایپ: دودھ پہنچ گیا",
+    navigate: "راستہ دکھائیں", saveLocation: "یہ جگہ محفوظ کریں", locating: "جگہ معلوم ہو رہی ہے…", locSaved: "جگہ محفوظ ہو گئی", locWeak: "GPS کمزور ہے۔ کھلی جگہ پر دوبارہ کوشش کریں۔", locDenied: "اس ایپ کے لیے لوکیشن بند ہے۔ Chrome میں ویب ایڈریس کے بائیں طرف والے آئیکن پر ٹیپ کریں ← Permissions ← Location ← Allow۔ فون کی Location بھی آن رکھیں۔", locFail: "جگہ معلوم نہیں ہو سکی۔ فون کی Location آن کر کے دوبارہ کوشش کریں۔", waDelivered: "واٹس ایپ: دودھ پہنچ گیا", tapHint: "راستے یا واٹس ایپ کے لیے گاہک کے نام پر ٹیپ کریں۔",
     fillYesterday: "کل کی مقدار بھریں", filledMsg: "کل سے بھر دیا — صرف تبدیلیاں کریں",
     farmLoginSub: "اس ڈیوائس کو سیٹ کرنے کے لیے فارم پاس ورڈ درج کریں", farmPassword: "فارم پاس ورڈ", farmLoginBtn: "یہ ڈیوائس ان لاک کریں", farmLoginNote: "یہ اس فون پر صرف ایک بار کرنا ہے۔", loginWrong: "غلط پاس ورڈ — دوبارہ کوشش کریں",
     bottlesToFill: "🍶 بھرنی ہیں بوتلیں",
@@ -612,6 +615,7 @@ function LoginScreen({onLogin,lang,setLang}) {
 
 
 // ─── SUPERVISOR ─────────────────────────────────────────────────────────────
+const MILK_RATE_MIN = 20, MILK_RATE_MAX = 100;   // plausible ₹/L for bought milk (anything above is almost surely a total)
 function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC,purchased,setPurchased,purchaseRate,setPurchaseRate,extraQty,setExtraQty,extraSold,setExtraSold,extraRate,setExtraRate,t,buffaloCattle=BUFFALO_CATTLE,cowCattle=COW_CATTLE}) {
   // Only one of Purchased / Extra Milk is open at a time (default: Purchased)
   const [openOutside,setOpenOutside]=useState("purchased");
@@ -690,6 +694,8 @@ function SlotPanel({rawKg,setRawKg,measuredB,setMeasuredB,measuredC,setMeasuredC
                   value={purchaseRate||""} onChange={e=>setPurchaseRate(e.target.value)} style={neutralInput}/>
               </div>
             </div>
+            {(()=>{ const q=parseFloat(purchased), r=parseFloat(purchaseRate); if(!(q>0)||!(r>0)) return null; const big=r>MILK_RATE_MAX;
+              return <div style={{fontSize:13,marginTop:10,fontWeight:600,color:big?"#dc2626":"#64748b"}}>{big?"⚠️ "+t.rateTooHigh:`${t.purchTotal}: ₹${Math.round(q*r).toLocaleString("en-IN")}`}</div>; })()}
           </div>
         )}
 
@@ -945,10 +951,14 @@ function BottleSummary({customers,vals,t}) {
   );
 }
 
+// The latest AI date that belongs to the CURRENT cycle (after the last calving).
+// An AI from before the last calving led to that calving, so it is ignored.
+function aiThisCycle(c){ const ai=c&&c.dateAI; if(!ai) return null; const lc=c.lastCalving; if(lc&&ai<=lc) return null; return ai; }
+
 // ─── DELIVERY NAVIGATION + WHATSAPP helpers ─────────────────────────────────
 // A customer can have an exact pin (lat/lng) or, failing that, a Google Maps
 // link. "Navigate" opens Google Maps directions; no API key or cost involved.
-const WA_DEFAULT_MSG = "Banki Dairy: your milk has been delivered. Thank you!";
+const WA_DEFAULT_MSG = "Banki Dairy: Your milk has arrived at your doorstep. Please collect it!";
 const LOC_MAX_ACCURACY_M = 75;   // refuse a GPS fix worse than this
 function validLatLng(a,b){ const la=parseFloat(a), ln=parseFloat(b); if(isNaN(la)||isNaN(ln)||Math.abs(la)>90||Math.abs(ln)>180) return null; return {lat:Math.round(la*1e6)/1e6,lng:Math.round(ln*1e6)/1e6}; }
 // Reads a pin out of whatever the owner pastes: a full Google Maps link, a
@@ -992,14 +1002,15 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[],qtyO
 
   return (
     <>
-    <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 6px",borderBottom:"1px solid #f8fafc",background:rowBg,borderRadius:isEmpty||isNil?6:0,marginBottom:isEmpty||isNil?2:0,border:rowBorder}}>
-      <div style={{flex:1,minWidth:0}}>
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 8px",borderBottom:"1px solid #f1f5f9",background:rowBg,borderRadius:isEmpty||isNil?8:0,marginBottom:isEmpty||isNil?4:0,border:rowBorder}}>
+      <div onClick={onToggle||undefined} role={onToggle?"button":undefined} style={{flex:1,minWidth:0,cursor:onToggle?"pointer":"default"}}>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
-          <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{displayName}</div>
+          <div style={{fontSize:14,fontWeight:600,color:open?"#2D7FB5":"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{displayName}</div>
           {selfCollect&&<span style={{fontSize:9,fontWeight:700,color:"#6b7280",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:4,padding:"1px 5px",flexShrink:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>{t.self}</span>}
           {isEmpty&&<span style={{fontSize:9,fontWeight:700,color:"#92400e",background:"#fef3c7",border:"1px solid #fde68a",borderRadius:4,padding:"1px 5px",flexShrink:0}}>?</span>}
         </div>
-        <div style={{display:"flex",gap:6,alignItems:"center",marginTop:1}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginTop:3,flexWrap:"wrap"}}>
+          {nav&&<span style={{fontSize:11}}>📍</span>}
           {(customer.phone)&&<span style={{fontSize:11,color:"#aaa"}}>{customer.phone}</span>}
           {prevValue&&prevValue!=="Nil"
             ?<span dir="ltr" style={{fontSize:11,color:"#94a3b8",fontStyle:"italic"}}>{lang==="ur"?`${t.yesterday} L: ${prevValue}`:`${t.yesterday}: ${prevValue} L`}</span>
@@ -1008,16 +1019,15 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[],qtyO
             :null}
         </div>
       </div>
-      {onToggle&&<button onClick={onToggle} aria-label={t.navigate} style={{flexShrink:0,width:32,height:32,borderRadius:9,border:"1.5px solid "+(open?"#2D7FB5":nav?"#9ACFF0":"#e2e8f0"),background:open?"#2D7FB5":nav?"#EBF5FD":"#fff",color:open?"#fff":"#94a3b8",fontSize:14,cursor:"pointer",padding:0,lineHeight:1,fontFamily:"inherit"}}>{nav?"📍":"⋯"}</button>}
       <span style={{background:tagBg,color,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,flexShrink:0}}>{isB?"🐃 B":"🐄 C"}</span>
       <select value={value||""} onChange={e=>onChange(e.target.value)}
-        style={{padding:"6px 8px",border:`1.5px solid ${value&&value!=="Nil"?color:"#e2e8f0"}`,borderRadius:8,fontSize:13,fontWeight:600,background:value&&value!=="Nil"?bg:"#fafafa",color:value&&value!=="Nil"?color:"#888",outline:"none",width:80,flexShrink:0,fontFamily:"inherit"}}>
+        style={{padding:"8px 8px",border:`1.5px solid ${value&&value!=="Nil"?color:"#e2e8f0"}`,borderRadius:8,fontSize:14,fontWeight:600,background:value&&value!=="Nil"?bg:"#fafafa",color:value&&value!=="Nil"?color:"#888",outline:"none",width:84,flexShrink:0,fontFamily:"inherit"}}>
         <option value="">—</option>
         {[...(qtyOptions&&qtyOptions.length?qtyOptions:QTY_OPTIONS.filter(x=>x!=="Nil")),"Nil"].map(q=><option key={q} value={q}>{q==="Nil"?t.nilOption:q+" L"}</option>)}
       </select>
     </div>
     {open&&(
-      <div style={{display:"flex",flexWrap:"wrap",gap:8,padding:"8px 6px 12px",marginBottom:4,background:"#f8fafc",borderRadius:8}}>
+      <div style={{display:"flex",flexWrap:"wrap",gap:8,padding:"10px 8px 12px",margin:"2px 0 6px",background:"#f8fafc",borderRadius:8}}>
         {customer.address&&<div style={{flexBasis:"100%",fontSize:12.5,color:"#475569",padding:"0 2px"}}>🏠 {customer.address}</div>}
         {nav
           ? <a href={nav} target="_blank" rel="noopener noreferrer" style={{...actBtn,background:"#2D7FB5",color:"#fff",border:"1.5px solid #2D7FB5"}}>🧭 {t.navigate}</a>
@@ -1197,7 +1207,7 @@ function DeliveryView({lang}) {
   const [locBusy,setLocBusy]=useState(null);      // customer whose location is being captured
   const [waMessage,setWaMessage]=useState("");
   const [note,setNote]=useState(null);            // {type,msg} for location feedback
-  function showNote(msg,type="success"){ setNote({msg,type}); setTimeout(()=>setNote(null),3500); }
+  function showNote(msg,type="success"){ setNote({msg,type}); setTimeout(()=>setNote(null),type==="error"?8000:3500); }
   // Delivery person, standing at the customer's door: save the phone's GPS position as that customer's pin.
   async function saveLocationHere(c){
     if(locBusy) return; setLocBusy(c.rowIndex);
@@ -1303,6 +1313,7 @@ function DeliveryView({lang}) {
       <Card>
         <div style={{fontWeight:700,fontSize:13,color:"#555",marginBottom:12}}>
           {slot==="morning"?`☀️ ${t.morningCustomers}`:`🌙 ${t.eveningCustomers}`} ({slotCustomers.length})
+          <div style={{fontSize:11.5,fontWeight:400,color:"#94a3b8",marginTop:3}}>{t.tapHint}</div>
         </div>
         {hasPrev && !listLoading && (
           <Btn variant="ghost" onClick={fillFromYesterday} style={{width:"100%",marginBottom:12,fontSize:13,padding:"11px 12px",borderStyle:"dashed"}}>
@@ -1639,7 +1650,7 @@ function CustomersAdmin({customers, lang, t, onChanged, qtyOptions=[]}) {
         </div>
         {waOpen&&(
           <div style={{marginTop:12}}>
-            <div style={{fontSize:11,color:"#94a3b8",marginBottom:8,lineHeight:1.5}}>The message the delivery person sends from his WhatsApp when he taps "WhatsApp: milk delivered" on a customer. Works for customers with a phone number saved. Write {"{name}"} where the customer's name should appear.</div>
+            <div style={{fontSize:11,color:"#94a3b8",marginBottom:8,lineHeight:1.5}}>The message the delivery person sends from his WhatsApp when he taps "WhatsApp: milk arrived" on a customer. Works for customers with a phone number saved. Write {"{name}"} where the customer's name should appear.</div>
             <textarea value={waDraft} onChange={e=>setWaDraft(e.target.value)} rows={3} placeholder={WA_DEFAULT_MSG}
               style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",resize:"vertical"}}/>
             <div style={{fontSize:11,color:"#aaa",marginTop:4}}>Leave blank to use: "{WA_DEFAULT_MSG}"</div>
@@ -1834,11 +1845,12 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
     const isMilk=["Lactating","Transition","Colostral"].indexOf(c.status)>=0;
     const pt=phaseTag(c.status);
     const dim=isMilk?daysSince(c.lastCalving):null;
-    const aiDone=!!c.dateAI;
-    const dsAI=daysSince(c.dateAI);                       // days since the most recent AI (null if none)
+    const curAI=aiThisCycle(c);                           // AI after the last calving (null if none yet)
+    const aiDone=!!curAI;
+    const dsAI=daysSince(curAI);                          // days since that AI
     const heatWatch=dsAI!=null&&!c.pregnant&&dsAI>=18&&dsAI<=24;   // usual repeat-heat window
     const gest=c.type==="B"?310:283;
-    const expCalv=(c.pregnant&&c.dateAI)?addDays(c.dateAI,gest):null;
+    const expCalv=(c.pregnant&&curAI)?addDays(curAI,gest):null;
     const expDry=expCalv?addDays(expCalv,-60):null;
     const calvInterval=(c.lastCalving&&c.prevCalving)?daysBetween(c.prevCalving,c.lastCalving):null;
     const open=!!expanded[c.rowIndex];
@@ -2473,6 +2485,150 @@ function TxnFilterSelect({label,value,onChange,options}){
   );
 }
 
+// ─── MILK BOUGHT vs RECORDED (Transactions › Milk bought tab) ───────────────
+// Supervisor log (litres x rate per slot) against Opex › Milking Supplies
+// entries named "Milk…". Fix missing / wrong rates here, then add each month's
+// unrecorded amount as an expense in one tap.
+function MilkPurchasesView({onChanged}){
+  const [data,setData]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [err,setErr]=useState(null);
+  const [edits,setEdits]=useState({});     // "date|slot" -> rate text
+  const [fill,setFill]=useState({});       // month -> bulk rate text
+  const [payer,setPayer]=useState({});     // month -> payer for the gap entry
+  const [showRec,setShowRec]=useState({}); // month -> show recorded entries
+  const [busy,setBusy]=useState(null);
+  const [toast,setToast]=useState(null);
+  function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3500);}
+  async function load(quiet){ if(!quiet) setLoading(true); setErr(null);
+    try{ setData(await apiGet("getMilkPurchases")); }catch(e){ setErr(e.message||"error"); }finally{ setLoading(false); } }
+  useEffect(()=>{ load(); },[]);
+
+  const moLabel=ym=>{ const p=String(ym||"").split("-"); return (TXN_MO[(+p[1])-1]||"")+" "+(p[0]||""); };
+  const dLabel=iso=>{ const d=new Date(iso+"T00:00:00"); return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()]+" "+d.getDate()+" "+TXN_MO[d.getMonth()]; };
+  const key=r=>r.date+"|"+r.slot;
+  const validRate=v=>{ const n=parseFloat(v); return !isNaN(n)&&n>0&&n<=1000; };
+  function lastDay(ym){ const p=ym.split("-").map(Number); const d=new Date(p[0],p[1],0); return ym===data.currentMonth?today():`${p[0]}-${String(p[1]).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+
+  async function saveRates(m){
+    const rows=m.issues.filter(r=>validRate(edits[key(r)])).map(r=>({date:r.date,slot:r.slot,rate:parseFloat(edits[key(r)])}));
+    if(!rows.length){ showToast("Enter at least one rate first","error"); return; }
+    setBusy("rates"+m.month);
+    try{ await apiPost("setPurchaseRates",{rows}); setEdits(e=>{ const n={...e}; rows.forEach(r=>delete n[r.date+"|"+r.slot]); return n; });
+      await load(true); showToast(rows.length+" rate"+(rows.length===1?"":"s")+" saved"); }
+    catch(e){ showToast(e.message,"error"); } finally{ setBusy(null); } }
+  async function addGap(m){
+    const who=(payer[m.month]!==undefined?payer[m.month]:m.proceedsPerson)||"";
+    setBusy("gap"+m.month);
+    try{ await apiPost("addTransaction",{date:lastDay(m.month),name:"Milk bought – from supervisor log (not recorded earlier)",category:"Opex",subCategory:"Milking Supplies",payer:who,amount:m.gap});
+      await load(true); onChanged&&onChanged(); showToast(fmtRs(m.gap)+" added for "+moLabel(m.month)); }
+    catch(e){ showToast(e.message,"error"); } finally{ setBusy(null); } }
+
+  if(loading) return <div style={{textAlign:"center",padding:"40px 20px",color:"#888"}}>Loading milk purchases…</div>;
+  if(err) return <div><Alert type="error">Could not load: {err}</Alert><Btn onClick={()=>load()} variant="ghost" style={{width:"100%"}}>Retry</Btn></div>;
+  if(!data.months.length) return <Alert type="info">No purchased milk has been logged by the supervisor yet.</Alert>;
+  const T=data.totals;
+  const small={width:"100%",padding:"7px 8px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff"};
+
+  return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+      <div style={{fontSize:12,color:"#94a3b8",marginBottom:12,lineHeight:1.55}}>
+        Compares the milk the supervisor logged as bought (litres × rate) with milk purchases recorded here under <b>Opex › Milking Supplies</b> (entries named “Milk…”). Fix any missing rates, then add each month's unrecorded amount as an expense.
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+        <StatBox label="Bought" value={fmtN(T.litres,0)+" L"} color="#1A5C8A"/>
+        <StatBox label="Recorded" value={fmtRs(T.recorded)} color="#15803d"/>
+        <StatBox label="Not recorded" value={fmtRs(T.unrecorded)} color={T.unrecorded>0?"#dc2626":"#15803d"}/>
+      </div>
+      <div style={{fontSize:11,color:"#94a3b8",marginBottom:12,lineHeight:1.5}}>
+        Since {moLabel(data.firstMonth)}, when the purchase log starts.{T.issueCount>0?` ${T.issueCount} entr${T.issueCount===1?"y":"ies"} in ${T.openMonths} month${T.openMonths===1?"":"s"} need a rate before ${T.openMonths===1?"that month":"those months"} can be counted.`:""}
+        {data.earlier&&data.earlier.count>0?` Earlier milk purchases (${fmtRs(data.earlier.amount)}) have no log to compare against.`:""}
+      </div>
+
+      {data.months.map(m=>{
+        const nTotal=m.issues.filter(r=>r.status==="total").length, nBlank=m.issues.filter(r=>r.status==="missing").length;
+        const nReady=m.issues.filter(r=>validRate(edits[key(r)])).length;
+        const chip=m.issues.length?{t:m.issues.length+" rate"+(m.issues.length===1?"":"s")+" to fix",fg:"#92400e",bg:"#fffbeb",bd:"#fde68a"}
+          :m.gap>10?{t:fmtRs(m.gap)+" not recorded",fg:"#dc2626",bg:"#fef2f2",bd:"#fecaca"}
+          :m.gap<-10?{t:fmtRs(-m.gap)+" extra recorded",fg:"#1A5C8A",bg:"#EBF5FD",bd:"#9ACFF0"}
+          :{t:"Matches ✓",fg:"#15803d",bg:"#f0fdf4",bd:"#bbf7d0"};
+        const who=payer[m.month]!==undefined?payer[m.month]:m.proceedsPerson;
+        const line=(k,v,b)=><div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,color:"#64748b",padding:"2px 0"}}><span>{k}</span><span style={{fontWeight:b?800:600,color:"#1a1a1a"}}>{v}</span></div>;
+        return (
+          <Card key={m.month} style={{marginBottom:12,padding:"14px 16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:8}}>
+              <div style={{fontWeight:800,fontSize:15,color:"#1a1a1a"}}>{moLabel(m.month)}{m.month===data.currentMonth&&<span style={{fontSize:10.5,fontWeight:600,color:"#94a3b8"}}> · so far</span>}</div>
+              <span style={{fontSize:11,fontWeight:800,color:chip.fg,background:chip.bg,border:"1px solid "+chip.bd,borderRadius:20,padding:"3px 10px",whiteSpace:"nowrap"}}>{chip.t}</span>
+            </div>
+            {line("Bought (supervisor log)",fmtN(m.litres,1)+" L")}
+            {line(m.issues.length?`Cost of ${fmtN(m.pricedLitres,1)} L with a rate`:"Cost from log",fmtRs(m.cost)+(m.avgRate?` · ₹${fmtN(m.avgRate,1)}/L`:""))}
+            {line("Recorded in Transactions",fmtRs(m.recorded))}
+            {!m.issues.length&&line(m.gap>=0?"Not recorded":"Recorded more than log",fmtRs(Math.abs(m.gap)),true)}
+
+            {m.issues.length>0&&(
+              <div style={{marginTop:10,background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"10px 12px"}}>
+                <div style={{fontSize:12,color:"#92400e",fontWeight:600,marginBottom:8,lineHeight:1.5}}>Enter the rate per litre (₹/L) for these purchases. The month's gap is worked out once every purchase has a rate.</div>
+                {(nTotal>0||nBlank>0)&&(
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>
+                    {nTotal>0&&<Btn variant="ghost" onClick={()=>setEdits(e=>{ const n={...e}; m.issues.forEach(r=>{ if(r.status==="total") n[key(r)]=String(r.suggest); }); return n; })} style={{padding:"7px 10px",fontSize:12,background:"#fff"}}>Use suggested rate for {nTotal} total{nTotal===1?"":"s"}</Btn>}
+                    {nBlank>0&&(
+                      <div style={{display:"flex",gap:6,alignItems:"center",flex:"1 1 200px"}}>
+                        <input type="number" inputMode="decimal" min="0" value={fill[m.month]||""} onChange={e=>setFill(f=>({...f,[m.month]:e.target.value}))} placeholder="₹/L" style={{...small,width:72,flex:"0 0 72px"}}/>
+                        <Btn variant="ghost" onClick={()=>{ const v=fill[m.month]; if(!validRate(v)){ showToast("Enter a rate first","error"); return; } setEdits(e=>{ const n={...e}; m.issues.forEach(r=>{ if(r.status==="missing"&&!validRate(e[key(r)])) n[key(r)]=String(parseFloat(v)); }); return n; }); }} style={{padding:"7px 10px",fontSize:12,background:"#fff",flex:1}}>Fill {nBlank} blank{nBlank===1?"":"s"}</Btn>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {m.issues.map(r=>(
+                  <div key={key(r)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderTop:"1px solid #fde68a"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12.5,fontWeight:600,color:"#1a1a1a"}}>{dLabel(r.date)} · {r.slot==="morning"?"Morning":"Evening"} · {fmtN(r.litres,1)} L</div>
+                      <div style={{fontSize:11,color:"#92400e"}}>{r.status==="missing"?"No rate entered":r.status==="total"?`Entered ${r.rate}: looks like the day's total (= ₹${r.suggest}/L)`:`Entered ${r.rate}: not a usual ₹/L rate, please check`}</div>
+                    </div>
+                    <input type="number" inputMode="decimal" min="0" value={edits[key(r)]||""} onChange={e=>{ const v=e.target.value; setEdits(x=>({...x,[key(r)]:v})); }} placeholder={r.suggest?String(r.suggest):"₹/L"} style={{...small,width:76,flex:"0 0 76px",textAlign:"right"}}/>
+                  </div>
+                ))}
+                <Btn onClick={()=>saveRates(m)} disabled={busy==="rates"+m.month||nReady===0} style={{width:"100%",marginTop:8,padding:"9px 0",fontSize:13,opacity:nReady===0?0.5:1}}>{busy==="rates"+m.month?"Saving…":nReady?`Save ${nReady} rate${nReady===1?"":"s"}`:"Save rates"}</Btn>
+              </div>
+            )}
+
+            {!m.issues.length&&m.gap>10&&(
+              <div style={{marginTop:10,background:"#f8fafc",border:"1px solid #eef2f7",borderRadius:10,padding:"10px 12px"}}>
+                <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:10,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.4px",marginBottom:3}}>Paid from</div>
+                    <select value={who||""} onChange={e=>setPayer(p=>({...p,[m.month]:e.target.value}))} style={small}>
+                      <option value="">Milk sales money</option>
+                      {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}
+                    </select>
+                  </div>
+                  <Btn onClick={()=>addGap(m)} disabled={busy==="gap"+m.month} style={{padding:"9px 12px",fontSize:13,whiteSpace:"nowrap"}}>{busy==="gap"+m.month?"Adding…":`Add ${fmtRs(m.gap)}`}</Btn>
+                </div>
+                <div style={{fontSize:11,color:"#94a3b8",marginTop:6,lineHeight:1.5}}>
+                  Adds one Opex › Milking Supplies expense dated {fmtDate(lastDay(m.month))}. {m.proceedsPerson?`${moLabel(m.month)}'s milk money is assigned to ${m.proceedsPerson} in Contribution, so it is charged to him by default.`:"Milk sales money isn't counted as anyone's contribution; pick a founder only if he paid it."}
+                </div>
+              </div>
+            )}
+            {!m.issues.length&&m.gap<-10&&<div style={{fontSize:11.5,color:"#64748b",marginTop:8,lineHeight:1.5}}>More is recorded than the log shows (perhaps a payment covered part of another month). Nothing to add.</div>}
+
+            {m.entries.length>0&&(
+              <div style={{marginTop:8}}>
+                <button onClick={()=>setShowRec(x=>({...x,[m.month]:!x[m.month]}))} style={{background:"none",border:"none",color:"#2D7FB5",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:0}}>{showRec[m.month]?"Hide":"Show"} recorded entries ({m.entries.length}) {showRec[m.month]?"▲":"▼"}</button>
+                {showRec[m.month]&&m.entries.map(e=>(
+                  <div key={e.rowIndex} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:12,color:"#475569",padding:"4px 0",borderBottom:"1px solid #f8fafc"}}>
+                    <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDate(e.date)} · {e.name}{e.payer?` · ${e.payer}`:""}</span><span style={{fontWeight:700,flexShrink:0}}>{fmtRs(e.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 function TransactionsAdmin({lang, t}) {
   const [txns,setTxns]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -2501,6 +2657,8 @@ function TransactionsAdmin({lang, t}) {
   async function saveLoanAmount(){ const v=loanEdit; setLoanEdit(null);
     try{ await apiPost("setLoanAmount",{amount:v}); await loadNet(); showToast("Loan amount saved"); }catch(e){ showToast("Save failed","error"); } }
 
+  // Refresh the list without the full-screen spinner (used after the Milk bought tab adds an entry).
+  async function reloadQuiet(){ try{ const d=await apiGet("getTransactions"); _screenCache.txns=d.transactions||[]; _screenCache.net=null; setTxns(d.transactions||[]); setNetData(null); }catch(e){} }
   async function load(){ setLoading(true); setErr(null); try{ const d=await apiGet("getTransactions"); _screenCache.txns=d.transactions||[]; _screenCache.net=null; setTxns(d.transactions||[]); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
   useEffect(()=>{ if(_screenCache.txns){ setTxns(_screenCache.txns); setLoading(false); } else load(); },[]);
   async function loadNet(){ setNetLoading(true); try{ const d=await apiGet("getNetContributions"); _screenCache.net=d||{people:[],months:[]}; setNetData(d||{people:[],months:[]}); }catch(e){}finally{ setNetLoading(false); } }
@@ -2666,7 +2824,8 @@ function TransactionsAdmin({lang, t}) {
       )}
 
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}><Btn variant="ghost" onClick={()=>{ load(); if(tab==="contribution") loadNet(); }} style={{padding:"6px 12px",fontSize:12}}>↻ Refresh</Btn></div>
-      <TabBar tabs={[{key:"entries",label:"Entries"},{key:"summary",label:"Summary"},{key:"contribution",label:"Contribution"}]} active={tab} onChange={setTab}/>
+      <TabBar tabs={[{key:"entries",label:"Entries"},{key:"summary",label:"Summary"},{key:"contribution",label:"Contribution"},{key:"milk",label:"Milk bought"}]} active={tab} onChange={setTab}/>
+      {tab==="milk"&&<MilkPurchasesView onChanged={reloadQuiet}/>}
       {tab==="contribution"&&(
         <div>
           <div style={{fontSize:12,color:"#94a3b8",marginBottom:12,lineHeight:1.5}}>Net contribution = money a person spent (from transactions) minus the milk proceeds they kept. Assign each month’s proceeds to whoever collected them below. Spending paid from the loan is shown separately and is not counted as either founder’s contribution.</div>
@@ -3184,7 +3343,7 @@ function ActionItemsView({cattle=[]}){
     if(!c.pregnant){
       const dc=daysSince(c.lastCalving);
       if(dc!=null && dc>=AI_WAIT){
-        const dai=daysSince(c.dateAI);
+        const dai=daysSince(aiThisCycle(c));
         if(dai==null) ai.push({code:c.code,type:c.type,reason:dc+" days since calving, no AI yet"});
         else if(dai>=AI_REPEAT) ai.push({code:c.code,type:c.type,reason:"AI "+dai+" days ago, not confirmed pregnant"});
       }
