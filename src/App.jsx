@@ -82,6 +82,7 @@ const TR = {
     delTitle: "Log Milk Dispatched", delSub: "Record delivery for each customer",
     morningCustomers: "Morning Customers", eveningCustomers: "Evening Customers",
     yesterday: "Yesterday", absent: "absent", self: "Self",
+    navigate: "Navigate", saveLocation: "Save this location", locating: "Finding location…", locSaved: "Location saved", locWeak: "GPS signal is weak. Step outside and try again.", locDenied: "Allow location access for this site, then try again.", locFail: "Could not get the location. Try again.", waDelivered: "WhatsApp: milk delivered",
     fillYesterday: "Copy yesterday's quantities", filledMsg: "Filled from yesterday — change only what's different",
     farmLoginSub: "Enter the farm password to set up this device", farmPassword: "Farm password", farmLoginBtn: "Unlock this device", farmLoginNote: "You only need to do this once on this phone.", loginWrong: "Wrong password — please try again",
     bottlesToFill: "🍶 Bottles to Fill",
@@ -160,6 +161,7 @@ const TR = {
     delTitle: "भेजा गया दूध दर्ज करें", delSub: "हर ग्राहक की डिलीवरी दर्ज करें",
     morningCustomers: "सुबह के ग्राहक", eveningCustomers: "शाम के ग्राहक",
     yesterday: "कल", absent: "अनुपस्थित", self: "खुद",
+    navigate: "रास्ता दिखाएँ", saveLocation: "यह जगह सेव करें", locating: "जगह पता की जा रही है…", locSaved: "जगह सेव हो गई", locWeak: "GPS कमज़ोर है। खुली जगह पर दोबारा कोशिश करें।", locDenied: "इस साइट को लोकेशन की अनुमति दें, फिर दोबारा कोशिश करें।", locFail: "जगह पता नहीं चली। दोबारा कोशिश करें।", waDelivered: "व्हाट्सऐप: दूध पहुँच गया",
     fillYesterday: "कल की मात्रा भरें", filledMsg: "कल से भर दिया — केवल बदलाव करें",
     farmLoginSub: "इस डिवाइस को सेट करने के लिए फ़ार्म पासवर्ड डालें", farmPassword: "फ़ार्म पासवर्ड", farmLoginBtn: "यह डिवाइस अनलॉक करें", farmLoginNote: "यह इस फ़ोन पर केवल एक बार करना है।", loginWrong: "ग़लत पासवर्ड — फिर कोशिश करें",
     bottlesToFill: "🍶 भरनी हैं बोतलें",
@@ -237,6 +239,7 @@ const TR = {
     delTitle: "بھیجا گیا دودھ درج کریں", delSub: "ہر گاہک کی ڈیلیوری درج کریں",
     morningCustomers: "صبح کے گاہک", eveningCustomers: "شام کے گاہک",
     yesterday: "کل", absent: "غیر حاضر", self: "خود",
+    navigate: "راستہ دکھائیں", saveLocation: "یہ جگہ محفوظ کریں", locating: "جگہ معلوم ہو رہی ہے…", locSaved: "جگہ محفوظ ہو گئی", locWeak: "GPS کمزور ہے۔ کھلی جگہ پر دوبارہ کوشش کریں۔", locDenied: "اس سائٹ کو لوکیشن کی اجازت دیں، پھر دوبارہ کوشش کریں۔", locFail: "جگہ معلوم نہیں ہو سکی۔ دوبارہ کوشش کریں۔", waDelivered: "واٹس ایپ: دودھ پہنچ گیا",
     fillYesterday: "کل کی مقدار بھریں", filledMsg: "کل سے بھر دیا — صرف تبدیلیاں کریں",
     farmLoginSub: "اس ڈیوائس کو سیٹ کرنے کے لیے فارم پاس ورڈ درج کریں", farmPassword: "فارم پاس ورڈ", farmLoginBtn: "یہ ڈیوائس ان لاک کریں", farmLoginNote: "یہ اس فون پر صرف ایک بار کرنا ہے۔", loginWrong: "غلط پاس ورڈ — دوبارہ کوشش کریں",
     bottlesToFill: "🍶 بھرنی ہیں بوتلیں",
@@ -942,7 +945,37 @@ function BottleSummary({customers,vals,t}) {
   );
 }
 
-function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[],qtyOptions=null}) {
+// ─── DELIVERY NAVIGATION + WHATSAPP helpers ─────────────────────────────────
+// A customer can have an exact pin (lat/lng) or, failing that, a Google Maps
+// link. "Navigate" opens Google Maps directions; no API key or cost involved.
+const WA_DEFAULT_MSG = "Banki Dairy: your milk has been delivered. Thank you!";
+const LOC_MAX_ACCURACY_M = 75;   // refuse a GPS fix worse than this
+function validLatLng(a,b){ const la=parseFloat(a), ln=parseFloat(b); if(isNaN(la)||isNaN(ln)||Math.abs(la)>90||Math.abs(ln)>180) return null; return {lat:Math.round(la*1e6)/1e6,lng:Math.round(ln*1e6)/1e6}; }
+// Reads a pin out of whatever the owner pastes: a full Google Maps link, a
+// shared-location link, or plain "26.84712, 80.94623". Short links
+// (maps.app.goo.gl/…) don't contain the coordinates, so they are kept as a link.
+function parseMapsInput(text){
+  const s=String(text||"").trim(); if(!s) return null; let m;
+  if((m=s.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/))) { const r=validLatLng(m[1],m[2]); if(r) return r; }
+  if((m=s.match(/[?&](?:q|query|ll|sll|destination|daddr|center)=(?:loc:)?(-?\d{1,2}\.\d+)(?:,|%2C)\+?(-?\d{1,3}\.\d+)/i))) { const r=validLatLng(m[1],m[2]); if(r) return r; }
+  if((m=s.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/))) { const r=validLatLng(m[1],m[2]); if(r) return r; }
+  if((m=s.match(/(?:^|[\/\s(])(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})(?:$|[\/\s?&)])/))) { const r=validLatLng(m[1],m[2]); if(r) return r; }
+  if(/^https:\/\/([a-z0-9-]+\.)*(google\.[a-z.]{2,6}|goo\.gl|g\.co)\//i.test(s)) return {link:s};
+  return null;
+}
+function hasPin(c){ return c&&c.lat!=null&&c.lng!=null&&!isNaN(parseFloat(c.lat))&&!isNaN(parseFloat(c.lng)); }
+function navUrl(c){ if(hasPin(c)) return "https://www.google.com/maps/dir/?api=1&destination="+c.lat+"%2C"+c.lng+"&dir_action=navigate"; if(c&&c.mapsLink) return c.mapsLink; return null; }
+function pinViewUrl(c){ if(hasPin(c)) return "https://www.google.com/maps/search/?api=1&query="+c.lat+"%2C"+c.lng; if(c&&c.mapsLink) return c.mapsLink; return null; }
+function waNumber(phone){ const d=String(phone||"").replace(/\D/g,""); if(d.length===10) return "91"+d; if(d.length===11&&d[0]==="0") return "91"+d.slice(1); if(d.length>=11&&d.length<=15) return d; return null; }
+function waUrl(c,msg){ const n=waNumber(c&&c.phone); if(!n) return null; const text=String(msg||WA_DEFAULT_MSG).replace(/\{name\}/g,(c.name_en||"").trim()); return "https://wa.me/"+n+"?text="+encodeURIComponent(text); }
+// One GPS reading from the phone. Rejects with {code} 1 = permission denied, 2/3 = unavailable/timeout.
+function getHere(){ return new Promise((resolve,reject)=>{
+  if(typeof navigator==="undefined"||!navigator.geolocation){ reject({code:2}); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos=>resolve({lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy}),
+    err=>reject(err), {enableHighAccuracy:true,timeout:15000,maximumAge:0}); }); }
+
+function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[],qtyOptions=null,open=false,onToggle=null,onSaveLoc=null,locBusy=false,waMessage=""}) {
   const isB=customer.type==="B";
   const color=isB?"#92400e":"#2D7FB5";
   const bg=isB?"#fffbeb":"#EBF5FD";
@@ -954,8 +987,11 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[],qtyO
   const rowBg   = isEmpty ? "#fff9f0" : isNil ? "#fff5f5" : "transparent";
   const rowBorder = isEmpty ? "1px solid #fde68a" : isNil ? "1px solid #fecaca" : "none";
   const selfCollect = customer.selfCollect || customer.selfcollect;
+  const nav=navUrl(customer), wa=waUrl(customer,waMessage);
+  const actBtn={flex:1,minWidth:130,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6,padding:"11px 10px",borderRadius:9,fontSize:13,fontWeight:700,textDecoration:"none",cursor:"pointer",fontFamily:"inherit",boxSizing:"border-box"};
 
   return (
+    <>
     <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 6px",borderBottom:"1px solid #f8fafc",background:rowBg,borderRadius:isEmpty||isNil?6:0,marginBottom:isEmpty||isNil?2:0,border:rowBorder}}>
       <div style={{flex:1,minWidth:0}}>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -972,6 +1008,7 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[],qtyO
             :null}
         </div>
       </div>
+      {onToggle&&<button onClick={onToggle} aria-label={t.navigate} style={{flexShrink:0,width:32,height:32,borderRadius:9,border:"1.5px solid "+(open?"#2D7FB5":nav?"#9ACFF0":"#e2e8f0"),background:open?"#2D7FB5":nav?"#EBF5FD":"#fff",color:open?"#fff":"#94a3b8",fontSize:14,cursor:"pointer",padding:0,lineHeight:1,fontFamily:"inherit"}}>{nav?"📍":"⋯"}</button>}
       <span style={{background:tagBg,color,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,flexShrink:0}}>{isB?"🐃 B":"🐄 C"}</span>
       <select value={value||""} onChange={e=>onChange(e.target.value)}
         style={{padding:"6px 8px",border:`1.5px solid ${value&&value!=="Nil"?color:"#e2e8f0"}`,borderRadius:8,fontSize:13,fontWeight:600,background:value&&value!=="Nil"?bg:"#fafafa",color:value&&value!=="Nil"?color:"#888",outline:"none",width:80,flexShrink:0,fontFamily:"inherit"}}>
@@ -979,6 +1016,16 @@ function CustomerRow({customer,value,onChange,prevValue,lang,t,customers=[],qtyO
         {[...(qtyOptions&&qtyOptions.length?qtyOptions:QTY_OPTIONS.filter(x=>x!=="Nil")),"Nil"].map(q=><option key={q} value={q}>{q==="Nil"?t.nilOption:q+" L"}</option>)}
       </select>
     </div>
+    {open&&(
+      <div style={{display:"flex",flexWrap:"wrap",gap:8,padding:"8px 6px 12px",marginBottom:4,background:"#f8fafc",borderRadius:8}}>
+        {customer.address&&<div style={{flexBasis:"100%",fontSize:12.5,color:"#475569",padding:"0 2px"}}>🏠 {customer.address}</div>}
+        {nav
+          ? <a href={nav} target="_blank" rel="noopener noreferrer" style={{...actBtn,background:"#2D7FB5",color:"#fff",border:"1.5px solid #2D7FB5"}}>🧭 {t.navigate}</a>
+          : onSaveLoc&&<button onClick={onSaveLoc} disabled={locBusy} style={{...actBtn,background:"#fff",color:"#2D7FB5",border:"1.5px dashed #2D7FB5",opacity:locBusy?0.6:1}}>📍 {locBusy?t.locating:t.saveLocation}</button>}
+        {wa&&<a href={wa} target="_blank" rel="noopener noreferrer" style={{...actBtn,background:"#f0fdf4",color:"#15803d",border:"1.5px solid #86efac"}}>💬 {t.waDelivered}</a>}
+      </div>
+    )}
+    </>
   );
 }
 
@@ -1146,6 +1193,24 @@ function DeliveryView({lang}) {
   const [submittedSlots,setSubmittedSlots]=useState({morning:false,evening:false});
   const [status,setStatus]=useState(null);
   const [errMsg,setErrMsg]=useState("");
+  const [openKey,setOpenKey]=useState(null);      // customer whose Navigate / WhatsApp strip is open
+  const [locBusy,setLocBusy]=useState(null);      // customer whose location is being captured
+  const [waMessage,setWaMessage]=useState("");
+  const [note,setNote]=useState(null);            // {type,msg} for location feedback
+  function showNote(msg,type="success"){ setNote({msg,type}); setTimeout(()=>setNote(null),3500); }
+  // Delivery person, standing at the customer's door: save the phone's GPS position as that customer's pin.
+  async function saveLocationHere(c){
+    if(locBusy) return; setLocBusy(c.rowIndex);
+    try{
+      const here=await getHere();
+      if(here.acc>LOC_MAX_ACCURACY_M){ showNote(t.locWeak+" (±"+Math.round(here.acc)+" m)","error"); return; }
+      const ll=validLatLng(here.lat,here.lng);
+      await apiPost("setCustomerLocation",{rowIndex:c.rowIndex,lat:ll.lat,lng:ll.lng});
+      setCustomers(cs=>cs.map(x=>x.rowIndex===c.rowIndex?{...x,lat:ll.lat,lng:ll.lng}:x));
+      showNote("📍 "+t.locSaved+" (±"+Math.round(here.acc)+" m)");
+    }catch(e){ showNote(e&&e.code===1?t.locDenied:(e&&e.message&&!e.code?e.message:t.locFail),"error"); }
+    finally{ setLocBusy(null); }
+  }
 
   useEffect(()=>{
     if(!date) return;
@@ -1157,6 +1222,7 @@ function DeliveryView({lang}) {
       if(d){
         if(d.customers) setCustomers(d.customers);
         if(d.qtyOptions) setQtyOptions(d.qtyOptions);
+        setWaMessage(d.waMessage||"");
         setMVals(d.today&&d.today.morning?d.today.morning:{});
         setEVals(d.today&&d.today.evening?d.today.evening:{});
         setPrevData(d.prev||null);
@@ -1222,6 +1288,7 @@ function DeliveryView({lang}) {
       )}
       {status==="error"&&<Toast type="error" onDismiss={()=>setStatus(null)}>⚠️ {errMsg}</Toast>}
       {status==="filled"&&<Toast type="success" onDismiss={()=>setStatus(null)}>✅ {t.filledMsg}</Toast>}
+      {note&&<Toast type={note.type} onDismiss={()=>setNote(null)}>{note.msg}</Toast>}
 
       <Card style={{marginBottom:14}}>
         <div style={{marginBottom:0}}>
@@ -1245,7 +1312,8 @@ function DeliveryView({lang}) {
         {listLoading && customers.length===0
           ? <div style={{color:"#aaa",fontSize:13,textAlign:"center",padding:"24px 0"}}>{t.loading||"Loading…"}</div>
           : slotCustomers.map(c=>(
-          <CustomerRow key={c.name_en||c.name} customer={c} value={vals[c.name_en||c.name]||""} onChange={v=>setVals(p=>({...p,[c.name_en||c.name]:v}))} prevValue={prevVals?prevVals[c.name_en||c.name]:null} lang={lang} t={t} customers={customers} qtyOptions={qtyOptions}/>
+          <CustomerRow key={c.name_en||c.name} customer={c} value={vals[c.name_en||c.name]||""} onChange={v=>setVals(p=>({...p,[c.name_en||c.name]:v}))} prevValue={prevVals?prevVals[c.name_en||c.name]:null} lang={lang} t={t} customers={customers} qtyOptions={qtyOptions}
+            open={openKey===c.rowIndex} onToggle={()=>setOpenKey(k=>k===c.rowIndex?null:c.rowIndex)} onSaveLoc={()=>saveLocationHere(c)} locBusy={locBusy===c.rowIndex} waMessage={waMessage}/>
         ))}
 
         {/* Totals below the list */}
@@ -1309,8 +1377,28 @@ function CustomersAdmin({customers, lang, t, onChanged, qtyOptions=[]}) {
   const types = ["B","C"];
 
   function blankForm() {
-    return {name_en:"",name_hi:"",name_ur:"",slot:"morning",type:"B",phone:"",selfCollect:false,rate:"",rowIndex:null,insertAfter:""};
+    return {name_en:"",name_hi:"",name_ur:"",slot:"morning",type:"B",phone:"",selfCollect:false,rate:"",rowIndex:null,insertAfter:"",lat:null,lng:null,mapsLink:"",address:""};
   }
+  // WhatsApp delivery message (owner-editable)
+  const [waOpen,setWaOpen]=useState(false);
+  const [waDraft,setWaDraft]=useState("");
+  const [waSaving,setWaSaving]=useState(false);
+  async function openWa(){ if(waOpen){ setWaOpen(false); return; } setWaOpen(true);
+    try{ const d=await apiGet("getCustomers"); setWaDraft((d&&d.waMessage)||""); }catch(e){} }
+  async function saveWa(){ setWaSaving(true); try{ await apiPost("saveWaMessage",{message:waDraft}); setWaOpen(false); showToast("Message saved"); }catch(e){ showToast(e.message,"error"); } finally{ setWaSaving(false); } }
+  // Location in the customer form
+  const [locBusy,setLocBusy]=useState(false);
+  function onLocInput(text){ const r=parseMapsInput(text);
+    setForm(p=>{ const n={...p,locInput:text};
+      if(r&&r.lat!=null){ n.lat=r.lat; n.lng=r.lng; n.mapsLink=""; n.locDirty=true; }
+      else if(r&&r.link){ n.lat=null; n.lng=null; n.mapsLink=r.link; n.locDirty=true; }
+      return n; }); }
+  async function useHere(){ if(locBusy) return; setLocBusy(true);
+    try{ const here=await getHere();
+      if(here.acc>LOC_MAX_ACCURACY_M){ showToast("GPS signal is weak (±"+Math.round(here.acc)+" m). Step outside and try again.","error"); return; }
+      const ll=validLatLng(here.lat,here.lng); setForm(p=>({...p,lat:ll.lat,lng:ll.lng,mapsLink:"",locInput:"",locDirty:true}));
+    }catch(e){ showToast(e&&e.code===1?"Allow location access for this site, then try again.":"Could not get the location. Try again.","error"); }
+    finally{ setLocBusy(false); } }
 
   function showToast(msg,type="success") {
     setToast({msg,type});
@@ -1328,6 +1416,8 @@ function CustomersAdmin({customers, lang, t, onChanged, qtyOptions=[]}) {
         slot:form.slot, type:form.type, phone:form.phone||"", selfCollect:!!form.selfCollect,
         rate:form.rate
       };
+      // Location fields go along only when they were touched (keeps old setups working).
+      if (form.locDirty) { payload.lat=form.lat; payload.lng=form.lng; payload.mapsLink=form.mapsLink||""; payload.address=form.address||""; }
       if (form.rowIndex) payload.rowIndex = form.rowIndex;
       if (form.insertAfter === "top") payload.atTop = true;
       else if (form.insertAfter) payload.afterRowIndex = Number(form.insertAfter);
@@ -1432,6 +1522,30 @@ function CustomersAdmin({customers, lang, t, onChanged, qtyOptions=[]}) {
             placeholder="10-digit number"
             style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
         </div>
+        <div style={{marginBottom:14,background:"#f8fafc",border:"1px solid #eef2f7",borderRadius:10,padding:"12px"}}>
+          <SectionLabel>Delivery location (optional)</SectionLabel>
+          {(()=>{ const pin=hasPin(form), link=!pin&&!!form.mapsLink, view=pinViewUrl(form);
+            const typed=String(form.locInput||"").trim(), parsed=typed?parseMapsInput(typed):null;
+            const fld={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff"};
+            return (<>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,fontSize:12.5,marginBottom:8}}>
+                <span style={{color:(pin||link)?"#15803d":"#94a3b8",fontWeight:600,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {pin?`📍 Pin saved · ${Number(form.lat).toFixed(5)}, ${Number(form.lng).toFixed(5)}`:link?"🔗 Maps link saved":"No location saved yet"}
+                </span>
+                {(pin||link)&&<span style={{display:"inline-flex",gap:10,flexShrink:0}}>
+                  {view&&<a href={view} target="_blank" rel="noopener noreferrer" style={{color:"#2D7FB5",fontWeight:700,textDecoration:"none"}}>Open</a>}
+                  <button type="button" onClick={()=>setForm(p=>({...p,lat:null,lng:null,mapsLink:"",locInput:"",locDirty:true}))} style={{background:"none",border:"none",color:"#dc2626",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,padding:0}}>Clear</button>
+                </span>}
+              </div>
+              <input value={form.locInput||""} onChange={e=>onLocInput(e.target.value)} placeholder="Paste a Google Maps link or coordinates" style={fld}/>
+              {typed&&parsed&&parsed.lat!=null&&<div style={{fontSize:11.5,color:"#15803d",marginTop:4}}>✓ Pin read from what you pasted.</div>}
+              {typed&&parsed&&parsed.link&&<div style={{fontSize:11.5,color:"#92400e",marginTop:4}}>Link saved. Short links don't contain the exact pin, so Navigate will open this link in Google Maps. For a one-tap route, paste the coordinates instead (in Google Maps, press and hold on the spot and copy the numbers).</div>}
+              {typed&&!parsed&&<div style={{fontSize:11.5,color:"#dc2626",marginTop:4}}>Couldn't read a location from this. Paste a Google Maps link, or coordinates like 26.84712, 80.94623.</div>}
+              <Btn variant="ghost" onClick={useHere} disabled={locBusy} style={{width:"100%",marginTop:8,padding:"9px 0",fontSize:13}}>{locBusy?"Finding location…":"📍 Use my current location"}</Btn>
+              <input value={form.address||""} onChange={e=>setForm(p=>({...p,address:e.target.value,locDirty:true}))} placeholder="Landmark or note for the delivery person" style={{...fld,marginTop:8}}/>
+              <div style={{fontSize:11,color:"#aaa",marginTop:5}}>The delivery person can also save the pin himself with one tap when standing at the customer's door.</div>
+            </>); })()}
+        </div>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:18}}>
           <input type="checkbox" id="selfCollect" checked={form.selfCollect||false}
             onChange={e=>setForm(p=>({...p,selfCollect:e.target.checked}))}
@@ -1475,7 +1589,7 @@ function CustomersAdmin({customers, lang, t, onChanged, qtyOptions=[]}) {
                 {cust.selfCollect&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,color:"#6b7280",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:4,padding:"1px 5px"}}>SELF</span>}
                 {!cust.active&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,color:"#dc2626",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:4,padding:"1px 5px"}}>INACTIVE</span>}
               </div>
-              <div style={{fontSize:11,color:"#aaa",marginTop:1}}>{cust.type==="B"?"🐃 Buffalo":"🐄 Cow"}{cust.phone?` · ${cust.phone}`:""}{cust.rate!=null?` · ₹${cust.rate}/L`:""}</div>
+              <div style={{fontSize:11,color:"#aaa",marginTop:1}}>{cust.type==="B"?"🐃 Buffalo":"🐄 Cow"}{cust.phone?` · ${cust.phone}`:""}{cust.rate!=null?` · ₹${cust.rate}/L`:""}{(hasPin(cust)||cust.mapsLink)?" · 📍":""}</div>
             </div>
             <button onClick={()=>setForm({...cust})} style={{background:"#EBF5FD",border:"none",borderRadius:7,padding:"5px 10px",fontSize:12,color:"#2D7FB5",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
             <button onClick={()=>handleToggle(cust)} style={{background:cust.active?"#fff9f0":"#f0fdf4",border:`1px solid ${cust.active?"#fde68a":"#bbf7d0"}`,borderRadius:7,padding:"5px 10px",fontSize:12,color:cust.active?"#92400e":"#15803d",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
@@ -1518,6 +1632,21 @@ function CustomersAdmin({customers, lang, t, onChanged, qtyOptions=[]}) {
       <div onClick={()=>setShowPayments(true)} style={{display:"inline-flex",alignItems:"center",gap:6,color:"#2D7FB5",fontSize:13,fontWeight:700,cursor:"pointer",textDecoration:"underline",marginBottom:14}}>
         💰 {t.payLink} →
       </div>
+      <Card style={{marginBottom:14}}>
+        <div onClick={openWa} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>💬 WhatsApp delivery message</div>
+          <div style={{fontSize:15,color:"#94a3b8"}}>{waOpen?"▲":"▼"}</div>
+        </div>
+        {waOpen&&(
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:11,color:"#94a3b8",marginBottom:8,lineHeight:1.5}}>The message the delivery person sends from his WhatsApp when he taps "WhatsApp: milk delivered" on a customer. Works for customers with a phone number saved. Write {"{name}"} where the customer's name should appear.</div>
+            <textarea value={waDraft} onChange={e=>setWaDraft(e.target.value)} rows={3} placeholder={WA_DEFAULT_MSG}
+              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",resize:"vertical"}}/>
+            <div style={{fontSize:11,color:"#aaa",marginTop:4}}>Leave blank to use: "{WA_DEFAULT_MSG}"</div>
+            <Btn onClick={saveWa} disabled={waSaving} style={{width:"100%",marginTop:10}}>{waSaving?"Saving…":"Save message"}</Btn>
+          </div>
+        )}
+      </Card>
       <Card style={{marginBottom:14}}>
         <div onClick={()=>{ if(!qOpen) setQDraft([...(qtyOptions||[])]); setQOpen(!qOpen); }} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
           <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>🥛 Delivery quantities</div>
@@ -1706,6 +1835,8 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
     const pt=phaseTag(c.status);
     const dim=isMilk?daysSince(c.lastCalving):null;
     const aiDone=!!c.dateAI;
+    const dsAI=daysSince(c.dateAI);                       // days since the most recent AI (null if none)
+    const heatWatch=dsAI!=null&&!c.pregnant&&dsAI>=18&&dsAI<=24;   // usual repeat-heat window
     const gest=c.type==="B"?310:283;
     const expCalv=(c.pregnant&&c.dateAI)?addDays(c.dateAI,gest):null;
     const expDry=expCalv?addDays(expCalv,-60):null;
@@ -1726,6 +1857,12 @@ function CattleAdmin({cattle=[], lang, t, onChanged}) {
                 ? (dim!=null ? <span>Days in milk: <b style={{color:"#1a1a1a"}}>{dim}</b></span> : <span style={{color:"#cbd5e1"}}>Days in milk: add last calving date</span>)
                 : <span>In dry period{expCalv?` · calving ~ ${fmtDate(expCalv)}`:""}</span>}
             </div>
+            {dsAI!=null&&(
+              <div style={{fontSize:12,color:"#64748b",marginTop:3}}>
+                Days since last AI: <b style={{color:heatWatch?"#b45309":"#1a1a1a"}}>{dsAI}</b>
+                {heatWatch&&<span style={{color:"#b45309",fontWeight:600}}> · watch for heat return</span>}
+              </div>
+            )}
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
             <div style={{fontSize:18,fontWeight:800,color:"#2D7FB5"}}>{fmtN(c.milkAvg7||0,1)}<span style={{fontSize:11,color:"#94a3b8"}}> L</span></div>
@@ -2317,9 +2454,13 @@ function PnLAdmin({cattle=[], feedRates, lang, t}) {
 // ─── TRANSACTIONS ───────────────────────────────────────────────────────────
 const OPEX_CATS  = ["Salaries","Feed","Transport","Veterinary","Marketing","Misc.","Repairs & Maintenance","Milking Supplies","Admin Costs","Electricity","Breeding Costs","Construction"];
 const CAPEX_CATS = ["Boring","Construction","Electricity","Plumbing","Tools & Instruments","Cattle","Inauguration","Farm Misc.","Machinery"];
-const TXN_PAYERS = ["Danish","Vipul"];
+const TXN_PAYERS = ["Danish","Vipul"];                 // the founders (also who can keep proceeds)
+const LOAN_PAYER = "Loan";                              // spending funded by the loan, not by a founder
+const TXN_FUNDERS = TXN_PAYERS.concat([LOAN_PAYER]);    // everything a transaction can be paid from
+const LOAN_CAT  = "Loan Repayment";                     // repayments: not a farm expense in P&L
+const LOAN_CATS = ["EMI","Prepayment"];
 const TXN_MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-function txnSubOptions(cat){ return cat==="Capex" ? CAPEX_CATS : OPEX_CATS; }
+function txnSubOptions(cat){ return cat==="Capex" ? CAPEX_CATS : cat===LOAN_CAT ? LOAN_CATS : OPEX_CATS; }
 
 function TxnFilterSelect({label,value,onChange,options}){
   return (
@@ -2351,9 +2492,14 @@ function TransactionsAdmin({lang, t}) {
   const [netData,setNetData]=useState(null);
   const [netLoading,setNetLoading]=useState(false);
   const [opDraft,setOpDraft]=useState({date:today(),name:"",amount:"",person:TXN_PAYERS[0]});
+  const [workers,setWorkers]=useState([]);      // for linking a salary payment to a worker (empty until Labour is set up)
+  const [loanEdit,setLoanEdit]=useState(null);  // loan amount being edited (string) or null
 
   function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3000);}
   const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+  useEffect(()=>{ apiGet("getWorkers").then(d=>setWorkers((d&&d.workers)||[])).catch(()=>{}); },[]);
+  async function saveLoanAmount(){ const v=loanEdit; setLoanEdit(null);
+    try{ await apiPost("setLoanAmount",{amount:v}); await loadNet(); showToast("Loan amount saved"); }catch(e){ showToast("Save failed","error"); } }
 
   async function load(){ setLoading(true); setErr(null); try{ const d=await apiGet("getTransactions"); _screenCache.txns=d.transactions||[]; _screenCache.net=null; setTxns(d.transactions||[]); }catch(e){ setErr(e.message); }finally{ setLoading(false); } }
   useEffect(()=>{ if(_screenCache.txns){ setTxns(_screenCache.txns); setLoading(false); } else load(); },[]);
@@ -2382,7 +2528,8 @@ function TransactionsAdmin({lang, t}) {
     try{ await apiPost("deleteOtherProceeds",{rowIndex}); await loadNet(); }catch(e){ showToast("Save failed","error"); }
   }
 
-  function blankForm(){ return {date:today(),name:"",category:"Opex",subCategory:"",payer:TXN_PAYERS[0],amount:"",rowIndex:null}; }
+  function blankForm(){ return {date:today(),name:"",category:"Opex",subCategory:"",payer:TXN_PAYERS[0],amount:"",rowIndex:null,workerSel:"auto",_origSel:"auto"}; }
+  function editForm(tx){ const sel=tx.noWorker?"none":(tx.workerId?String(tx.workerId):"auto"); return {...tx,workerSel:sel,_origSel:sel}; }
   async function handleSave(){
     if(!form.date){showToast("Date is required","error");return;}
     if(!form.subCategory){showToast("Choose a sub-category","error");return;}
@@ -2390,6 +2537,11 @@ function TransactionsAdmin({lang, t}) {
     setSaving(true);
     try{
       const payload={date:form.date,name:form.name||"",category:form.category,subCategory:form.subCategory,payer:form.payer||"",amount:form.amount};
+      // Salary payment: send the worker link only when it was actually chosen/changed.
+      if(form.category==="Opex"&&form.subCategory==="Salaries"&&(form.workerSel||"auto")!==(form._origSel||"auto")){
+        payload.workerId=(form.workerSel!=="auto"&&form.workerSel!=="none")?Number(form.workerSel):null;
+        payload.noWorker=form.workerSel==="none";
+      }
       if(form.rowIndex){ payload.rowIndex=form.rowIndex; await apiPost("updateTransaction",payload); }
       else { await apiPost("addTransaction",payload); }
       setForm(null); await load(); showToast(form.rowIndex?"Transaction updated":"Transaction added");
@@ -2409,8 +2561,9 @@ function TransactionsAdmin({lang, t}) {
   const months=Object.keys(monthsSet).sort((a,b)=>b.localeCompare(a));
   const curMonth = month || months[0] || today().substring(0,7);
   function moLabel(mo){ const p=mo.split("-"); return TXN_MO[(+p[1])-1]+" "+p[0]; }
-  function catTag(cat){ const capex=cat==="Capex"; return <span style={{fontSize:10,fontWeight:700,color:capex?"#92400e":"#1A5C8A",background:capex?"#fffbeb":"#EBF5FD",border:"1px solid "+(capex?"#fde68a":"#9ACFF0"),borderRadius:20,padding:"2px 8px"}}>{cat||"—"}</span>; }
-  function subOptionsFor(cat){ if(cat==="Capex")return CAPEX_CATS; if(cat==="Opex")return OPEX_CATS; const seen={},out=[]; OPEX_CATS.concat(CAPEX_CATS).forEach(x=>{ if(!seen[x]){seen[x]=1;out.push(x);} }); return out; }
+  function catTag(cat){ const capex=cat==="Capex", loan=cat===LOAN_CAT; const fg=loan?"#6d28d9":capex?"#92400e":"#1A5C8A", bg=loan?"#f5f3ff":capex?"#fffbeb":"#EBF5FD", bd=loan?"#ddd6fe":capex?"#fde68a":"#9ACFF0";
+    return <span style={{fontSize:10,fontWeight:700,color:fg,background:bg,border:"1px solid "+bd,borderRadius:20,padding:"2px 8px"}}>{cat||"—"}</span>; }
+  function subOptionsFor(cat){ if(cat==="Capex")return CAPEX_CATS; if(cat==="Opex")return OPEX_CATS; if(cat===LOAN_CAT)return LOAN_CATS; const seen={},out=[]; OPEX_CATS.concat(CAPEX_CATS).forEach(x=>{ if(!seen[x]){seen[x]=1;out.push(x);} }); return out; }
   function matchCSP(x){ if(fCat!=="all"&&(x.category||"")!==fCat)return false; if(fSub!=="all"&&(x.subCategory||"")!==fSub)return false; if(fPayer!=="all"&&(x.payer||"")!==fPayer)return false; return true; }
 
   // ─── FORM ───
@@ -2428,20 +2581,32 @@ function TransactionsAdmin({lang, t}) {
           <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Chokar from Ram Traders" style={inp}/></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div><SectionLabel>Category</SectionLabel>
-            <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value,subCategory:""}))} style={inp}>
-              <option value="Opex">Opex</option><option value="Capex">Capex</option></select></div>
+            <select value={form.category} onChange={e=>{ const c=e.target.value; setForm(p=>({...p,category:c,subCategory:c===LOAN_CAT?LOAN_CATS[0]:"",payer:(c===LOAN_CAT&&p.payer===LOAN_PAYER)?TXN_PAYERS[0]:p.payer})); }} style={inp}>
+              <option value="Opex">Opex</option><option value="Capex">Capex</option><option value={LOAN_CAT}>{LOAN_CAT}</option></select></div>
           <div><SectionLabel>Sub-category *</SectionLabel>
             <select value={form.subCategory} onChange={e=>setForm(p=>({...p,subCategory:e.target.value}))} style={inp}>
               <option value="">— choose —</option>
               {txnSubOptions(form.category).map(sc=><option key={sc} value={sc}>{sc}</option>)}</select></div>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-          <div><SectionLabel>Payer</SectionLabel>
+          <div><SectionLabel>{form.category===LOAN_CAT?"Paid by":"Paid from"}</SectionLabel>
             <select value={form.payer} onChange={e=>setForm(p=>({...p,payer:e.target.value}))} style={inp}>
-              {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}</select></div>
+              {(form.category===LOAN_CAT?TXN_PAYERS:TXN_FUNDERS).map(pn=><option key={pn} value={pn}>{pn}</option>)}</select></div>
           <div><SectionLabel>Amount (₹) *</SectionLabel>
             <input type="number" inputMode="decimal" min="0" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} placeholder="0" style={inp}/></div>
         </div>
+        {form.category==="Opex"&&form.subCategory==="Salaries"&&workers.length>0&&(
+          <div style={{marginBottom:16}}><SectionLabel>Worker</SectionLabel>
+            <select value={form.workerSel||"auto"} onChange={e=>setForm(p=>({...p,workerSel:e.target.value}))} style={inp}>
+              <option value="auto">Auto-detect from the name</option>
+              {workers.map(w=><option key={w.rowIndex} value={String(w.rowIndex)}>{w.name}{w.left?" (left)":""}</option>)}
+              <option value="none">General labour (not one worker)</option>
+            </select>
+            <div style={{fontSize:11,color:"#94a3b8",marginTop:5}}>Counts toward this worker's salary in the Labour section.</div>
+          </div>
+        )}
+        {form.category===LOAN_CAT&&<div style={{background:"#f5f3ff",border:"1px solid #ddd6fe",borderRadius:9,padding:"9px 12px",fontSize:11.5,color:"#5b21b6",marginBottom:14}}>Loan repayments are not counted as a farm expense in Profit &amp; Loss. They count as a contribution by whoever paid, and reduce what is left to repay.</div>}
+        {form.payer===LOAN_PAYER&&form.category!==LOAN_CAT&&<div style={{background:"#f5f3ff",border:"1px solid #ddd6fe",borderRadius:9,padding:"9px 12px",fontSize:11.5,color:"#5b21b6",marginBottom:14}}>Paid from the loan: this still counts as a farm expense, but not as Danish's or Vipul's contribution.</div>}
         <Btn onClick={handleSave} style={{width:"100%"}} disabled={saving}>{saving?"Saving…":form.rowIndex?"Update Transaction":"Add Transaction"}</Btn>
       </Card>
     </div>
@@ -2450,12 +2615,12 @@ function TransactionsAdmin({lang, t}) {
   // ─── SUMMARY helpers ───
   const scopeRows = (scope==="lifetime" ? all : all.filter(x=>x.date && x.date.substring(0,7)===curMonth)).filter(matchCSP);
   function breakdown(rows){
-    const g={Opex:{},Capex:{}};
-    rows.forEach(x=>{ const k=(x.category==="Capex")?"Capex":"Opex"; g[k][x.subCategory||"(none)"]=(g[k][x.subCategory||"(none)"]||0)+(x.amount||0); });
+    const g={Opex:{},Capex:{}}; let lT=0;
+    rows.forEach(x=>{ if(x.category===LOAN_CAT){ lT+=(x.amount||0); return; } const k=(x.category==="Capex")?"Capex":"Opex"; g[k][x.subCategory||"(none)"]=(g[k][x.subCategory||"(none)"]||0)+(x.amount||0); });
     function arr(o){ return Object.keys(o).map(k=>({name:k,val:o[k]})).filter(z=>z.val>0).sort((a,b)=>b.val-a.val); }
     const opex=arr(g.Opex), capex=arr(g.Capex);
     const oT=opex.reduce((s,z)=>s+z.val,0), cT=capex.reduce((s,z)=>s+z.val,0);
-    return {opex,capex,oT,cT,maxVal:Math.max(1,...opex.map(z=>z.val),...capex.map(z=>z.val))};
+    return {opex,capex,oT,cT,lT,maxVal:Math.max(1,...opex.map(z=>z.val),...capex.map(z=>z.val))};
   }
   const bd=breakdown(scopeRows);
   function Bars({items,maxVal,color}){
@@ -2478,8 +2643,8 @@ function TransactionsAdmin({lang, t}) {
   });
   const entriesFiltered = recent.filter(x=>matchCSP(x) && (fMonthE==="all" || (x.date||"").substring(0,7)===fMonthE));
   const entriesTotal = entriesFiltered.reduce((s,x)=>s+(x.amount||0),0);
-  const catOpts=[{v:"all",l:"All"},{v:"Opex",l:"Opex"},{v:"Capex",l:"Capex"}];
-  const payerOpts=[{v:"all",l:"All"}].concat(TXN_PAYERS.map(pn=>({v:pn,l:pn})));
+  const catOpts=[{v:"all",l:"All"},{v:"Opex",l:"Opex"},{v:"Capex",l:"Capex"},{v:LOAN_CAT,l:LOAN_CAT}];
+  const payerOpts=[{v:"all",l:"All"}].concat(TXN_FUNDERS.map(pn=>({v:pn,l:pn})));
   const subOpts=[{v:"all",l:"All"}].concat(subOptionsFor(fCat).map(x=>({v:x,l:x})));
   const monthOptsE=[{v:"all",l:"All months"}].concat(months.map(m=>({v:m,l:moLabel(m)})));
 
@@ -2504,8 +2669,8 @@ function TransactionsAdmin({lang, t}) {
       <TabBar tabs={[{key:"entries",label:"Entries"},{key:"summary",label:"Summary"},{key:"contribution",label:"Contribution"}]} active={tab} onChange={setTab}/>
       {tab==="contribution"&&(
         <div>
-          <div style={{fontSize:12,color:"#94a3b8",marginBottom:12,lineHeight:1.5}}>Net contribution = money a person spent (from transactions) minus the milk proceeds they kept. Assign each month\u2019s proceeds to whoever collected them below.</div>
-          {netLoading&&!netData?<div style={{textAlign:"center",color:"#aaa",padding:"30px 0"}}>Loading\u2026</div>:netData&&(
+          <div style={{fontSize:12,color:"#94a3b8",marginBottom:12,lineHeight:1.5}}>Net contribution = money a person spent (from transactions) minus the milk proceeds they kept. Assign each month’s proceeds to whoever collected them below. Spending paid from the loan is shown separately and is not counted as either founder’s contribution.</div>
+          {netLoading&&!netData?<div style={{textAlign:"center",color:"#aaa",padding:"30px 0"}}>Loading…</div>:netData&&(
             <>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
                 {(netData.people||[]).map(pp=>(
@@ -2522,6 +2687,33 @@ function TransactionsAdmin({lang, t}) {
                 ))}
                 {(!netData.people||netData.people.length===0)&&<div style={{color:"#aaa",fontSize:13}}>No data yet.</div>}
               </div>
+              {(()=>{ const L=netData.loan||{amount:0,used:0,repaid:0}; const hasAmt=L.amount>0;
+                const row=(k,v,strong,col)=><div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,color:"#64748b",padding:"3px 0"}}><span>{k}</span><span style={{fontWeight:strong?800:600,color:col||"#1a1a1a"}}>{v}</span></div>;
+                return (
+                  <Card style={{marginBottom:14,borderLeft:"4px solid #7c3aed"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                      <div style={{fontWeight:800,fontSize:15,color:"#1a1a1a"}}>Loan</div>
+                      {loanEdit===null&&<button onClick={()=>setLoanEdit(hasAmt?String(L.amount):"")} style={{background:"none",border:"none",color:"#6d28d9",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{hasAmt?"Edit amount":"Set loan amount"}</button>}
+                    </div>
+                    {loanEdit!==null&&(
+                      <div style={{display:"flex",gap:8,marginBottom:10}}>
+                        <input type="number" inputMode="decimal" min="0" autoFocus value={loanEdit} onChange={e=>setLoanEdit(e.target.value)} placeholder="Total loan amount ₹" style={{...inp,flex:1,minWidth:0}}/>
+                        <Btn onClick={saveLoanAmount} style={{padding:"9px 14px",fontSize:13}}>Save</Btn>
+                        <Btn variant="gray" onClick={()=>setLoanEdit(null)} style={{padding:"9px 12px",fontSize:13}}>✕</Btn>
+                      </div>
+                    )}
+                    {hasAmt&&row("Loan amount",fmtRs(L.amount))}
+                    {row("Spent from loan",fmtRs(L.used))}
+                    {hasAmt&&row("Unspent loan funds",fmtRs(L.amount-L.used),true,(L.amount-L.used)>=0?"#15803d":"#dc2626")}
+                    <div style={{borderTop:"1.5px solid #f1f5f9",margin:"6px 0"}}/>
+                    {row("Repaid so far",fmtRs(L.repaid))}
+                    {hasAmt&&row("Left to repay",fmtRs(Math.max(0,L.amount-L.repaid)),true)}
+                    <div style={{fontSize:10.5,color:"#94a3b8",marginTop:6,lineHeight:1.5}}>
+                      {hasAmt?"“Left to repay” is the loan amount minus repayments logged, before interest. ":"Enter the total loan amount to see what is unspent and what is left to repay. "}
+                      Log spending with “Paid from: Loan”, and EMIs under the category “{LOAN_CAT}”.
+                    </div>
+                  </Card>
+                ); })()}
               <Card>
                 <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:10}}>Assign monthly proceeds</div>
                 {(netData.months||[]).filter(m=>m.revenue>0).length===0
@@ -2533,7 +2725,7 @@ function TransactionsAdmin({lang, t}) {
                       <div style={{fontSize:11,color:"#94a3b8"}}>{fmtRs(m.revenue)} proceeds</div>
                     </div>
                     <select value={m.person||""} onChange={e=>assignProceeds(m.month,e.target.value)} style={{...inp,width:"auto",padding:"7px 10px"}}>
-                      <option value="">\u2014 Unassigned</option>
+                      <option value="">— Unassigned</option>
                       {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}
                     </select>
                   </div>
@@ -2550,7 +2742,7 @@ function TransactionsAdmin({lang, t}) {
                       <div style={{fontSize:11,color:"#94a3b8"}}>{fmtRs(cs.price)} sale</div>
                     </div>
                     <select value={cs.person||""} onChange={e=>assignCattle(cs.code,e.target.value)} style={{...inp,width:"auto",padding:"7px 10px"}}>
-                      <option value="">\u2014 Unassigned</option>
+                      <option value="">— Unassigned</option>
                       {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}
                     </select>
                   </div>
@@ -2576,7 +2768,7 @@ function TransactionsAdmin({lang, t}) {
                         <div style={{fontSize:11,color:"#94a3b8"}}>{fmtRs(o.amount)}{o.date?` · ${fmtDate(o.date)}`:""}</div>
                       </div>
                       <select value={o.person||""} onChange={e=>updateOther(o.rowIndex,e.target.value)} style={{...inp,width:"auto",padding:"7px 10px"}}>
-                        <option value="">\u2014</option>
+                        <option value="">—</option>
                         {TXN_PAYERS.map(pn=><option key={pn} value={pn}>{pn}</option>)}
                       </select>
                       <button onClick={()=>deleteOther(o.rowIndex)} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:7,padding:"5px 8px",fontSize:12,color:"#dc2626",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>✕</button>
@@ -2624,7 +2816,7 @@ function TransactionsAdmin({lang, t}) {
                 </div>
               </div>
               <div style={{fontSize:14,fontWeight:700,color:"#1a1a1a",flexShrink:0}}>{fmtRs(tx.amount)}</div>
-              <button onClick={()=>setForm({...tx})} style={{background:"#EBF5FD",border:"none",borderRadius:7,padding:"5px 8px",fontSize:12,color:"#2D7FB5",cursor:"pointer",fontFamily:"inherit"}}>✎</button>
+              <button onClick={()=>setForm(editForm(tx))} style={{background:"#EBF5FD",border:"none",borderRadius:7,padding:"5px 8px",fontSize:12,color:"#2D7FB5",cursor:"pointer",fontFamily:"inherit"}}>✎</button>
               <button onClick={()=>setConfirmDel(tx)} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:7,padding:"5px 8px",fontSize:12,color:"#dc2626",cursor:"pointer",fontFamily:"inherit"}}>✕</button>
             </div>
           ))}
@@ -2669,9 +2861,316 @@ function TransactionsAdmin({lang, t}) {
             </div>
             <Bars items={bd.capex} maxVal={bd.maxVal} color="#d97706"/>
           </Card>
+          {bd.lT>0&&(
+            <Card style={{marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between"}}>
+                <div style={{fontWeight:700,fontSize:13,color:"#6d28d9"}}>Loan repaid</div>
+                <div style={{fontWeight:700,fontSize:13,color:"#6d28d9"}}>{fmtRs(bd.lT)}</div>
+              </div>
+              <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Not an expense, so it is left out of the Opex and Capex totals above.</div>
+            </Card>
+          )}
           {scopeRows.length===0&&<div style={{fontSize:12.5,color:"#aaa",textAlign:"center",padding:"10px 0"}}>No transactions in this period.</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── LABOUR (workers, salaries, dues) ───────────────────────────────────────
+// Every Opex › Salaries transaction counts as salary paid to a worker (linked
+// by name automatically, or chosen explicitly). Dues run from each worker's
+// start date: salary earned month by month, minus everything paid.
+function LabourAdmin(){
+  const [data,setData]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [err,setErr]=useState(null);
+  const [month,setMonth]=useState("");
+  const [open,setOpen]=useState({});
+  const [form,setForm]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [showPast,setShowPast]=useState(false);
+  const [showUn,setShowUn]=useState(false);
+  const [unAll,setUnAll]=useState(false);
+  const [confirmDel,setConfirmDel]=useState(null);
+  const [toast,setToast]=useState(null);
+  function showToast(m,ty="success"){setToast({msg:m,type:ty});setTimeout(()=>setToast(null),3000);}
+  const inp={width:"100%",padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+
+  async function load(quiet){ if(!quiet) setLoading(true); setErr(null);
+    try{ const d=await apiGet("getLabour"); setData(d); }catch(e){ setErr(e.message||"error"); }finally{ setLoading(false); } }
+  useEffect(()=>{ load(); },[]);
+
+  function moLabel(ym){ const p=String(ym||"").split("-"); return (TXN_MO[(+p[1])-1]||"")+" "+(p[0]||""); }
+  function blankForm(){ return {rowIndex:null,name:"",aliases:"",role:"",startDate:"",endDate:"",salary:"",salaryFrom:"",adjustment:"",adjustmentNote:"",salaryHistory:[]}; }
+  function editForm(w){ return {rowIndex:w.rowIndex,name:w.name,aliases:w.aliases||"",role:w.role||"",startDate:w.startDate||"",endDate:w.endDate||"",salary:"",salaryFrom:(data&&data.currentMonth)||"",adjustment:w.adjustment?String(w.adjustment):"",adjustmentNote:w.adjustmentNote||"",salaryHistory:w.salaryHistory||[],currentSalary:w.currentSalary}; }
+
+  async function saveWorker(){
+    if(!form.name.trim()){ showToast("Enter the worker's name","error"); return; }
+    if(!form.rowIndex&&(form.salary===""||isNaN(parseFloat(form.salary)))){ showToast("Enter the monthly salary","error"); return; }
+    setSaving(true);
+    try{ await apiPost("saveWorker",{rowIndex:form.rowIndex,name:form.name,aliases:form.aliases,role:form.role,startDate:form.startDate,endDate:form.endDate,
+        salary:form.salary,salaryFrom:form.rowIndex?form.salaryFrom:"",adjustment:form.adjustment,adjustmentNote:form.adjustmentNote});
+      const was=form.rowIndex; setForm(null); await load(true); showToast(was?"Worker updated":"Worker added"); }
+    catch(e){ showToast(e.message,"error"); } finally{ setSaving(false); } }
+  async function deleteSalaryRow(h){ try{ await apiPost("deleteWorkerSalary",{rowIndex:h.rowIndex}); setForm(f=>f?{...f,salaryHistory:(f.salaryHistory||[]).filter(x=>x.rowIndex!==h.rowIndex)}:f); await load(true); }catch(e){ showToast(e.message,"error"); } }
+  async function deleteWorkerYes(){ const w=confirmDel; setConfirmDel(null); try{ await apiPost("deleteWorker",{rowIndex:w.rowIndex}); setForm(null); await load(true); showToast("Worker removed"); }catch(e){ showToast(e.message,"error"); } }
+  async function assign(entryRow,val){ // val: "auto" | "none" | worker id
+    try{ await apiPost("setTxnWorker",{rowIndex:entryRow,workerId:(val!=="auto"&&val!=="none")?Number(val):null,noWorker:val==="none"}); await load(true); }
+    catch(e){ showToast("Save failed","error"); } }
+
+  if(loading) return <div style={{textAlign:"center",padding:"60px 20px",color:"#888"}}><div style={{fontSize:36,marginBottom:12}}>🔄</div><div>Loading labour…</div></div>;
+  if(err) return (
+    <div>
+      <Alert type={/workers|worker_salaries|404|relation|schema/i.test(err)?"warn":"error"}>
+        {/workers|worker_salaries|404|relation|schema/i.test(err)
+          ? <span>The Labour section isn't set up in the database yet. Run <b>09_labour.sql</b> in Supabase (SQL Editor), then tap Retry.</span>
+          : <span>Could not load labour: {err}</span>}
+      </Alert>
+      <Btn onClick={()=>load()} variant="ghost" style={{width:"100%"}}>Retry</Btn>
+    </div>
+  );
+
+  const cur=data.currentMonth, workers=data.workers||[], unassigned=data.unassigned||[];
+  const selM=month||cur;
+  const mset={}; mset[cur]=1; workers.forEach(w=>(w.months||[]).forEach(m=>{mset[m.month]=1;})); unassigned.forEach(u=>{ if(u.date) mset[u.date.substring(0,7)]=1; });
+  const monthList=Object.keys(mset).sort((a,b)=>b.localeCompare(a));
+  const rowFor=(w,ym)=>(w.months||[]).find(m=>m.month===ym)||null;
+  const balAt=(w,ym)=>{ let b=0,seen=false; (w.months||[]).forEach(m=>{ if(m.month<=ym){ b=m.running; seen=true; } }); return seen?b:0; };
+  const shown=workers.filter(w=>w.active||rowFor(w,selM));
+  const past=workers.filter(w=>!w.active&&!rowFor(w,selM));
+  let payroll=0,paidM=0,dueAll=0,advAll=0;
+  workers.forEach(w=>{ const r=rowFor(w,selM); if(r){ payroll+=r.salary; paidM+=r.paid; } const b=balAt(w,selM); if(b>0) dueAll+=b; else advAll+=-b; });
+  const unMonth=unassigned.filter(u=>(u.date||"").substring(0,7)===selM);
+  const unMonthTotal=unMonth.reduce((s,u)=>s+u.amount,0);
+  const unNeed=unassigned.filter(u=>!u.general).length;
+
+  function balChip(b){ const due=b>0.5, adv=b<-0.5;
+    const fg=due?"#dc2626":adv?"#1A5C8A":"#15803d", bg=due?"#fef2f2":adv?"#EBF5FD":"#f0fdf4", bd=due?"#fecaca":adv?"#9ACFF0":"#bbf7d0";
+    return <span style={{fontSize:11.5,fontWeight:800,color:fg,background:bg,border:"1px solid "+bd,borderRadius:20,padding:"3px 10px",whiteSpace:"nowrap"}}>{due?"Due "+fmtRs(b):adv?"Advance "+fmtRs(-b):"Settled ✓"}</span>; }
+
+  // ─── WORKER FORM ───
+  if(form){
+    const isEdit=!!form.rowIndex;
+    const key=form.name.trim().toLowerCase();
+    const hint=(!isEdit&&key.length>=3)?unassigned.filter(u=>(" "+(u.name||"").toLowerCase()+" ").indexOf(key)>=0&&u.date).map(u=>u.date).sort()[0]:null;
+    return (
+      <div>
+        {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+        {confirmDel&&(
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+            <div style={{background:"#fff",borderRadius:14,padding:"22px 20px",maxWidth:340,width:"100%"}}>
+              <div style={{fontWeight:700,fontSize:16,marginBottom:8}}>Remove {confirmDel.name}?</div>
+              <div style={{fontSize:13,color:"#555",marginBottom:20}}>Their salary history is deleted. The transactions themselves stay in Transactions. If they have simply left, set a "Left on" date instead.</div>
+              <div style={{display:"flex",gap:10}}>
+                <Btn variant="ghost" onClick={()=>setConfirmDel(null)} style={{flex:1}}>Cancel</Btn>
+                <Btn variant="danger" onClick={deleteWorkerYes} style={{flex:1}}>Remove</Btn>
+              </div>
+            </div>
+          </div>
+        )}
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+          <button onClick={()=>setForm(null)} style={{background:"none",border:"none",color:"#2D7FB5",cursor:"pointer",fontSize:20,lineHeight:1}}>←</button>
+          <div style={{fontWeight:700,fontSize:16,color:"#1a1a1a"}}>{isEdit?"Edit worker":"Add worker"}</div>
+        </div>
+        <Card>
+          <div style={{marginBottom:12}}><SectionLabel>Name *</SectionLabel>
+            <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Mohan" style={inp}/>
+            <div style={{fontSize:11,color:"#94a3b8",marginTop:5}}>Salary entries with this name in them are linked automatically.</div></div>
+          <div style={{marginBottom:12}}><SectionLabel>Also written as (optional)</SectionLabel>
+            <input value={form.aliases} onChange={e=>setForm(p=>({...p,aliases:e.target.value}))} placeholder="other spellings, comma separated" style={inp}/></div>
+          <div style={{marginBottom:12}}><SectionLabel>Role (optional)</SectionLabel>
+            <input value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))} placeholder="e.g. Milker, Supervisor" style={inp}/></div>
+          <div style={{marginBottom:12}}><SectionLabel>Started on</SectionLabel>
+            <input type="date" value={form.startDate} max={today()} onChange={e=>setForm(p=>({...p,startDate:e.target.value}))} style={{...inp,WebkitAppearance:"none",minWidth:0}}/>
+            <div style={{fontSize:11,color:"#94a3b8",marginTop:5}}>Salary is counted from this day (the first month is pro-rated). Leave blank to start from their first payment.</div>
+            {hint&&!form.startDate&&<button onClick={()=>setForm(p=>({...p,startDate:hint}))} style={{marginTop:6,background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:8,padding:"6px 10px",fontSize:11.5,color:"#1A5C8A",cursor:"pointer",fontFamily:"inherit"}}>First payment found: {fmtDate(hint)} · use this</button>}
+          </div>
+          {!isEdit?(
+            <div style={{marginBottom:12}}><SectionLabel>Monthly salary (₹) *</SectionLabel>
+              <input type="number" inputMode="decimal" min="0" value={form.salary} onChange={e=>setForm(p=>({...p,salary:e.target.value}))} placeholder="0" style={inp}/></div>
+          ):(
+            <div style={{marginBottom:12,background:"#f8fafc",border:"1px solid #eef2f7",borderRadius:10,padding:"10px 12px"}}>
+              <SectionLabel>Salary</SectionLabel>
+              {(form.salaryHistory||[]).length===0&&<div style={{fontSize:12,color:"#92400e",marginBottom:8}}>No salary set yet.</div>}
+              {(form.salaryHistory||[]).map(h=>(
+                <div key={h.rowIndex} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,fontSize:12.5,padding:"4px 0"}}>
+                  <span style={{color:"#475569"}}>{fmtRs(h.amount)} / month <span style={{color:"#94a3b8"}}>from {moLabel(h.fromMonth)}</span></span>
+                  {(form.salaryHistory||[]).length>1&&<button onClick={()=>deleteSalaryRow(h)} style={{background:"none",border:"none",color:"#dc2626",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✕</button>}
+                </div>
+              ))}
+              <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.4px",margin:"8px 0 5px"}}>Change salary</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <input type="number" inputMode="decimal" min="0" value={form.salary} onChange={e=>setForm(p=>({...p,salary:e.target.value}))} placeholder="New ₹ / month" style={inp}/>
+                <input type="month" value={form.salaryFrom} onChange={e=>setForm(p=>({...p,salaryFrom:e.target.value}))} style={{...inp,WebkitAppearance:"none",minWidth:0}}/>
+              </div>
+              <div style={{fontSize:11,color:"#94a3b8",marginTop:5}}>Applies from the chosen month onward; earlier months keep the old salary.</div>
+            </div>
+          )}
+          <div style={{marginBottom:12}}><SectionLabel>Left on (only if they have left)</SectionLabel>
+            <input type="date" value={form.endDate} max={today()} onChange={e=>setForm(p=>({...p,endDate:e.target.value}))} style={{...inp,WebkitAppearance:"none",minWidth:0}}/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1.4fr",gap:8,marginBottom:6}}>
+            <div><SectionLabel>Adjustment (₹)</SectionLabel>
+              <input type="number" inputMode="decimal" value={form.adjustment} onChange={e=>setForm(p=>({...p,adjustment:e.target.value}))} placeholder="0" style={inp}/></div>
+            <div><SectionLabel>Note</SectionLabel>
+              <input value={form.adjustmentNote} onChange={e=>setForm(p=>({...p,adjustmentNote:e.target.value}))} placeholder="e.g. bonus, opening balance" style={inp}/></div>
+          </div>
+          <div style={{fontSize:11,color:"#94a3b8",marginBottom:16}}>Optional one-off correction. A plus amount adds to what the farm owes them (bonus, old dues); a minus amount reduces it.</div>
+          <Btn onClick={saveWorker} style={{width:"100%"}} disabled={saving}>{saving?"Saving…":isEdit?"Save changes":"Add worker"}</Btn>
+          {isEdit&&<Btn variant="ghost" onClick={()=>setConfirmDel({rowIndex:form.rowIndex,name:form.name})} style={{width:"100%",marginTop:10,color:"#dc2626",borderColor:"#fecaca"}}>Remove worker</Btn>}
+        </Card>
+      </div>
+    );
+  }
+
+  const assignSelect=(u,value,autoLabel)=>(
+    <select value={value} onChange={e=>assign(u.rowIndex,e.target.value)} style={{padding:"6px 8px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:12,outline:"none",fontFamily:"inherit",background:"#fff",maxWidth:132,flexShrink:0}}>
+      <option value="auto">{value==="auto"?autoLabel:"Auto-detect"}</option>
+      {workers.map(w=><option key={w.rowIndex} value={String(w.rowIndex)}>{w.name}</option>)}
+      <option value="none">General labour</option>
+    </select>
+  );
+
+  function WorkerCard({w}){
+    const r=rowFor(w,selM)||{salary:0,paid:0,running:balAt(w,selM)};
+    const bal=balAt(w,selM), isOpen=!!open[w.rowIndex];
+    const pct=r.salary>0?Math.min(100,Math.round(r.paid/r.salary*100)):(r.paid>0?100:0);
+    const full=r.salary>0&&r.paid>=r.salary;
+    const monthPays=(w.payments||[]).filter(p=>(p.date||"").substring(0,7)===selM);
+    return (
+      <div style={{border:"1.5px solid "+(isOpen?"#b45309":"#e2e8f0"),borderRadius:12,padding:"12px 14px",marginBottom:10,background:"#fff",opacity:w.active?1:0.8}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:15.5,fontWeight:800,color:"#1a1a1a"}}>{w.name}{!w.active&&<span style={{fontSize:10.5,fontWeight:700,color:"#94a3b8"}}> · left</span>}</div>
+            <div style={{fontSize:11.5,color:"#94a3b8",marginTop:1}}>{w.role?w.role+" · ":""}{w.currentSalary>0?fmtRs(w.currentSalary)+" / month":<span style={{color:"#b45309",fontWeight:600}}>salary not set</span>}</div>
+          </div>
+          {balChip(bal)}
+        </div>
+        <div style={{marginTop:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#64748b",marginBottom:4}}>
+            <span>{moLabel(selM)}: paid <b style={{color:"#1a1a1a"}}>{fmtRs(r.paid)}</b> of {fmtRs(r.salary)}</span>
+            <span style={{fontWeight:700,color:full?"#15803d":"#b45309"}}>{r.salary>r.paid?fmtRs(r.salary-r.paid)+" left":r.paid>r.salary?fmtRs(r.paid-r.salary)+" extra":"paid in full"}</span>
+          </div>
+          <div style={{height:9,background:"#f1f5f9",borderRadius:6,overflow:"hidden"}}><div style={{height:"100%",width:pct+"%",background:full?"#15803d":"#d97706",borderRadius:6}}/></div>
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
+          <button onClick={()=>setOpen(p=>({...p,[w.rowIndex]:!isOpen}))} style={{background:"none",border:"none",color:"#b45309",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{isOpen?"Hide details ▲":"History & payments ▼"}</button>
+        </div>
+        {isOpen&&(
+          <div style={{borderTop:"1px solid #f1f5f9",paddingTop:10,marginTop:4}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>Month by month</div>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}>
+              <thead><tr style={{borderBottom:"1.5px solid #f1f5f9"}}>
+                {["Month","Salary","Paid","Balance"].map((h,i)=><th key={h} style={{textAlign:i?"right":"left",padding:"4px 4px",color:"#94a3b8",fontWeight:600,fontSize:10.5,textTransform:"uppercase"}}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {(w.months||[]).slice().reverse().map(m=>(
+                  <tr key={m.month} style={{borderBottom:"1px solid #f8fafc",background:m.month===selM?"#fffbeb":"transparent"}}>
+                    <td style={{padding:"6px 4px",fontWeight:600,color:"#1a1a1a"}}>{moLabel(m.month)}</td>
+                    <td style={{padding:"6px 4px",textAlign:"right",color:"#475569"}}>{fmtRs(m.salary)}</td>
+                    <td style={{padding:"6px 4px",textAlign:"right",color:"#475569"}}>{fmtRs(m.paid)}</td>
+                    <td style={{padding:"6px 4px",textAlign:"right",fontWeight:700,color:m.running>0.5?"#dc2626":m.running<-0.5?"#1A5C8A":"#15803d"}}>{m.running>0.5?fmtRs(m.running)+" due":m.running<-0.5?fmtRs(-m.running)+" adv":"settled"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{fontSize:11.5,color:"#64748b",marginTop:8,lineHeight:1.6}}>
+              Earned so far {fmtRs(w.totalAccrued)} · paid {fmtRs(w.totalPaid)}{w.adjustment?` · adjustment ${w.adjustment>0?"+":"−"}${fmtRs(Math.abs(w.adjustment))}${w.adjustmentNote?" ("+w.adjustmentNote+")":""}`:""}
+              <br/>Balance is carried forward month to month.
+            </div>
+            <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.5px",margin:"12px 0 4px"}}>Payments in {moLabel(selM)} ({monthPays.length})</div>
+            {monthPays.length===0&&<div style={{fontSize:12,color:"#cbd5e1"}}>None logged.</div>}
+            {monthPays.map(p=>(
+              <div key={p.rowIndex} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #f8fafc"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12.5,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.name||"Salary"}</div>
+                  <div style={{fontSize:10.5,color:"#94a3b8"}}>{fmtDate(p.date)}{p.payer?" · "+p.payer:""}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:"#1a1a1a",flexShrink:0}}>{fmtRs(p.amount)}</div>
+                {assignSelect(p,p.auto?"auto":String(w.rowIndex),"Auto: "+w.name)}
+              </div>
+            ))}
+            <Btn variant="ghost" onClick={()=>setForm(editForm(w))} style={{width:"100%",marginTop:12,padding:"8px 0",fontSize:13}}>✎ Edit worker / salary</Btn>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const unList=(unAll?unassigned:unMonth);
+  return (
+    <div>
+      {toast&&<Toast type={toast.type} onDismiss={()=>setToast(null)}>{toast.msg}</Toast>}
+      <div style={{display:"flex",gap:8,alignItems:"flex-end",marginBottom:12}}>
+        <div style={{flex:1,minWidth:0}}>
+          <SectionLabel>Month</SectionLabel>
+          <select value={selM} onChange={e=>setMonth(e.target.value)} style={inp}>
+            {monthList.map(m=><option key={m} value={m}>{moLabel(m)}{m===cur?" (this month)":""}</option>)}
+          </select>
+        </div>
+        <Btn variant="ghost" onClick={()=>load()} style={{padding:"9px 12px",fontSize:12}}>↻</Btn>
+        <Btn onClick={()=>setForm(blankForm())} style={{padding:"9px 14px",fontSize:13,whiteSpace:"nowrap"}}>+ Worker</Btn>
+      </div>
+
+      {workers.length===0?(
+        <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"14px 16px",fontSize:12.5,color:"#92400e",marginBottom:12,lineHeight:1.6}}>
+          <b>Add your workers to get started.</b> Tap <b>+ Worker</b> and enter each person's name, monthly salary and start date. The app then picks up every salary transaction with their name in it, including the old ones, and works out what has been paid and what is due.
+          {unassigned.length>0&&<div style={{marginTop:6}}>{unassigned.length} salary entries ({fmtRs(unassigned.reduce((s,u)=>s+u.amount,0))}) are waiting to be linked.</div>}
+        </div>
+      ):(
+        <>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:6}}>
+            <StatBox label="Payroll" value={fmtRs(payroll)} color="#1A5C8A"/>
+            <StatBox label="Paid" value={fmtRs(paidM)} color="#15803d"/>
+            <StatBox label="Total due" value={fmtRs(dueAll)} color={dueAll>0?"#dc2626":"#15803d"}/>
+          </div>
+          <div style={{fontSize:11,color:"#94a3b8",marginBottom:12,lineHeight:1.5}}>
+            Payroll and paid are for {moLabel(selM)}. Total due is everything owed to workers up to the end of {moLabel(selM)}, including earlier months{advAll>0?`; advances given: ${fmtRs(advAll)}`:""}.
+          </div>
+          {shown.map(w=><WorkerCard key={w.rowIndex} w={w}/>)}
+          {past.length>0&&(
+            <div style={{marginBottom:10}}>
+              <button onClick={()=>setShowPast(v=>!v)} style={{background:"none",border:"none",color:"#64748b",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"4px 0"}}>{showPast?"Hide":"Show"} past workers ({past.length}) {showPast?"▲":"▼"}</button>
+              {showPast&&<div style={{marginTop:8}}>{past.map(w=><WorkerCard key={w.rowIndex} w={w}/>)}</div>}
+            </div>
+          )}
+        </>
+      )}
+
+      {unassigned.length>0&&(
+        <Card style={{marginTop:4,padding:"14px 16px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontWeight:700,fontSize:13.5,color:"#1a1a1a"}}>Other salary spend</div>
+              <div style={{fontSize:11.5,color:"#94a3b8",marginTop:2}}>Salary entries not linked to one worker. {moLabel(selM)}: <b style={{color:"#475569"}}>{fmtRs(unMonthTotal)}</b></div>
+            </div>
+            {unNeed>0&&<span style={{fontSize:10.5,fontWeight:800,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:20,padding:"2px 9px",whiteSpace:"nowrap"}}>{unNeed} to review</span>}
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+            <button onClick={()=>setShowUn(v=>!v)} style={{background:"none",border:"none",color:"#2D7FB5",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:0}}>{showUn?"Hide entries ▲":"Show entries ▼"}</button>
+            {showUn&&<label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:11.5,color:"#64748b",cursor:"pointer"}}><input type="checkbox" checked={unAll} onChange={e=>setUnAll(e.target.checked)}/> all months</label>}
+          </div>
+          {showUn&&(
+            <div style={{marginTop:6}}>
+              {unList.length===0&&<div style={{fontSize:12,color:"#cbd5e1",padding:"6px 0"}}>None in {moLabel(selM)}.</div>}
+              {unList.map(u=>(
+                <div key={u.rowIndex} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid #f8fafc"}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12.5,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{u.name||"Salary"}</div>
+                    <div style={{fontSize:10.5,color:"#94a3b8"}}>{fmtDate(u.date)}{u.candidates&&u.candidates.length>1?" · more than one name matches":""}</div>
+                  </div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#1a1a1a",flexShrink:0}}>{fmtRs(u.amount)}</div>
+                  {assignSelect(u,u.general?"none":"auto","— link to —")}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      <div style={{background:"#EBF5FD",border:"1px solid #9ACFF0",borderRadius:9,padding:"10px 14px",fontSize:11.5,color:"#1A5C8A",marginTop:14,lineHeight:1.55}}>
+        💡 Any transaction saved under <b>Opex › Salaries</b> counts as salary paid. It is linked to a worker when their name appears in the transaction name (or when you pick the worker while saving). Balances update as soon as a transaction is added, edited or deleted.
+      </div>
     </div>
   );
 }
@@ -3072,6 +3571,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
         {key:"tracker",title:"Action Tracker",desc:"Daily action list across all functions",emoji:"✅",color:"#2d6a4f"},
         {key:"operations",title:"Operations",desc:"Overview, daily log & monthly summary",emoji:"📊",color:"#2D7FB5"},
         {key:"txns",title:"Transactions",desc:"Log spends & monthly / lifetime summary",emoji:"💰",color:"#1A5C8A"},
+        {key:"labour",title:"Labour",desc:"Salaries paid, dues & history per worker",emoji:"👷",color:"#b45309"},
         {key:"pnl",title:"Profit & Loss",desc:"Daily & monthly P&L including all costs",emoji:"📈",color:"#15803d"},
         {key:"feed",title:"Feed",desc:"Feed mix & cost per cattle, and rates",emoji:"🌾",color:"#2d6a4f"},
         {key:"cattle",title:"Cattle",desc:"Herd details, milk/day, add or sell cattle",emoji:"🐄",color:"#92400e"},
@@ -3091,7 +3591,7 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
     </div>
   );
 
-  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":section==="actions"?"Health Alerts":section==="tracker"?"Action Tracker":section==="bills"?"Bills":"Customers";
+  const secTitle = section==="operations"?"Operations":section==="cattle"?"Cattle":section==="feed"?"Feed":section==="pnl"?"Profit & Loss":section==="txns"?"Transactions":section==="actions"?"Health Alerts":section==="tracker"?"Action Tracker":section==="labour"?"Labour":section==="bills"?"Bills":"Customers";
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
@@ -3105,9 +3605,10 @@ function OwnerDashboard({lang, customers=[], reloadCustomers, cattle=[], reloadC
       {section==="customers"&&<CustomersAdmin customers={customers} lang={lang} t={t} onChanged={reloadCustomers} qtyOptions={qtyOptions}/>}
       {section==="cattle"&&<CattleAdmin cattle={cattle} lang={lang} t={t} onChanged={reloadCattle}/>}
       {section==="feed"&&<FeedAdmin cattle={cattle} feedRates={feedRates} feedCategories={feedCategories} lang={lang} t={t} onChanged={reloadCattle}/>}
-      {(section==="pnl"||section==="txns")&&!financeUnlocked&&<FinanceLock onUnlock={()=>setFinanceUnlocked(true)}/>}
+      {(section==="pnl"||section==="txns"||section==="labour")&&!financeUnlocked&&<FinanceLock onUnlock={()=>setFinanceUnlocked(true)}/>}
       {section==="pnl"&&financeUnlocked&&<PnLAdmin cattle={cattle} feedRates={feedRates} lang={lang} t={t}/>}
       {section==="txns"&&financeUnlocked&&<TransactionsAdmin lang={lang} t={t}/>}
+      {section==="labour"&&financeUnlocked&&<LabourAdmin/>}
       {section==="actions"&&<ActionItemsView cattle={cattle}/>}
       {section==="tracker"&&<ActionTracker/>}
       {section==="bills"&&<BillsView lang={lang} t={t}/>}
